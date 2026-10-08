@@ -2,13 +2,13 @@
 
 Python development with uv, pip, venv, native compilation and PostgreSQL clients.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.0.1**. Pin:
 
 ```text
-ghcr.io/xormania/python-dev@sha256:ccd38b0cfb59a887a18d489be40ecf68a2a0ef083c46de634c0b0c424bfff3d5
+ghcr.io/xormania/python-dev@sha256:b8fce60b87734551462a90cee2e1c6fbf224082430e09971834d27a6de45e154
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37717501432); 2026-10-08T02:24:36.027397Z.
+[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37750479509); 2026-10-08T08:34:08.431960Z.
 
 ## Measured inventory — linux/amd64
 
@@ -27,7 +27,19 @@ Runtime: 3.14.8; OS: Debian GNU/Linux 13 (trixie).
 | rg | ripgrep 14.1.1 |
 | uv | uv 0.12.23 (x86_64-unknown-linux-musl) |
 
-[Release notes](../releases/python-dev-3.14-trixie-v1.0.0.md).
+### Release measurements — linux/amd64
+
+| Metric | Measured value |
+| --- | ---: |
+| Local image size | 593.9 MiB (622,720,013 bytes) |
+| Build, cache export and image load | 40.56s |
+| Public-artifact behavior and inventory verification | 11.17s |
+
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37750479509); 2026-10-08T08:34:08.387897Z.
+
+External build cache at start: `empty`. This does not assert that every layer was a cache hit.
+
+[Release notes](../releases/python-dev-3.14-trixie-v1.0.1.md).
 
 Capabilities: `python`, `uv`, `pip`, `venv`, `native-build`, `postgresql-client`.
 

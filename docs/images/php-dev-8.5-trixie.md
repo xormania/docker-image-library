@@ -2,13 +2,13 @@
 
 Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.0.1**. Pin:
 
 ```text
-ghcr.io/xormania/php-dev@sha256:8a824a7e88ef81f63611629ad5e4a1de1fc17adc7cb278e8c48ab1d43e745b0c
+ghcr.io/xormania/php-dev@sha256:659f0c3ea9c1d84bf7c19b3ebaaef4bd16dec21dbb700ff637428186ecce5b2a
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37717501432); 2026-10-08T02:26:03.065396Z.
+[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37750479509); 2026-10-08T08:37:22.430540Z.
 
 ## Measured inventory — linux/amd64
 
@@ -29,7 +29,19 @@ Runtime: 8.5.11; OS: Debian GNU/Linux 13 (trixie).
 
 Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `lexbor`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `uri`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
 
-[Release notes](../releases/php-dev-8.5-trixie-v1.0.0.md).
+### Release measurements — linux/amd64
+
+| Metric | Measured value |
+| --- | ---: |
+| Local image size | 903.5 MiB (947,429,837 bytes) |
+| Build, cache export and image load | 240.39s |
+| Public-artifact behavior and inventory verification | 9.06s |
+
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37750479509); 2026-10-08T08:37:22.375659Z.
+
+External build cache at start: `empty`. This does not assert that every layer was a cache hit.
+
+[Release notes](../releases/php-dev-8.5-trixie-v1.0.1.md).
 
 Capabilities: `php`, `composer`, `symfony`, `postgresql-client`, `native-build`, `xdebug`.
 
