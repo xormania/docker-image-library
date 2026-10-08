@@ -36,6 +36,20 @@ refresh intentionally changes all consumers; image-specific changes stay scoped.
 README/docs/record-only PRs do not rebuild images. The release jobs additionally
 skip source-identical lines already in the accepted ledger.
 
+Validation scopes container jobs to changed recipes and consuming fixtures;
+release orchestration and unit-test changes still run metadata tests. Unknown
+build/verification helpers conservatively select all images. Publication also
+checks the accepted ledger before allocating runners, retaining incomplete PHP
+parent/browser pairs and changed-input guards.
+
+Build caches use family-specific input fingerprints rather than commit SHAs.
+Source labels are applied after install layers. Each image revision is passed
+as `APT_REFRESH`, intentionally invalidating Debian package installs during a
+weekly refresh. PHP CI uses Docker's containerd image store so its exact local
+parent remains visible while both parent and browser caches can be exported.
+Build artifacts and job summaries retain image size and build/verification
+times. A source-label-only rebuild checks that filesystem layers stay identical.
+
 `Refresh build inputs` runs weekly and manually. It resolves upstream digests,
 PECL versions and the Symfony artifact checksum, then stages fresh patch
 revisions in a PR. It allocates a rebuild even if pins are unchanged so Debian

@@ -3,17 +3,11 @@ ARG COMPOSER_IMAGE
 ARG BASE_IMAGE
 FROM ${COMPOSER_IMAGE} AS composer
 FROM ${BASE_IMAGE}
+ARG APT_REFRESH
+COPY images/shared/install.sh /tmp/install-common
+RUN test -n "$APT_REFRESH" && bash /tmp/install-common && rm /tmp/install-common
 ARG REDIS_VERSION
 ARG XDEBUG_VERSION
-ARG SYMFONY_URL
-ARG SYMFONY_SHA256
-ARG SOURCE_COMMIT
-ARG IMAGE_VERSION
-LABEL org.opencontainers.image.source="https://github.com/xormania/docker-image-library" \
-      org.opencontainers.image.revision="${SOURCE_COMMIT}" \
-      org.opencontainers.image.version="${IMAGE_VERSION}"
-COPY images/shared/install.sh /tmp/install-common
-RUN bash /tmp/install-common && rm /tmp/install-common
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libicu-dev libonig-dev libcurl4-openssl-dev libzip-dev libxml2-dev \
       libpng-dev libjpeg62-turbo-dev libfreetype6-dev libsqlite3-dev default-mysql-client \
@@ -24,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-enable redis xdebug \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+ARG SYMFONY_URL
+ARG SYMFONY_SHA256
 RUN curl --fail --location --retry 3 "$SYMFONY_URL" -o /tmp/symfony.tar.gz \
     && printf '%s  %s\n' "$SYMFONY_SHA256" /tmp/symfony.tar.gz | sha256sum -c - \
     && tar -xzf /tmp/symfony.tar.gz -C /usr/local/bin symfony \
@@ -35,3 +31,8 @@ ENV HOME=/home/dev COMPOSER_HOME=/home/dev/.composer \
 WORKDIR /workspace
 ENTRYPOINT ["bash", "/usr/local/bin/library-entrypoint"]
 CMD ["bash"]
+ARG SOURCE_COMMIT
+ARG IMAGE_VERSION
+LABEL org.opencontainers.image.source="https://github.com/xormania/docker-image-library" \
+      org.opencontainers.image.revision="${SOURCE_COMMIT}" \
+      org.opencontainers.image.version="${IMAGE_VERSION}"

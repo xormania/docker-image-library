@@ -198,12 +198,28 @@ def generated(root=ROOT):
 
 
 def affected(changed, defs):
-    all_ids = set(defs)
-    common = ("images/shared/", "scripts/", "schemas/", "tests/", "examples/", ".github/workflows/")
-    if any(p.startswith(common) or p == "images/tools.json" for p in changed):
-        result = all_ids
-    else:
-        result = {line for line, d in defs.items() if any(p.startswith(f"images/{d['family']}/") for p in changed)}
+    result = set()
+    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py"}
+    for path in changed:
+        families = set()
+        if path == "images/tools.json":
+            families = {"php-dev", "php-browser", "python-dev"}
+        elif path.startswith(("tests/fixtures/php/", "examples/php/")):
+            families = {"php-dev", "php-browser", "python-dev"} if path.startswith("examples/php/") else {"php-dev", "php-browser"}
+        elif path.startswith("tests/fixtures/python/"):
+            families = {"python-dev"}
+        elif path.startswith("tests/fixtures/rust/"):
+            families = {"rust-dev"}
+        elif path.startswith("tests/test_") or path in metadata_scripts:
+            continue
+        elif path.startswith(".github/workflows/") and path != ".github/workflows/validate.yml":
+            continue
+        elif path.startswith(("images/shared/", "scripts/", "schemas/", "tests/", "examples/")) or path == ".github/workflows/validate.yml":
+            result.update(defs)
+            continue
+        else:
+            families = {d["family"] for d in defs.values() if path.startswith(f"images/{d['family']}/")}
+        result.update(line for line, d in defs.items() if d["family"] in families)
     for line, d in defs.items():
         if d["base"].get("parent") in result:
             result.add(line)
@@ -215,12 +231,44 @@ def affected(changed, defs):
 def fingerprint(d, root=ROOT):
     paths = list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
     h = hashlib.sha256(encoded(d).encode())
-    h.update((root / "images" / "tools.json").read_bytes())
+    tools = read(root / "images" / "tools.json")
+    keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "symfony"),
+            "python-dev": ("uv",)}.get(d["family"], ())
+    h.update(encoded({key: tools[key] for key in keys}).encode())
     for path in sorted(paths):
         if path.is_file() and path.name != "definition.json":
             h.update(str(path.relative_to(root)).encode())
             h.update(path.read_bytes())
     return h.hexdigest()
+
+
+def cache_key(line, defs):
+    # One CI job owns the PHP parent and browser caches. Neither source commit
+    # nor unrelated tool pins belong in their immutable Actions cache key.
+    peers = [line]
+    if defs[line]["family"] == "php-dev":
+        peers.append("php-browser/" + defs[line]["line"])
+    return hashlib.sha256("".join(fingerprint(defs[peer]) for peer in peers).encode()).hexdigest()
+
+
+def pending_releases(defs, accepted):
+    """Skip accepted inputs, but retain missing browser peers and guard failures."""
+    current = {(r["line_id"], r["version"]): r for r in accepted}
+    pending = set()
+    for line, d in defs.items():
+        fp = fingerprint(d)
+        parent_line = d["base"].get("parent")
+        if parent_line:
+            parent = current.get((parent_line, defs[parent_line]["revision"]))
+            if not parent:
+                pending.add(parent_line)
+                continue
+            parent_ref = parent["publication"]["repository"] + "@" + parent["publication"]["digest"]
+            fp = hashlib.sha256((fp + parent_ref).encode()).hexdigest()
+        prior = current.get((line, d["revision"]))
+        if not prior or prior["input_fingerprint"] != fp:
+            pending.add(parent_line or line)
+    return sorted(pending)
 
 
 def main():
@@ -230,6 +278,8 @@ def main():
     sub.add_parser("check")
     s = sub.add_parser("select"); s.add_argument("requirements"); s.add_argument("--catalog", default=str(ROOT / "catalog.json"))
     a = sub.add_parser("affected"); a.add_argument("--base"); a.add_argument("--all", action="store_true")
+    sub.add_parser("cache-key").add_argument("line")
+    sub.add_parser("release-matrix")
     sub.add_parser("definitions")
     args = parser.parse_args()
     if args.command in ("generate", "check"):
@@ -252,8 +302,12 @@ def main():
         if result["status"] != "selected":
             raise SystemExit(2)
     elif args.command == "affected":
-        changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines() if args.base and not args.all else ["scripts/all"]
+        changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines() if args.base and not args.all else ["images/shared/"]
         print(json.dumps({"line": affected(changed, definitions())}))
+    elif args.command == "cache-key":
+        print(cache_key(args.line, definitions()))
+    elif args.command == "release-matrix":
+        print(json.dumps({"line": pending_releases(definitions(), records())}))
 
 
 if __name__ == "__main__":

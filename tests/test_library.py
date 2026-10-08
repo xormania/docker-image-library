@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from library import ROOT, affected, catalog, definitions, generated, select, validate_record
 from release import alias_eligible, exact_guard
 import release
-from library import fingerprint
+from library import fingerprint, pending_releases
 from unittest.mock import patch
 import tempfile
 
@@ -67,6 +67,52 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(affected(["README.md", "docs/usage.md", "catalog.json", "release-records/php-dev/8.4-trixie/1.0.0.json"], definitions()), [])
         self.assertEqual(affected(["images/php-browser/Dockerfile"], definitions()), ["php-dev/8.4-trixie", "php-dev/8.5-trixie"])
         self.assertIn("rust-dev/1.99-trixie", affected(["images/shared/install.sh"], definitions()))
+
+    def test_metadata_and_fixture_changes_select_only_their_consumers(self):
+        defs = definitions()
+        self.assertEqual(affected(["scripts/release.py", "scripts/writeback.py", "tests/test_library.py", ".github/workflows/refresh.yml"], defs), [])
+        self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie"])
+        self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
+        self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
+        self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "python-dev/3.14-trixie"])
+        self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 4)
+
+    def test_unrelated_tool_pins_do_not_change_release_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            import shutil
+            shutil.copytree(ROOT / "images", root / "images")
+            defs = definitions(root)
+            before = {line: fingerprint(d, root) for line, d in defs.items()}
+            path = root / "images/tools.json"
+            tools = json.loads(path.read_text())
+            tools["uv"]["digest"] = "sha256:" + "f" * 64
+            path.write_text(json.dumps(tools))
+            after = {line: fingerprint(d, root) for line, d in defs.items()}
+            self.assertNotEqual(before["python-dev/3.14-trixie"], after["python-dev/3.14-trixie"])
+            for line in ("php-dev/8.4-trixie", "php-browser/8.4-trixie", "rust-dev/1.99-trixie"):
+                self.assertEqual(before[line], after[line])
+
+    def test_release_matrix_preserves_incomplete_peers_and_changed_input_guards(self):
+        defs = definitions()
+        accepted = []
+        import hashlib
+        for line, d in sorted(defs.items(), key=lambda item: bool(item[1]["base"].get("parent"))):
+            r = record(line, d["revision"])
+            fp = fingerprint(d)
+            if d["base"].get("parent"):
+                parent = next(p for p in accepted if p["line_id"] == d["base"]["parent"])
+                ref = parent["publication"]["repository"] + "@" + parent["publication"]["digest"]
+                fp = hashlib.sha256((fp + ref).encode()).hexdigest()
+            r["input_fingerprint"] = fp
+            accepted.append(r)
+        self.assertEqual(pending_releases(defs, []), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "python-dev/3.14-trixie", "rust-dev/1.99-trixie"])
+        self.assertEqual(pending_releases(defs, accepted), [])
+        missing = [r for r in accepted if r["line_id"] != "php-browser/8.4-trixie"]
+        self.assertEqual(pending_releases(defs, missing), ["php-dev/8.4-trixie"])
+        changed = copy.deepcopy(accepted)
+        next(r for r in changed if r["line_id"] == "rust-dev/1.99-trixie")["input_fingerprint"] = "0" * 64
+        self.assertEqual(pending_releases(defs, changed), ["rust-dev/1.99-trixie"])
 
     def test_generated_output_is_deterministic(self):
         self.assertEqual(generated(), generated())

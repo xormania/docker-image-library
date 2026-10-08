@@ -28,6 +28,13 @@ class RefreshRecoveryTests(unittest.TestCase):
         self.git(self.root, "clone", str(self.remote), str(self.seed))
         shutil.copytree(ROOT, self.seed, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns(".git", "__pycache__", "out"))
+        # Keep the recovery scenario independent of the repository's current
+        # revisions: master starts at 1.0.0 and this refresh allocates 1.0.1.
+        for path in (self.seed / "images").glob("*/definition.json"):
+            definition = read(path)
+            for line in definition["lines"].values():
+                line["revision"] = "1.0.0"
+            path.write_text(json.dumps(definition, indent=2) + "\n")
         self.git(self.seed, "config", "user.name", "Fixture")
         self.git(self.seed, "config", "user.email", "fixture@example.test")
         self.git(self.seed, "add", ".")

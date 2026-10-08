@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from library import ROOT, definitions, read, validate_inventory
 
@@ -16,7 +17,8 @@ def pinned(base):
 def build(line, image, source, parent=None, cache=None):
     d = definitions()[line]
     tools = read(ROOT / "images/tools.json")
-    args = {"BASE_IMAGE": parent or pinned(d["base"]), "SOURCE_COMMIT": source, "IMAGE_VERSION": d["revision"]}
+    args = {"BASE_IMAGE": parent or pinned(d["base"]), "SOURCE_COMMIT": source,
+            "IMAGE_VERSION": d["revision"], "APT_REFRESH": d["revision"]}
     if d["family"] == "php-dev":
         args.update(COMPOSER_IMAGE=pinned(tools["composer"]), REDIS_VERSION=tools["redis_version"],
                     XDEBUG_VERSION=tools["xdebug_version"], SYMFONY_URL=tools["symfony"]["url"], SYMFONY_SHA256=tools["symfony"]["sha256"])
@@ -26,13 +28,17 @@ def build(line, image, source, parent=None, cache=None):
     cmd = ["docker", "buildx", "build", "--load", "--platform", "linux/amd64", "-t", image,
            "-f", f"images/{d['family']}/Dockerfile"]
     if local_parent:
-        cmd += ["--builder", "default"]
+        # The daemon's implicit builder shares its local image store. A custom
+        # Docker context (as in CI) need not be named "default".
+        context = subprocess.check_output(["docker", "context", "show"], text=True).strip()
+        cmd += ["--builder", context]
     cache_path = None
-    if cache and not local_parent and os.environ.get("LIBRARY_CACHE_DIR"):
+    if cache and os.environ.get("LIBRARY_CACHE_DIR"):
         cache_path = Path(os.environ["LIBRARY_CACHE_DIR"]) / cache
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         if cache_path.exists():
             cmd += ["--cache-from", f"type=local,src={cache_path}"]
+        shutil.rmtree(str(cache_path) + "-next", ignore_errors=True)
         cmd += ["--cache-to", f"type=local,dest={cache_path}-next,mode=max"]
     for name, value in args.items():
         cmd += ["--build-arg", f"{name}={value}"]
@@ -40,6 +46,23 @@ def build(line, image, source, parent=None, cache=None):
     if cache_path:
         shutil.rmtree(cache_path, ignore_errors=True)
         Path(str(cache_path) + "-next").rename(cache_path)
+
+
+def image_facts(image):
+    return json.loads(subprocess.check_output(["docker", "image", "inspect", image], text=True))[0]
+
+
+def cache_probe(line, image, source, parent=None):
+    """A new source label must reuse the tested filesystem layers."""
+    before = image_facts(image)
+    probe = image + "-cache-probe"
+    start = time.monotonic()
+    build(line, probe, source + "-cache-probe", parent)
+    after = image_facts(probe)
+    assert before["RootFS"]["Layers"] == after["RootFS"]["Layers"], "Source labels invalidated filesystem layers"
+    assert after["Config"]["Labels"]["org.opencontainers.image.revision"] == source + "-cache-probe"
+    subprocess.run(["docker", "image", "rm", probe], check=True)
+    return round(time.monotonic() - start, 2)
 
 
 def inspect(line, image, destination):
@@ -65,6 +88,22 @@ if __name__ == "__main__":
     p.add_argument("line"); p.add_argument("image")
     p.add_argument("--source", default="local"); p.add_argument("--parent"); p.add_argument("--cache")
     p.add_argument("--inventory", default="out/inventory.json")
+    p.add_argument("--cache-probe", action="store_true")
     a = p.parse_args()
+    start = time.monotonic()
     build(a.line, a.image, a.source, a.parent, a.cache)
+    built = time.monotonic()
     verify(a.line, a.image, a.inventory)
+    verified = time.monotonic()
+    metrics = {"line": a.line, "image_size_bytes": image_facts(a.image)["Size"],
+               "build_seconds": round(built-start, 2), "verify_seconds": round(verified-built, 2)}
+    if a.cache_probe:
+        metrics["source_label_rebuild_seconds"] = cache_probe(a.line, a.image, a.source, a.parent)
+    Path(a.inventory).with_suffix(".metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    print(json.dumps(metrics))
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+            summary.write(f"\n### {a.line}\n\nImage: {metrics['image_size_bytes']/1024**2:.1f} MiB; "
+                          f"build: {metrics['build_seconds']}s; behavior/inventory: {metrics['verify_seconds']}s.\n")
+            if a.cache_probe:
+                summary.write(f"Source-label-only rebuild: {metrics['source_label_rebuild_seconds']}s; filesystem layers unchanged.\n")

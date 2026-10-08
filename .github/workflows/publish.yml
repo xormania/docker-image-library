@@ -17,15 +17,19 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      has_images: ${{ steps.matrix.outputs.has_images }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: matrix
-        # Cheap release identity checks skip unchanged lines; retries cover incomplete peers.
-        run: echo "matrix=$(python scripts/library.py affected --all)" >> "$GITHUB_OUTPUT"
+        run: |
+          matrix=$(python scripts/library.py release-matrix)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "has_images=$(python -c 'import json,sys; print(str(bool(json.loads(sys.argv[1])["line"])).lower())' "$matrix")" >> "$GITHUB_OUTPUT"
   publish:
     needs: prepare
+    if: needs.prepare.outputs.has_images == 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
@@ -43,12 +47,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - id: cache-key
+        env:
+          LINE: ${{ matrix.line }}
+        run: echo "key=$(python scripts/library.py cache-key "$LINE")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/image-library-build-cache
-          key: buildx-${{ runner.os }}-${{ matrix.line }}-${{ github.sha }}
+          key: buildx-v2-${{ runner.os }}-${{ matrix.line }}-${{ steps.cache-key.outputs.key }}
           restore-keys: |
-            buildx-${{ runner.os }}-${{ matrix.line }}-
+            buildx-v2-${{ runner.os }}-${{ matrix.line }}-
       - name: Publish or resume exact artifacts
         env:
           LIBRARY_CACHE_DIR: /tmp/image-library-build-cache
@@ -61,7 +69,7 @@ jobs:
           path: out/**/record.json
           if-no-files-found: ignore
   documentation:
-    if: always() && needs.prepare.result == 'success'
+    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.has_images == 'true'
     needs: [prepare, publish]
     runs-on: ubuntu-24.04
     env:

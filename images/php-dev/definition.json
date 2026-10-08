@@ -62,7 +62,7 @@
     "8.4-trixie": {
       "runtime_line": "8.4",
       "os": "debian-trixie",
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "platforms": [
         "linux/amd64"
       ],
@@ -71,14 +71,14 @@
         "digest": "sha256:1d2cf2b7d715b5b3aa959f0150ccbcc7b71e0181b637e443abf40a7fb56bf79a"
       },
       "changes": [
-        "Initial stable development profile."
+        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision."
       ],
-      "migration": "First release; no previous library revision."
+      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
     },
     "8.5-trixie": {
       "runtime_line": "8.5",
       "os": "debian-trixie",
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "platforms": [
         "linux/amd64"
       ],
@@ -87,9 +87,9 @@
         "digest": "sha256:01a109229f4465bc9ef042d9198f09a4d9da7775a825dbd8572dcdbd8756c4d3"
       },
       "changes": [
-        "Initial stable development profile."
+        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision."
       ],
-      "migration": "First release; no previous library revision."
+      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
     }
   }
 }
