@@ -50,6 +50,21 @@ parent remains visible while both parent and browser caches can be exported.
 Build artifacts and job summaries retain image size and build/verification
 times. A source-label-only rebuild checks that filesystem layers stay identical.
 
+Initial size measurements compare the [1.0.0 validation artifacts](https://github.com/xormania/docker-image-library/actions/runs/37716603976)
+with the [1.0.1 optimization run](https://github.com/xormania/docker-image-library/actions/runs/37718845867).
+These are local image sizes from `docker image inspect`, using the same image
+store for both measurements; registry transfer sizes differ.
+
+| Profile | Before | After | Reduction |
+| --- | ---: | ---: | ---: |
+| Python 3.14 | 1,191.8 MiB | 593.9 MiB | 50.2% |
+| Rust 1.99 | 1,784.0 MiB | 1,274.9 MiB | 28.5% |
+
+Both retained their advertised capabilities and passed the locked consuming
+fixtures plus the native compilation checks. Rebuild timings depend on cache
+state and runner/network conditions; compare the per-job metrics for equivalent
+inputs rather than treating one cold run as a guaranteed duration.
+
 `Refresh build inputs` runs weekly and manually. It resolves upstream digests,
 PECL versions and the Symfony artifact checksum, then stages fresh patch
 revisions in a PR. It allocates a rebuild even if pins are unchanged so Debian

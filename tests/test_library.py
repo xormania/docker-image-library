@@ -70,12 +70,13 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_metadata_and_fixture_changes_select_only_their_consumers(self):
         defs = definitions()
-        self.assertEqual(affected(["scripts/release.py", "scripts/writeback.py", "tests/test_library.py", ".github/workflows/refresh.yml"], defs), [])
+        self.assertEqual(affected(["scripts/release.py", "scripts/writeback.py", "tests/test_library.py", "tests/requirements/php.json", ".github/workflows/refresh.yml"], defs), [])
         self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie"])
         self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
         self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
         self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "python-dev/3.14-trixie"])
         self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 4)
+        self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 4)
 
     def test_unrelated_tool_pins_do_not_change_release_inputs(self):
         with tempfile.TemporaryDirectory() as tmp:

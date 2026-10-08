@@ -200,21 +200,24 @@ def generated(root=ROOT):
 def affected(changed, defs):
     result = set()
     metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py"}
+    metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml"}
     for path in changed:
         families = set()
         if path == "images/tools.json":
             families = {"php-dev", "php-browser", "python-dev"}
-        elif path.startswith(("tests/fixtures/php/", "examples/php/")):
-            families = {"php-dev", "php-browser", "python-dev"} if path.startswith("examples/php/") else {"php-dev", "php-browser"}
+        elif path.startswith("tests/fixtures/php/"):
+            families = {"php-dev", "php-browser"}
+        elif path.startswith("examples/php/"):
+            families = {"php-dev", "php-browser", "python-dev"}
         elif path.startswith("tests/fixtures/python/"):
             families = {"python-dev"}
         elif path.startswith("tests/fixtures/rust/"):
             families = {"rust-dev"}
-        elif path.startswith("tests/test_") or path in metadata_scripts:
+        elif path.startswith(("tests/test_", "tests/requirements/")) or path in metadata_scripts:
             continue
-        elif path.startswith(".github/workflows/") and path != ".github/workflows/validate.yml":
+        elif path in metadata_workflows:
             continue
-        elif path.startswith(("images/shared/", "scripts/", "schemas/", "tests/", "examples/")) or path == ".github/workflows/validate.yml":
+        elif path.startswith(("images/shared/", "scripts/", "schemas/", "tests/", "examples/", ".github/workflows/")):
             result.update(defs)
             continue
         else:
