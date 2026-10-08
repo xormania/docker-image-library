@@ -144,6 +144,21 @@ class DiscoveryTests(unittest.TestCase):
         from library import children
         self.assertEqual(children("php-frankenphp/8.5-trixie", defs), ["flowbite-xor-dev/8.5-trixie"])
 
+    def test_project_requirements_select_cached_profiles_and_reject_the_old_image(self):
+        older = record("flowbite-xor-dev/8.5-trixie", "1.0.0")
+        older["definition"]["capabilities"].remove("tailwind-cli")
+        older["definition"]["tools"].remove("tailwindcss")
+        del older["platforms"][0]["inventory"]["tools"]["tailwindcss"]
+        for runtime, fixture, revision in (("8.5", "flowbite-xor.json", "1.1.0"),
+                                           ("8.4", "flowbite-xor-8.4.json", "1.0.0")):
+            with self.subTest(runtime=runtime):
+                req = json.loads((ROOT / "tests/requirements" / fixture).read_text())
+                current = record("flowbite-xor-dev/" + runtime + "-trixie", revision, "e")
+                selected = select(catalog([older, current]), req)["image"]
+                self.assertEqual(selected["line_id"], current["line_id"])
+                self.assertEqual(selected["version"], revision)
+                self.assertEqual(select(catalog([older]), req)["status"], "no_matching_image")
+
     def test_generated_output_is_deterministic(self):
         self.assertEqual(generated(), generated())
 

@@ -25,6 +25,13 @@ or build the root and derivative locally for validation:
 python3 scripts/build.py php-frankenphp/8.5-trixie image-library-check:dev --children
 ```
 
+Select the cached profile for either runtime from the verified catalog:
+
+```sh
+python3 scripts/library.py select tests/requirements/flowbite-xor.json
+python3 scripts/library.py select tests/requirements/flowbite-xor-8.4.json
+```
+
 From a clone of this library, with an existing flowbite-xor checkout:
 
 ```sh
