@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
       - run: python -m pip install -r requirements-ci.txt
       - run: python scripts/library.py check
       - run: python -m unittest discover -s tests -v
@@ -47,13 +49,24 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Enable local PHP parents and cache export
+        if: startsWith(matrix.line, 'php-dev/')
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5
+        with:
+          daemon-config: '{"features":{"containerd-snapshotter":true}}'
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver: ${{ startsWith(matrix.line, 'php-dev/') && 'docker' || 'docker-container' }}
+      - id: cache-key
+        env:
+          LINE: ${{ matrix.line }}
+        run: echo "key=$(python scripts/library.py cache-key "$LINE")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/image-library-build-cache
-          key: buildx-${{ runner.os }}-${{ matrix.line }}-${{ github.sha }}
+          key: buildx-v2-${{ runner.os }}-${{ matrix.line }}-${{ steps.cache-key.outputs.key }}
           restore-keys: |
-            buildx-${{ runner.os }}-${{ matrix.line }}-
+            buildx-v2-${{ runner.os }}-${{ matrix.line }}-
       - name: Build and exercise the documented recipe
         env:
           LIBRARY_CACHE_DIR: /tmp/image-library-build-cache
@@ -61,11 +74,11 @@ jobs:
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           mkdir -p out
-          python scripts/build.py "$LINE" image-library-check:dev --source "$SOURCE" --cache "${LINE//\//-}" --inventory out/dev.json
+          python scripts/build.py "$LINE" image-library-check:dev --source "$SOURCE" --cache "${LINE//\//-}" --inventory out/dev.json --cache-probe
           if [[ "$LINE" == php-dev/* ]]; then
-            python scripts/build.py "php-browser/${LINE#*/}" image-library-check:browser --parent image-library-check:dev --source "$SOURCE" --inventory out/browser.json
+            browser="php-browser/${LINE#*/}"
+            python scripts/build.py "$browser" image-library-check:browser --parent image-library-check:dev --source "$SOURCE" --cache "${browser//\//-}" --inventory out/browser.json --cache-probe
           fi
-          docker image inspect image-library-check:dev --format '{{.Size}}' >out/image-size-bytes.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

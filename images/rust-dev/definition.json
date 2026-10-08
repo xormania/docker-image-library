@@ -43,18 +43,19 @@
     "1.99-trixie": {
       "runtime_line": "1.99",
       "os": "debian-trixie",
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "platforms": [
         "linux/amd64"
       ],
       "base": {
-        "tag": "docker.io/library/rust:1.99-trixie",
-        "digest": "sha256:6ff07edce8775d0f64be7aba9197229407301bddf2054d62c27b541a6238a181"
+        "tag": "docker.io/library/rust:1.99-slim-trixie",
+        "digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273"
       },
       "changes": [
-        "Initial stable development profile."
+        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision.",
+        "Use the official slim Trixie base with explicitly installed native build tools and PostgreSQL clients."
       ],
-      "migration": "First release; no previous library revision."
+      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
     }
   }
 }

@@ -4,9 +4,11 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 import re
 import subprocess
 from pathlib import Path
+from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^sha256:[a-f0-9]{64}$")
@@ -77,6 +79,14 @@ def validate_inventory(definition, inventory):
         assert "wasm32-unknown-unknown" in inventory["rust_targets"]
 
 
+def validate_size_measurement(measurement):
+    assert type(measurement["image_size_bytes"]) is int and measurement["image_size_bytes"] > 0
+    assert measurement["size_method"] == "docker-image-inspect-size"
+    assert re.fullmatch(r"[A-Za-z0-9._/-]+", measurement["image_store"])
+    assert datetime.fromisoformat(measurement["measured_at"].replace("Z", "+00:00")).tzinfo is not None
+    assert measurement["evidence"]
+
+
 def validate_record(record):
     assert record["schema_version"] == 1
     version(record["version"])
@@ -101,6 +111,23 @@ def validate_record(record):
         inventory = platform["inventory"]
         assert inventory["platform"] == platform["platform"]
         validate_inventory(record["definition"], inventory)
+        if "metrics" in platform:
+            metrics = platform["metrics"]
+            validate_size_measurement(metrics)
+            assert metrics["evidence"] == record["verification"]["evidence"]
+            assert ("build_seconds" in metrics) == ("cache_source" in metrics)
+            for key in ("verification_seconds", "build_seconds"):
+                if key == "verification_seconds" or key in metrics:
+                    assert type(metrics[key]) in (int, float) and math.isfinite(metrics[key]) and metrics[key] >= 0
+            if "cache_source" in metrics:
+                assert metrics["cache_source"] in ("disabled", "empty", "restored")
+            if "baseline" in metrics:
+                baseline = metrics["baseline"]
+                validate_size_measurement(baseline)
+                assert version(baseline["version"]) < version(record["version"])
+                assert baseline["digest_reference"].startswith(pub["repository"] + "@")
+                assert DIGEST.fullmatch(baseline["digest_reference"].split("@")[-1])
+                assert baseline["size_method"] == metrics["size_method"] and baseline["image_store"] == metrics["image_store"]
     return record
 
 
@@ -110,6 +137,17 @@ def records(root=ROOT):
         result.append(validate_record(read(path)))
     identities = [(r["line_id"], r["version"]) for r in result]
     assert len(identities) == len(set(identities)), "Duplicate release identity"
+    by_identity = {(r["line_id"], r["version"]): r for r in result}
+    for record in result:
+        for platform in record["platforms"]:
+            baseline = platform.get("metrics", {}).get("baseline")
+            if baseline:
+                prior = by_identity.get((record["line_id"], baseline["version"]))
+                assert prior, "Measurement baseline is absent from the accepted ledger"
+                assert baseline["digest_reference"] == prior["publication"]["repository"] + "@" + prior["publication"]["digest"]
+                if baseline["evidence"] != record["verification"]["evidence"]:
+                    prior_metrics = next(p for p in prior["platforms"] if p["platform"] == platform["platform"]).get("metrics", {})
+                    assert all(baseline[key] == prior_metrics.get(key) for key in ("image_size_bytes", "size_method", "image_store", "measured_at", "evidence")), "Reused baseline differs from its verified measurement"
     return result
 
 
@@ -150,6 +188,54 @@ def select(cat, requirements):
     return {"status": "selected", "preserved_pin": False, "image": chosen}
 
 
+def measurement_markdown(platform):
+    metrics = platform.get("metrics")
+    if not metrics:
+        return ""
+    build_time = f"{metrics['build_seconds']:.2f}s" if "build_seconds" in metrics else "Not measured; artifact resumed"
+    text = (f"### Release measurements — {platform['platform']}\n\n"
+            "| Metric | Measured value |\n| --- | ---: |\n"
+            f"| Local image size | {metrics['image_size_bytes']/1024**2:,.1f} MiB ({metrics['image_size_bytes']:,} bytes) |\n"
+            f"| Build, cache export and image load | {build_time} |\n"
+            f"| Public-artifact behavior and inventory verification | {metrics['verification_seconds']:.2f}s |\n\n"
+            f"Size method: `{metrics['size_method']}`; image store: `{metrics['image_store']}`. "
+            f"[Measurement evidence]({metrics['evidence']}); {metrics['measured_at']}.\n\n")
+    if "cache_source" in metrics:
+        text += f"External build cache at start: `{metrics['cache_source']}`. This does not assert that every layer was a cache hit.\n\n"
+    baseline = metrics.get("baseline")
+    if baseline:
+        change = (metrics["image_size_bytes"] / baseline["image_size_bytes"] - 1) * 100
+        text += (f"Size baseline: v{baseline['version']}, `{baseline['digest_reference']}`; "
+                 f"{baseline['image_size_bytes']/1024**2:,.1f} MiB in the same image store. "
+                 f"Change: **{change:+.1f}%**. [Baseline measurement]({baseline['evidence']}); {baseline['measured_at']}.\n\n")
+    return text
+
+
+def metrics_document(latest):
+    text = ("# Verified release measurements\n\n"
+            "Generated from the verified release ledger. Sizes describe local Docker images, "
+            "not registry transfer sizes. Comparisons use the same size method and image store. "
+            "Build and verification times describe the recorded publication run, including its "
+            "cache and runner conditions; they are not performance guarantees.\n\n")
+    measured = [item for _, item in sorted(latest.items()) if any("metrics" in p for p in item["platforms"])]
+    if not measured:
+        return text + "No verified release measurements yet. PR build metrics remain validation evidence.\n"
+    text += "| Line | Revision | Platform | Image size (MiB) | Baseline size (MiB) | Size change | Build (s) | Public verification (s) |\n| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |\n"
+    for item in measured:
+        for platform in item["platforms"]:
+            metrics = platform.get("metrics")
+            if not metrics:
+                continue
+            baseline = metrics.get("baseline")
+            previous = f"{baseline['image_size_bytes']/1024**2:,.1f} (v{baseline['version']})" if baseline else "—"
+            change = f"{(metrics['image_size_bytes']/baseline['image_size_bytes']-1)*100:+.1f}%" if baseline else "—"
+            build_time = f"{metrics['build_seconds']:.2f}" if "build_seconds" in metrics else "Not measured"
+            text += (f"| [{item['line_id']}](images/{item['line_id'].replace('/', '-')}.md) | {item['version']} | "
+                     f"{platform['platform']} | {metrics['image_size_bytes']/1024**2:,.1f} | {previous} | {change} | "
+                     f"{build_time} | {metrics['verification_seconds']:.2f} |\n")
+    return text + "\nImage/release pages retain exact bytes, artifact identities, measurement methods, cache inputs and evidence links. Older records without measurements remain valid and are omitted from this table.\n"
+
+
 def generated(root=ROOT):
     defs = definitions(root)
     releases = records(root)
@@ -164,7 +250,8 @@ def generated(root=ROOT):
     table = "\n".join(rows) if latest else "No verified public releases yet. Definitions are build inputs, not available images."
     readme = (root / "README.md").read_text()
     readme = re.sub(r"(?s)(<!-- catalog:start -->\n).*?(\n<!-- catalog:end -->)", lambda m: m[1] + table + m[2], readme)
-    outputs = {root / "catalog.json": encoded(cat), root / "README.md": readme}
+    outputs = {root / "catalog.json": encoded(cat), root / "README.md": readme,
+               root / "docs" / "metrics.md": metrics_document(latest)}
     for line, d in defs.items():
         item = latest.get(line)
         if item:
@@ -179,6 +266,7 @@ def generated(root=ROOT):
                 text += "| Tool | Version |\n| --- | --- |\n" + "\n".join(f"| {k} | {v.replace('|', '/')} |" for k, v in sorted(inv["tools"].items())) + "\n\n"
                 if inv["extensions"]:
                     text += "Extensions: " + ", ".join(f"`{e}`" for e in sorted(inv["extensions"])) + ".\n\n"
+                text += measurement_markdown(platform)
             text += f"[Release notes](../releases/{line.replace('/', '-')}-v{item['version']}.md).\n\n"
         else:
             text += "**Not available:** no verified public release. The following capabilities describe the intended profile.\n\n"
@@ -192,18 +280,39 @@ def generated(root=ROOT):
         text = f"# {item['line_id']} v{item['version']}\n\n" + "\n".join(f"- {c}" for c in d["changes"]) + "\n\n"
         text += f"Migration: {d['migration']}\n\nSource: `{item['source_commit']}` (`{item['source_tag']}`).\n\nArtifact: `{item['digest_reference']}`.\n\n"
         text += f"Base/parent: `{item['resolved_base']}`.\n\n[Verification]({item['verification']['evidence']}).\n\n"
+        for platform in item["platforms"]:
+            text += measurement_markdown(platform)
         text += "The release record and GitHub Release asset retain the exact definition and per-platform inventory. The generated documentation commit is later than the build source commit.\n"
         outputs[root / "docs" / "releases" / f"{item['line_id'].replace('/', '-')}-v{item['version']}.md"] = text
     return outputs
 
 
 def affected(changed, defs):
-    all_ids = set(defs)
-    common = ("images/shared/", "scripts/", "schemas/", "tests/", "examples/", ".github/workflows/")
-    if any(p.startswith(common) or p == "images/tools.json" for p in changed):
-        result = all_ids
-    else:
-        result = {line for line, d in defs.items() if any(p.startswith(f"images/{d['family']}/") for p in changed)}
+    result = set()
+    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py"}
+    metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml"}
+    for path in changed:
+        families = set()
+        if path == "images/tools.json":
+            families = {"php-dev", "php-browser", "python-dev"}
+        elif path.startswith("tests/fixtures/php/"):
+            families = {"php-dev", "php-browser"}
+        elif path.startswith("examples/php/"):
+            families = {"php-dev", "php-browser", "python-dev"}
+        elif path.startswith("tests/fixtures/python/"):
+            families = {"python-dev"}
+        elif path.startswith("tests/fixtures/rust/"):
+            families = {"rust-dev"}
+        elif path.startswith(("tests/test_", "tests/requirements/")) or path in metadata_scripts:
+            continue
+        elif path in metadata_workflows:
+            continue
+        elif path.startswith(("images/shared/", "scripts/", "schemas/", "tests/", "examples/", ".github/workflows/")):
+            result.update(defs)
+            continue
+        else:
+            families = {d["family"] for d in defs.values() if path.startswith(f"images/{d['family']}/")}
+        result.update(line for line, d in defs.items() if d["family"] in families)
     for line, d in defs.items():
         if d["base"].get("parent") in result:
             result.add(line)
@@ -215,12 +324,44 @@ def affected(changed, defs):
 def fingerprint(d, root=ROOT):
     paths = list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
     h = hashlib.sha256(encoded(d).encode())
-    h.update((root / "images" / "tools.json").read_bytes())
+    tools = read(root / "images" / "tools.json")
+    keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "symfony"),
+            "python-dev": ("uv",)}.get(d["family"], ())
+    h.update(encoded({key: tools[key] for key in keys}).encode())
     for path in sorted(paths):
         if path.is_file() and path.name != "definition.json":
             h.update(str(path.relative_to(root)).encode())
             h.update(path.read_bytes())
     return h.hexdigest()
+
+
+def cache_key(line, defs):
+    # One CI job owns the PHP parent and browser caches. Neither source commit
+    # nor unrelated tool pins belong in their immutable Actions cache key.
+    peers = [line]
+    if defs[line]["family"] == "php-dev":
+        peers.append("php-browser/" + defs[line]["line"])
+    return hashlib.sha256("".join(fingerprint(defs[peer]) for peer in peers).encode()).hexdigest()
+
+
+def pending_releases(defs, accepted):
+    """Skip accepted inputs, but retain missing browser peers and guard failures."""
+    current = {(r["line_id"], r["version"]): r for r in accepted}
+    pending = set()
+    for line, d in defs.items():
+        fp = fingerprint(d)
+        parent_line = d["base"].get("parent")
+        if parent_line:
+            parent = current.get((parent_line, defs[parent_line]["revision"]))
+            if not parent:
+                pending.add(parent_line)
+                continue
+            parent_ref = parent["publication"]["repository"] + "@" + parent["publication"]["digest"]
+            fp = hashlib.sha256((fp + parent_ref).encode()).hexdigest()
+        prior = current.get((line, d["revision"]))
+        if not prior or prior["input_fingerprint"] != fp:
+            pending.add(parent_line or line)
+    return sorted(pending)
 
 
 def main():
@@ -230,6 +371,8 @@ def main():
     sub.add_parser("check")
     s = sub.add_parser("select"); s.add_argument("requirements"); s.add_argument("--catalog", default=str(ROOT / "catalog.json"))
     a = sub.add_parser("affected"); a.add_argument("--base"); a.add_argument("--all", action="store_true")
+    sub.add_parser("cache-key").add_argument("line")
+    sub.add_parser("release-matrix")
     sub.add_parser("definitions")
     args = parser.parse_args()
     if args.command in ("generate", "check"):
@@ -252,8 +395,12 @@ def main():
         if result["status"] != "selected":
             raise SystemExit(2)
     elif args.command == "affected":
-        changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines() if args.base and not args.all else ["scripts/all"]
+        changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines() if args.base and not args.all else ["images/shared/"]
         print(json.dumps({"line": affected(changed, definitions())}))
+    elif args.command == "cache-key":
+        print(cache_key(args.line, definitions()))
+    elif args.command == "release-matrix":
+        print(json.dumps({"line": pending_releases(definitions(), records())}))
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ assume Node is needed for Symfony UX or Tailwind.
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [Cloud prerequisites and verification evidence](docs/compatibility.md)
 - [Versions, pins, upgrades, and rollback](docs/versioning.md)
+- [Verified release measurements](docs/metrics.md)
 - [Publication, retry, and repository setup](docs/releases.md)
 - [Adding images and refreshing dependencies](docs/contributing.md)
 - [Implementation status](docs/implementation.md)

@@ -42,18 +42,20 @@
     "3.14-trixie": {
       "runtime_line": "3.14",
       "os": "debian-trixie",
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "platforms": [
         "linux/amd64"
       ],
       "base": {
-        "tag": "docker.io/library/python:3.14-trixie",
-        "digest": "sha256:a11116e648ddd8a05e1120014c8e6ac259f718040b67e2dcd6a7c0b7bab3ff2c"
+        "tag": "docker.io/library/python:3.14-slim-trixie",
+        "digest": "sha256:f85c5697265c178cc6887276c55fe16cf3d14ca35c3df6a5eab3b360534a55d2"
       },
       "changes": [
-        "Initial stable development profile."
+        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision.",
+        "Use the official slim Trixie base with explicitly installed native build tools and PostgreSQL clients.",
+        "Reuse the upstream Python interpreter instead of installing a second system Python."
       ],
-      "migration": "First release; no previous library revision."
+      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
     }
   }
 }

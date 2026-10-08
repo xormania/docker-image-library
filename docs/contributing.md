@@ -36,6 +36,36 @@ refresh intentionally changes all consumers; image-specific changes stay scoped.
 README/docs/record-only PRs do not rebuild images. The release jobs additionally
 skip source-identical lines already in the accepted ledger.
 
+Validation scopes container jobs to changed recipes and consuming fixtures;
+release orchestration and unit-test changes still run metadata tests. Unknown
+build/verification helpers conservatively select all images. Publication also
+checks the accepted ledger before allocating runners, retaining incomplete PHP
+parent/browser pairs and changed-input guards.
+
+Build caches use family-specific input fingerprints rather than commit SHAs.
+Source labels are applied after install layers. Each image revision is passed
+as `APT_REFRESH`, intentionally invalidating Debian package installs during a
+weekly refresh. PHP CI uses Docker's containerd image store so its exact local
+parent remains visible while both parent and browser caches can be exported.
+Build artifacts and job summaries retain image size and build/verification
+times. A source-label-only rebuild checks that filesystem layers stay identical.
+
+PR build metrics describe validation artifacts; they are not published release
+facts. Measured release facts belong in verified `release-records/`, and their
+documentation is generated from that ledger in the image/release pages and
+[release measurements](metrics.md). Publication records local image size,
+measurement method/store, timestamps, evidence, and public-artifact verification
+time. Fresh builds also record build time and external cache input; resumed
+artifacts have no invented build time.
+
+Size comparisons use the preceding available accepted revision. Publication
+reuses its recorded size when the method/store match, or anonymously pulls its
+digest and measures it in the current store. This supports older records without
+metrics without rewriting their durable release assets. A comparison appears
+only when that accepted baseline is present; missing measurements stay absent.
+Rebuild timings depend on cache state and runner/network conditions; compare
+equivalent inputs rather than treating one run as a guaranteed duration.
+
 `Refresh build inputs` runs weekly and manually. It resolves upstream digests,
 PECL versions and the Symfony artifact checksum, then stages fresh patch
 revisions in a PR. It allocates a rebuild even if pins are unchanged so Debian
