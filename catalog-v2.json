@@ -1,0 +1,1110 @@
+{
+  "generated_at": "2026-10-08T22:27:17.573741Z",
+  "resources": [
+    {
+      "capabilities": [
+        "composer",
+        "frankenphp",
+        "native-build",
+        "node",
+        "npm",
+        "php",
+        "playwright-client",
+        "postgresql-client",
+        "symfony",
+        "tailwind-cli",
+        "worker-server",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T22:27:17.573741Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/flowbite-xor-dev:8.4-trixie-v1.0.0",
+        "extensions": [
+          "apcu",
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zend opcache",
+          "zip"
+        ],
+        "family": "flowbite-xor-dev",
+        "runtime_line": "8.4",
+        "tools": [
+          "bash",
+          "curl",
+          "frankenphp",
+          "gh",
+          "git",
+          "jq",
+          "node",
+          "npm",
+          "psql",
+          "rg",
+          "tailwindcss"
+        ]
+      },
+      "documentation": "docs/images/flowbite-xor-dev-8.4-trixie.md",
+      "id": "image/flowbite-xor-dev/8.4-trixie",
+      "identity": "ghcr.io/xormania/flowbite-xor-dev@sha256:39d0dfa2cae629a9bc65e09d3cd44b5e1a3b92b54c55fb111286f4c4e2a4b374",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "FrankenPHP/PHP 8.4 or 8.5 plus Node 22 and a pinned Tailwind CLI for flowbite-xor development and Playwright orchestration.",
+      "release_record": "release-records/flowbite-xor-dev/8.4-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T22:27:17.573741Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37852642503",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "composer",
+        "frankenphp",
+        "native-build",
+        "node",
+        "npm",
+        "php",
+        "playwright-client",
+        "postgresql-client",
+        "symfony",
+        "worker-server",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T10:21:51.428310Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/flowbite-xor-dev:8.5-trixie-v1.0.0",
+        "extensions": [
+          "apcu",
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zend opcache",
+          "zip"
+        ],
+        "family": "flowbite-xor-dev",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "curl",
+          "frankenphp",
+          "gh",
+          "git",
+          "jq",
+          "node",
+          "npm",
+          "psql",
+          "rg"
+        ]
+      },
+      "documentation": "docs/images/flowbite-xor-dev-8.5-trixie.md",
+      "id": "image/flowbite-xor-dev/8.5-trixie",
+      "identity": "ghcr.io/xormania/flowbite-xor-dev@sha256:a3ad6f61bb56d39060a060c7dbd99c1a65ae32f0ae7d9d7e9df0f6258afca474",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "FrankenPHP/PHP 8.5 plus Node 22 for flowbite-xor development and Playwright test orchestration.",
+      "release_record": "release-records/flowbite-xor-dev/8.5-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:21:51.428310Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "composer",
+        "frankenphp",
+        "native-build",
+        "node",
+        "npm",
+        "php",
+        "playwright-client",
+        "postgresql-client",
+        "symfony",
+        "tailwind-cli",
+        "worker-server",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T22:23:57.331631Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/flowbite-xor-dev:8.5-trixie-v1.1.0",
+        "extensions": [
+          "apcu",
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zend opcache",
+          "zip"
+        ],
+        "family": "flowbite-xor-dev",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "curl",
+          "frankenphp",
+          "gh",
+          "git",
+          "jq",
+          "node",
+          "npm",
+          "psql",
+          "rg",
+          "tailwindcss"
+        ]
+      },
+      "documentation": "docs/images/flowbite-xor-dev-8.5-trixie.md",
+      "id": "image/flowbite-xor-dev/8.5-trixie",
+      "identity": "ghcr.io/xormania/flowbite-xor-dev@sha256:23f4b1755d665c3d0a7fbedebc6fcc6da0edef7ea9a0d71898bee3345ba77df0",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "FrankenPHP/PHP 8.4 or 8.5 plus Node 22 and a pinned Tailwind CLI for flowbite-xor development and Playwright orchestration.",
+      "release_record": "release-records/flowbite-xor-dev/8.5-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T22:23:57.331631Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37852642503",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "browser",
+        "composer",
+        "native-build",
+        "panther",
+        "php",
+        "postgresql-client",
+        "symfony",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T02:27:34.651246Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-browser:8.4-trixie-v1.0.0",
+        "extensions": [
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zip"
+        ],
+        "family": "php-browser",
+        "runtime_line": "8.4",
+        "tools": [
+          "bash",
+          "curl",
+          "gh",
+          "git",
+          "jq",
+          "psql",
+          "rg"
+        ]
+      },
+      "documentation": "docs/images/php-browser-8.4-trixie.md",
+      "id": "image/php-browser/8.4-trixie",
+      "identity": "ghcr.io/xormania/php-browser@sha256:371dbe808e951915d9c0ed3c41fb6e830f2cabb40ecc76733b9da92d957174ae",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "PHP and Symfony development plus real Chromium and Panther browser tests.",
+      "release_record": "release-records/php-browser/8.4-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T02:27:34.651246Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37717501432",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "browser",
+        "composer",
+        "native-build",
+        "panther",
+        "php",
+        "postgresql-client",
+        "symfony",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T10:20:44.384737Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-browser:8.4-trixie-v1.1.0",
+        "extensions": [
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zip"
+        ],
+        "family": "php-browser",
+        "runtime_line": "8.4",
+        "tools": [
+          "bash",
+          "curl",
+          "gh",
+          "git",
+          "jq",
+          "psql",
+          "rg"
+        ]
+      },
+      "documentation": "docs/images/php-browser-8.4-trixie.md",
+      "id": "image/php-browser/8.4-trixie",
+      "identity": "ghcr.io/xormania/php-browser@sha256:ba7a438a054450fe0e8387e233dee829d0c8ed883be5aa76568175ed1607ae82",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "PHP and Symfony development plus real Chromium and Panther browser tests.",
+      "release_record": "release-records/php-browser/8.4-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:20:44.384737Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "browser",
+        "composer",
+        "native-build",
+        "panther",
+        "php",
+        "postgresql-client",
+        "symfony",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T02:28:10.857576Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-browser:8.5-trixie-v1.0.0",
+        "extensions": [
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zip"
+        ],
+        "family": "php-browser",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "curl",
+          "gh",
+          "git",
+          "jq",
+          "psql",
+          "rg"
+        ]
+      },
+      "documentation": "docs/images/php-browser-8.5-trixie.md",
+      "id": "image/php-browser/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-browser@sha256:b4bc2f409c6ca21a828855e25fec51c8df32d778b119e1e0c7a84be68f912d86",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "PHP and Symfony development plus real Chromium and Panther browser tests.",
+      "release_record": "release-records/php-browser/8.5-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T02:28:10.857576Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37717501432",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "browser",
+        "composer",
+        "native-build",
+        "panther",
+        "php",
+        "postgresql-client",
+        "symfony",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T10:20:46.753541Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-browser:8.5-trixie-v1.1.0",
+        "extensions": [
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zip"
+        ],
+        "family": "php-browser",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "curl",
+          "gh",
+          "git",
+          "jq",
+          "psql",
+          "rg"
+        ]
+      },
+      "documentation": "docs/images/php-browser-8.5-trixie.md",
+      "id": "image/php-browser/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-browser@sha256:fd4f250816cd15db0e111ea9cb71c40df1def9174633ce1b7e9bdba587cd6882",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "PHP and Symfony development plus real Chromium and Panther browser tests.",
+      "release_record": "release-records/php-browser/8.5-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:20:46.753541Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "composer",
+        "symfony",
+        "postgresql-client",
+        "native-build",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T02:25:37.017892Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-dev:8.4-trixie-v1.0.0",
+        "extensions": [
+          "intl",
+          "mbstring",
+          "curl",
+          "zip",
+          "bcmath",
+          "dom",
+          "xml",
+          "pdo_pgsql",
+          "pgsql",
+          "pdo_mysql",
+          "mysqli",
+          "pdo_sqlite",
+          "gd",
+          "redis",
+          "sockets",
+          "pcntl",
+          "xdebug"
+        ],
+        "family": "php-dev",
+        "runtime_line": "8.4",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/php-dev-8.4-trixie.md",
+      "id": "image/php-dev/8.4-trixie",
+      "identity": "ghcr.io/xormania/php-dev@sha256:cb229768983aa9f97ddbe6e399775eb9a644c8399cfad0243a63dbdd5166a968",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.",
+      "release_record": "release-records/php-dev/8.4-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T02:25:37.017892Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37717501432",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "composer",
+        "symfony",
+        "postgresql-client",
+        "native-build",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T10:18:23.365029Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-dev:8.4-trixie-v1.1.0",
+        "extensions": [
+          "intl",
+          "mbstring",
+          "curl",
+          "zip",
+          "bcmath",
+          "dom",
+          "xml",
+          "pdo_pgsql",
+          "pgsql",
+          "pdo_mysql",
+          "mysqli",
+          "pdo_sqlite",
+          "gd",
+          "redis",
+          "sockets",
+          "pcntl",
+          "xdebug"
+        ],
+        "family": "php-dev",
+        "runtime_line": "8.4",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/php-dev-8.4-trixie.md",
+      "id": "image/php-dev/8.4-trixie",
+      "identity": "ghcr.io/xormania/php-dev@sha256:d3f9483df7c3f30837dab772acaa53f55ab1af5b7bdb21af8d320d80f4bd9029",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.",
+      "release_record": "release-records/php-dev/8.4-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:18:23.365029Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "composer",
+        "symfony",
+        "postgresql-client",
+        "native-build",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T02:26:03.065396Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-dev:8.5-trixie-v1.0.0",
+        "extensions": [
+          "intl",
+          "mbstring",
+          "curl",
+          "zip",
+          "bcmath",
+          "dom",
+          "xml",
+          "pdo_pgsql",
+          "pgsql",
+          "pdo_mysql",
+          "mysqli",
+          "pdo_sqlite",
+          "gd",
+          "redis",
+          "sockets",
+          "pcntl",
+          "xdebug"
+        ],
+        "family": "php-dev",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/php-dev-8.5-trixie.md",
+      "id": "image/php-dev/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-dev@sha256:8a824a7e88ef81f63611629ad5e4a1de1fc17adc7cb278e8c48ab1d43e745b0c",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.",
+      "release_record": "release-records/php-dev/8.5-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T02:26:03.065396Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37717501432",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "composer",
+        "symfony",
+        "postgresql-client",
+        "native-build",
+        "xdebug"
+      ],
+      "created_at": "2026-10-08T10:18:37.954900Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-dev:8.5-trixie-v1.1.0",
+        "extensions": [
+          "intl",
+          "mbstring",
+          "curl",
+          "zip",
+          "bcmath",
+          "dom",
+          "xml",
+          "pdo_pgsql",
+          "pgsql",
+          "pdo_mysql",
+          "mysqli",
+          "pdo_sqlite",
+          "gd",
+          "redis",
+          "sockets",
+          "pcntl",
+          "xdebug"
+        ],
+        "family": "php-dev",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/php-dev-8.5-trixie.md",
+      "id": "image/php-dev/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-dev@sha256:53a1728c55ad8059184ef2ccc0bfb5c62e1b97c3cda87f14ae0897e46cf1317d",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.",
+      "release_record": "release-records/php-dev/8.5-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:18:37.954900Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "composer",
+        "symfony",
+        "postgresql-client",
+        "native-build",
+        "xdebug",
+        "frankenphp",
+        "worker-server"
+      ],
+      "created_at": "2026-10-08T22:22:56.899401Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-frankenphp:8.4-trixie-v1.0.0",
+        "extensions": [
+          "intl",
+          "mbstring",
+          "curl",
+          "zip",
+          "bcmath",
+          "dom",
+          "xml",
+          "pdo_pgsql",
+          "pgsql",
+          "pdo_mysql",
+          "mysqli",
+          "pdo_sqlite",
+          "gd",
+          "redis",
+          "sockets",
+          "pcntl",
+          "xdebug",
+          "apcu",
+          "zend opcache"
+        ],
+        "family": "php-frankenphp",
+        "runtime_line": "8.4",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql",
+          "frankenphp"
+        ]
+      },
+      "documentation": "docs/images/php-frankenphp-8.4-trixie.md",
+      "id": "image/php-frankenphp/8.4-trixie",
+      "identity": "ghcr.io/xormania/php-frankenphp@sha256:9cd194f21ef4600fbba343fa5a471528fff3f6db6a1889ea280fb58d68cf30d2",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Loaded PHP/Symfony development with FrankenPHP, Caddy and worker-mode HTTP execution.",
+      "release_record": "release-records/php-frankenphp/8.4-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T22:22:56.899401Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37852642503",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "composer",
+        "symfony",
+        "postgresql-client",
+        "native-build",
+        "xdebug",
+        "frankenphp",
+        "worker-server"
+      ],
+      "created_at": "2026-10-08T10:18:54.451822Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-frankenphp:8.5-trixie-v1.0.0",
+        "extensions": [
+          "intl",
+          "mbstring",
+          "curl",
+          "zip",
+          "bcmath",
+          "dom",
+          "xml",
+          "pdo_pgsql",
+          "pgsql",
+          "pdo_mysql",
+          "mysqli",
+          "pdo_sqlite",
+          "gd",
+          "redis",
+          "sockets",
+          "pcntl",
+          "xdebug",
+          "apcu",
+          "zend opcache"
+        ],
+        "family": "php-frankenphp",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql",
+          "frankenphp"
+        ]
+      },
+      "documentation": "docs/images/php-frankenphp-8.5-trixie.md",
+      "id": "image/php-frankenphp/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-frankenphp@sha256:3ac6ca8f9ba8d4155eb7a83c5a512a344673a3d1f62073fd0b53730030aa457d",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Loaded PHP/Symfony development with FrankenPHP, Caddy and worker-mode HTTP execution.",
+      "release_record": "release-records/php-frankenphp/8.5-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:18:54.451822Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "python",
+        "uv",
+        "pip",
+        "venv",
+        "native-build",
+        "postgresql-client"
+      ],
+      "created_at": "2026-10-08T02:24:36.027397Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/python-dev:3.14-trixie-v1.0.0",
+        "extensions": [],
+        "family": "python-dev",
+        "runtime_line": "3.14",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/python-dev-3.14-trixie.md",
+      "id": "image/python-dev/3.14-trixie",
+      "identity": "ghcr.io/xormania/python-dev@sha256:ccd38b0cfb59a887a18d489be40ecf68a2a0ef083c46de634c0b0c424bfff3d5",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Python development with uv, pip, venv, native compilation and PostgreSQL clients.",
+      "release_record": "release-records/python-dev/3.14-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T02:24:36.027397Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37717501432",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "python",
+        "uv",
+        "pip",
+        "venv",
+        "native-build",
+        "postgresql-client"
+      ],
+      "created_at": "2026-10-08T10:16:43.147644Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/python-dev:3.14-trixie-v1.1.0",
+        "extensions": [],
+        "family": "python-dev",
+        "runtime_line": "3.14",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/python-dev-3.14-trixie.md",
+      "id": "image/python-dev/3.14-trixie",
+      "identity": "ghcr.io/xormania/python-dev@sha256:2868a42d29b7c340a1c592b8135bf40dd78bc028a2fddb50fb80eb3970d1f97d",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Python development with uv, pip, venv, native compilation and PostgreSQL clients.",
+      "release_record": "release-records/python-dev/3.14-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:16:43.147644Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "rust",
+        "cargo",
+        "rustfmt",
+        "clippy",
+        "native-build",
+        "postgresql-client",
+        "wasm32-unknown-unknown"
+      ],
+      "created_at": "2026-10-08T02:24:12.570047Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/rust-dev:1.99-trixie-v1.0.0",
+        "extensions": [],
+        "family": "rust-dev",
+        "runtime_line": "1.99",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/rust-dev-1.99-trixie.md",
+      "id": "image/rust-dev/1.99-trixie",
+      "identity": "ghcr.io/xormania/rust-dev@sha256:f7a732022c49f33478b4237d9a8dcd78c8925ee14a6df5fec16ad08729dd0e04",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Rust 2024 native compilation, Clippy, formatting and wasm32-unknown-unknown builds.",
+      "release_record": "release-records/rust-dev/1.99-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T02:24:12.570047Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37717501432",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "rust",
+        "cargo",
+        "rustfmt",
+        "clippy",
+        "native-build",
+        "postgresql-client",
+        "wasm32-unknown-unknown"
+      ],
+      "created_at": "2026-10-08T10:16:52.318142Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/rust-dev:1.99-trixie-v1.1.0",
+        "extensions": [],
+        "family": "rust-dev",
+        "runtime_line": "1.99",
+        "tools": [
+          "bash",
+          "git",
+          "gh",
+          "curl",
+          "jq",
+          "rg",
+          "psql"
+        ]
+      },
+      "documentation": "docs/images/rust-dev-1.99-trixie.md",
+      "id": "image/rust-dev/1.99-trixie",
+      "identity": "ghcr.io/xormania/rust-dev@sha256:3bd310edbdd171c59bde5818d7fae4ff05e1b1f63f9a5c3ff5e3da8b5311e809",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Rust 2024 native compilation, Clippy, formatting and wasm32-unknown-unknown builds.",
+      "release_record": "release-records/rust-dev/1.99-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-08T10:16:52.318142Z",
+        "evidence": "https://github.com/xormania/docker-image-library/actions/runs/37762155280",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    }
+  ],
+  "schema_version": 2
+}

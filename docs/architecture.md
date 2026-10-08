@@ -8,7 +8,8 @@ An installed CLI, skill, plugin, or separate discovery service is unnecessary.
 
 ## Current capability and extension boundaries
 
-The verified resources currently available are [images](../catalog.json). Their
+The compact [catalog](../catalog-v2.json) currently contains verified images.
+Their detailed [image view](../catalog.json),
 existing definitions, records, commands, GHCR references, and usage remain the
 working path. Additional kinds extend that structure as verified examples land:
 
@@ -52,20 +53,86 @@ roles. Preserve them rather than pretending all resources install alike.
 
 Existing image definitions live in `images/`, with measured release evidence in
 `release-records/`. Keep those paths and historical facts intact. New resource
-definitions belong under `artifacts/<kind>/<name>/` when their implementation
-arrives; reusable compositions belong in `profiles/`.
+definitions belong under `artifacts/<kind>/<name>/`; reusable compositions belong
+in `profiles/`. These definitions are authored intent and need verified release
+records before selection can offer them.
 
 Normalize image data and new resources into one shared model. Generate the
 existing schema-1 `catalog.json` as the image compatibility view and a compact
-typed `catalog-v2.json` for broader discovery. The latter is an extension target,
-not a currently available file. Both views must share sources and cannot be
-edited independently. Keep existing script entry points and selection behavior
-while common responsibilities move into small shared modules.
+typed [catalog-v2.json](../catalog-v2.json) for broader discovery. Both views share
+the validated release ledger and cannot be edited independently. Existing
+`scripts/library.py` image commands retain their selection behavior and schema-1
+outputs. Shared resource validation and resolution live in `scripts/xorder/`.
+The generated [resource index](resources/index.md) contains current non-image
+availability, prerequisites, and direct usage/evidence links.
 
 Detailed inventories remain linked evidence; discovery should not require
 loading every OS package or context payload. Only tested, publicly retrievable
 releases become available. Target checks distinguish unsupported variants,
 missing prerequisites, unavailable downloads and untested execution surfaces.
+
+## Read-only profile resolution
+
+The optional `scripts/xorder_cli.py` helper requires Python 3 and the dependencies
+in `requirements-ci.txt`. `list` and `show ID` expose accepted resource releases.
+`resolve PROFILE --target TARGET` reads local JSON files and prints a lock; it
+does not install resources or activate instructions. `generate` and `check` use
+the same generated outputs as the existing image metadata commands.
+
+A minimal profile for a currently available image is:
+
+```json
+{
+  "schema_version": 2,
+  "id": "profile/php-project",
+  "revision": "1.0.0",
+  "purpose": "PHP project using the verified image toolchain",
+  "roles": [
+    {
+      "name": "runtime",
+      "alternatives": [{"id": "image/php-dev/8.5-trixie", "version": "1.1.0"}]
+    }
+  ]
+}
+```
+
+The target is explicit observed state, for example:
+
+```json
+{
+  "platform": "linux/amd64",
+  "commands": ["docker"],
+  "scope": "project",
+  "harness": "codex"
+}
+```
+
+Check that the declared Docker command has a working engine; command presence
+alone does not establish readiness. Resource usage checks establish runtime
+behavior. Missing target facts are reported separately from known mismatches.
+Only `available`, verified compatible records can resolve; multiple compatible
+resource alternatives require an explicit choice. Dependencies, version conflicts,
+cycles, and overlapping file destinations are checked before returning a lock.
+
+`--pins previous-lock.json` retains exact existing identities. An upgrade requires
+deliberately changing or omitting those pins. `--overlay private-overlay.json`
+accepts local overrides keyed by existing role name and explicit target overrides:
+
+```json
+{
+  "roles": {
+    "runtime": {
+      "alternatives": [{"id": "image/php-dev/8.4-trixie", "version": "1.1.0"}]
+    }
+  },
+  "target": {"harness": "claude"}
+}
+```
+
+The lock records profile and overlay source hashes, observed target facts, selected
+roles, and exact artifact identities. It is a local decision record; it does not
+replace native lockfiles, release evidence, or future target installation receipts.
+Private overlay files are not inputs to public catalog generation.
 
 ## Delivery and application
 

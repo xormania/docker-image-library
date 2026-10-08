@@ -24,8 +24,12 @@ def validate_schemas(root=ROOT):
     for path in (root / "images").glob("*/definition.json"):
         jsonschema.validate(read(path), read(root / "schemas/definition.schema.json"))
     for path in (root / "release-records").rglob("*.json"):
+        if path.relative_to(root / "release-records").parts[0] == "artifacts":
+            continue
         jsonschema.validate(read(path), read(root / "schemas/release-record.schema.json"))
     jsonschema.validate(read(root / "catalog.json"), read(root / "schemas/catalog.schema.json"))
+    from xorder.model import check as check_resources
+    check_resources(root)
 
 
 def encoded(value):
@@ -155,6 +159,8 @@ def validate_record(record):
 def records(root=ROOT):
     result = []
     for path in sorted((root / "release-records").rglob("*.json")):
+        if path.relative_to(root / "release-records").parts[0] == "artifacts":
+            continue
         result.append(validate_record(read(path)))
     identities = [(r["line_id"], r["version"]) for r in result]
     assert len(identities) == len(set(identities)), "Duplicate release identity"
@@ -305,6 +311,12 @@ def generated(root=ROOT):
             text += measurement_markdown(platform)
         text += "The release record and GitHub Release asset retain the exact definition and per-platform inventory. The generated documentation commit is later than the build source commit.\n"
         outputs[root / "docs" / "releases" / f"{item['line_id'].replace('/', '-')}-v{item['version']}.md"] = text
+    from xorder.model import availability_table, catalog as resource_catalog, generated as generated_resources
+    outputs.update(generated_resources(root, image_records=releases))
+    outputs[root / "README.md"] = re.sub(
+        r"(?s)(<!-- resources:start -->\n).*?(\n<!-- resources:end -->)",
+        lambda match: match[1] + availability_table(resource_catalog(root, image_records=releases)) + match[2],
+        outputs[root / "README.md"])
     return outputs
 
 

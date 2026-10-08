@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "kind",
+    "name",
+    "revision",
+    "purpose",
+    "capabilities",
+    "targets",
+    "prerequisites",
+    "documentation",
+    "details",
+    "verification"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^(image|binary|environment|configuration|context)/[a-z0-9][a-z0-9./-]*$"
+    },
+    "kind": {
+      "enum": [
+        "binary",
+        "environment",
+        "configuration",
+        "context"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(any|[a-z0-9_-]+/[a-z0-9_-]+)$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "prerequisites": {
+      "type": "object",
+      "required": [
+        "commands"
+      ],
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^(image|binary|environment|configuration|context)/[a-z0-9][a-z0-9./-]*$"
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "documentation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "details": {
+      "type": "object"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "migration": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "binary"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": [
+              "upstream_version",
+              "source_url",
+              "sha256",
+              "filename",
+              "executable"
+            ],
+            "properties": {
+              "upstream_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "filename": {
+                "type": "string",
+                "minLength": 1
+              },
+              "executable": {
+                "type": "string",
+                "minLength": 1
+              },
+              "license": {
+                "type": "string",
+                "minLength": 1
+              },
+              "notices": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              },
+              "abi": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "environment"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": [
+              "backend",
+              "files"
+            ],
+            "properties": {
+              "backend": {
+                "enum": [
+                  "devenv",
+                  "devbox"
+                ]
+              },
+              "files": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "source",
+                    "destination"
+                  ],
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "destination": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "scope": {
+                "enum": [
+                  "project",
+                  "user"
+                ]
+              },
+              "activation": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "configuration"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": [
+              "target_application",
+              "files"
+            ],
+            "properties": {
+              "target_application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "files": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "source",
+                    "destination"
+                  ],
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "destination": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "scope": {
+                "enum": [
+                  "project",
+                  "user"
+                ]
+              },
+              "audience": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "context"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "details": {
+            "type": "object",
+            "required": [
+              "audience",
+              "files"
+            ],
+            "properties": {
+              "audience": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "uniqueItems": true
+                  }
+                ]
+              },
+              "files": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "source",
+                    "destination"
+                  ],
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "destination": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "scope": {
+                "enum": [
+                  "project",
+                  "user"
+                ]
+              },
+              "target_application": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
+}
