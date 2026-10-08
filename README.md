@@ -11,11 +11,13 @@ is required. The host needs a working Docker engine and access to the registry.
 <!-- catalog:start -->
 | Line | Revision | Verified platform | Exact reference |
 | --- | --- | --- | --- |
-| [flowbite-xor-dev/8.5-trixie](docs/images/flowbite-xor-dev-8.5-trixie.md) | 1.0.0 | linux/amd64 | `ghcr.io/xormania/flowbite-xor-dev:8.5-trixie-v1.0.0` |
+| [flowbite-xor-dev/8.4-trixie](docs/images/flowbite-xor-dev-8.4-trixie.md) | 1.0.0 | linux/amd64 | `ghcr.io/xormania/flowbite-xor-dev:8.4-trixie-v1.0.0` |
+| [flowbite-xor-dev/8.5-trixie](docs/images/flowbite-xor-dev-8.5-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/flowbite-xor-dev:8.5-trixie-v1.1.0` |
 | [php-browser/8.4-trixie](docs/images/php-browser-8.4-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/php-browser:8.4-trixie-v1.1.0` |
 | [php-browser/8.5-trixie](docs/images/php-browser-8.5-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/php-browser:8.5-trixie-v1.1.0` |
 | [php-dev/8.4-trixie](docs/images/php-dev-8.4-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/php-dev:8.4-trixie-v1.1.0` |
 | [php-dev/8.5-trixie](docs/images/php-dev-8.5-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/php-dev:8.5-trixie-v1.1.0` |
+| [php-frankenphp/8.4-trixie](docs/images/php-frankenphp-8.4-trixie.md) | 1.0.0 | linux/amd64 | `ghcr.io/xormania/php-frankenphp:8.4-trixie-v1.0.0` |
 | [php-frankenphp/8.5-trixie](docs/images/php-frankenphp-8.5-trixie.md) | 1.0.0 | linux/amd64 | `ghcr.io/xormania/php-frankenphp:8.5-trixie-v1.0.0` |
 | [python-dev/3.14-trixie](docs/images/python-dev-3.14-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/python-dev:3.14-trixie-v1.1.0` |
 | [rust-dev/1.99-trixie](docs/images/rust-dev-1.99-trixie.md) | 1.1.0 | linux/amd64 | `ghcr.io/xormania/rust-dev:1.99-trixie-v1.1.0` |
