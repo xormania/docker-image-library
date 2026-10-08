@@ -55,7 +55,8 @@ case "$action" in
     ;;
   test) "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app php npx playwright test "$@" ;;
   phpunit) "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app/demo \
-    -e "XDEBUG_MODE=${PHPUNIT_XDEBUG_MODE:-off}" -e CREATE_SNAPSHOTS=false php php bin/phpunit "$@" ;;
+    -e "XDEBUG_MODE=${PHPUNIT_XDEBUG_MODE:-off}" -e APP_ENV=test -e APP_DEBUG=1 \
+    -e CREATE_SNAPSHOTS=false php php bin/phpunit "$@" ;;
   exec) "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app php "$@" ;;
   logs) "${compose[@]}" logs "$@" ;;
   down) "${compose[@]}" down "$@" ;;

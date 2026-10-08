@@ -55,7 +55,8 @@ Xdebug is installed and stays off for the server and ordinary PHPUnit runs.
 including when the containers were started with Xdebug off. Reports live under
 `demo/var` in the named cache volume; retrieve one with
 `run.sh exec cat demo/var/coverage.xml`. PHPUnit comes from the demo lockfile.
-The runner sets `CREATE_SNAPSHOTS=false`, matching CI.
+The runner sets `APP_ENV=test`, `APP_DEBUG=1` and `CREATE_SNAPSHOTS=false` for
+this process, independently of the development server's environment.
 
 The image stores a checksum-verified Tailwind v4.3.3 binary at `/opt/tailwind`.
 After Composer is ready, `up` reads the demo's resolved tailwind-bundle config

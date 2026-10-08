@@ -73,6 +73,7 @@ else:
     def test_coverage_is_enabled_on_the_phpunit_exec_process(self):
         call = self.run_fixture(action=["phpunit", "--coverage-clover", "var/coverage.xml"])[0]["args"]
         self.assertIn("XDEBUG_MODE=coverage", call)
+        self.assertIn("APP_ENV=test", call)
         self.assertIn("CREATE_SNAPSHOTS=false", call)
         self.assertEqual(call[-5:], ["php", "php", "bin/phpunit", "--coverage-clover", "var/coverage.xml"])
         self.assertEqual(call[call.index("-w") + 1], "/app/demo")
