@@ -42,8 +42,15 @@ Required settings:
   and GitHub Releases. Source PR validation uses read-only repository permissions.
 - Permit automation to create PRs. `LIBRARY_BOT_TOKEN` is an optional repository
   secret for a suitably scoped bot token, so bot-created PRs trigger normal CI.
-  PRs created with GITHUB_TOKEN do not trigger other Actions workflows; run
-  `Validate` manually or use the bot token. Never commit the token.
+  PRs created or updated with `GITHUB_TOKEN` require **Approve workflows to run**
+  in the PR's merge box. Use the bot token for automatic validation.
+  For this public, personally owned repository, `xor-machine` can use a classic
+  PAT with `public_repo` after accepting a collaborator invitation. Fine-grained
+  PATs do not currently support cross-account repository collaborators.
+  Store the token as `LIBRARY_BOT_TOKEN`; PR writeback uses REST and does not
+  require `read:org`. Renew the token before its chosen expiration.
+  Never commit the token. See GitHub's [token limitations](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+  and [workflow trigger rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
 - After the first candidate push, set each GHCR package (`php-dev`,
   `php-browser`, `rust-dev`, `python-dev`) to **public** using its package settings.
   GHCR creates packages private by default and provides no container-visibility

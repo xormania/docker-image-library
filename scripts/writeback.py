@@ -28,6 +28,29 @@ def prepare_branch(branch):
         run("git", "checkout", "-b", branch, "origin/master")
 
 
+def upsert_pr(branch, title, body):
+    # gh pr edit reads unrelated organization/team metadata through GraphQL,
+    # requiring read:org even when only title/body change. REST needs only the
+    # repository permissions used to push this branch and create/update its PR.
+    repository = os.environ["GITHUB_REPOSITORY"]
+    endpoint = f"repos/{repository}/pulls"
+    owner = repository.split("/", 1)[0]
+    prs = json.loads(output("gh", "api", "--method", "GET", endpoint,
+                            "-f", f"head={owner}:{branch}", "-f", "base=master",
+                            "-f", "state=open"))
+    payload = {"title": title, "body": body}
+    if prs:
+        endpoint += f"/{prs[0]['number']}"
+        method = "PATCH"
+    else:
+        payload.update(base="master", head=branch)
+        method = "POST"
+    request_path = ROOT / "out" / "pr-request.json"
+    request_path.parent.mkdir(parents=True, exist_ok=True)
+    request_path.write_text(encoded(payload))
+    run("gh", "api", "--method", method, endpoint, "--input", str(request_path))
+
+
 def main(refresh=False):
     release_inputs = [validate_record(read(p)) for p in (ROOT / "out/releases").rglob("record.json")]
     if not refresh and not release_inputs:
@@ -72,15 +95,8 @@ def main(refresh=False):
     run("git", "push", "origin", branch)
     body = ("Updates locked inputs and allocates fresh patch revisions, including apt refreshes. Image behavior is validated by PR CI before publication."
             if refresh else "Adds only anonymously verified exact references and measured inventories. Regenerates the README, catalog, capability docs and release notes. After this PR is merged, the alias workflow promotes the latest accepted compatible revisions.")
-    body += "\n\nMaster requires PRs and automatic merge is currently disabled. Merge through the repository's permitted merge method. If this PR was created with GITHUB_TOKEN, its creation does not trigger other Actions workflows; use LIBRARY_BOT_TOKEN or run validation manually."
-    prs = json.loads(output("gh", "pr", "list", "--head", branch, "--state", "open", "--json", "number"))
-    body_path = ROOT / "out" / "pr-body.md"
-    body_path.parent.mkdir(parents=True, exist_ok=True)
-    body_path.write_text(body)
-    if prs:
-        run("gh", "pr", "edit", str(prs[0]["number"]), "--title", title, "--body-file", str(body_path))
-    else:
-        run("gh", "pr", "create", "--base", "master", "--head", branch, "--title", title, "--body-file", str(body_path))
+    body += "\n\nMerge through the repository's permitted merge method. Writeback does not enable automatic merge. If this PR was created with GITHUB_TOKEN, select Approve workflows to run in the PR's merge box. LIBRARY_BOT_TOKEN lets PR validation start automatically."
+    upsert_pr(branch, title, body)
 
 
 if __name__ == "__main__":

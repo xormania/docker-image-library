@@ -43,6 +43,7 @@ class RefreshRecoveryTests(unittest.TestCase):
         self.git(self.root, "clone", str(self.remote), str(self.worker))
         self.branch = "automation/refresh-42"
         self.pr_attempts = 0
+        self.pr_requests = []
 
     @staticmethod
     def git(cwd, *args):
@@ -56,16 +57,24 @@ class RefreshRecoveryTests(unittest.TestCase):
             "name": "symfony-cli_linux_amd64.tar.gz", "digest": "sha256:" + "a" * 64,
             "browser_download_url": "https://example.test/symfony.tar.gz"}]}).encode())
 
-    def run_writeback(self):
+    def run_writeback(self, existing_prs=None):
         original_output = writeback.output
 
         def output(*args):
             if args[0] == "gh":
-                return "[]"  # The preceding push succeeded but no PR exists yet.
+                self.assertEqual(args[:4], ("gh", "api", "--method", "GET"))
+                self.assertIn("head=xormania:" + self.branch, args)
+                self.assertIn("base=master", args)
+                self.assertIn("state=open", args)
+                return json.dumps(existing_prs or [])
             return original_output(*args)
 
         def run(*args, **kwargs):
             if args[0] == "gh":
+                # Reject the GraphQL CLI path that requires read:org on a
+                # public_repo-only machine token, and retain the REST request.
+                self.assertEqual(args[:3], ("gh", "api", "--method"))
+                self.pr_requests.append((args[3], args[4], read(args[-1])))
                 self.pr_attempts += 1
                 if self.pr_attempts == 1:
                     raise RuntimeError("PR creation interrupted after push")
@@ -78,7 +87,8 @@ class RefreshRecoveryTests(unittest.TestCase):
                 patch.object(writeback, "run", side_effect=run), \
                 patch.object(refresh, "resolve", return_value={"digest": "sha256:" + "a" * 64}), \
                 patch.object(refresh.urllib.request, "urlopen", side_effect=self.upstream), \
-                patch.dict(os.environ, {"GITHUB_RUN_ID": "42"}):
+                patch.dict(os.environ, {"GITHUB_RUN_ID": "42",
+                                        "GITHUB_REPOSITORY": "xormania/docker-image-library"}):
             writeback.main(refresh=True)
 
     def interrupt_after_push(self):
@@ -113,6 +123,28 @@ class RefreshRecoveryTests(unittest.TestCase):
         self.assertEqual(self.pr_attempts, 2)
         d = read(self.worker / "images/php-dev/definition.json")
         self.assertEqual(d["lines"]["8.4-trixie"]["revision"], "1.0.1")
+
+
+    def test_rerun_updates_existing_pr_with_repository_rest_api(self):
+        first = self.interrupt_after_push()
+        self.run_writeback(existing_prs=[{"number": 5}])
+        after = self.git(self.seed, "ls-remote", "--heads", "origin", self.branch).split()[0]
+        self.assertEqual(after, first)
+        method, endpoint, payload = self.pr_requests[-1]
+        self.assertEqual(method, "PATCH")
+        self.assertEqual(endpoint, "repos/xormania/docker-image-library/pulls/5")
+        self.assertEqual(set(payload), {"title", "body"})
+        self.assertIn("\n\n", payload["body"])
+
+    def test_missing_pr_posts_to_repository_with_explicit_base_and_head(self):
+        self.interrupt_after_push()
+        self.run_writeback()
+        method, endpoint, payload = self.pr_requests[-1]
+        self.assertEqual(method, "POST")
+        self.assertEqual(endpoint, "repos/xormania/docker-image-library/pulls")
+        self.assertEqual(payload["base"], "master")
+        self.assertEqual(payload["head"], self.branch)
+        self.assertIn("Approve workflows to run", payload["body"])
 
 
 if __name__ == "__main__":
