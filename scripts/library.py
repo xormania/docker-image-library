@@ -350,7 +350,7 @@ def fingerprint(d, root=ROOT):
     tools = read(root / "images" / "tools.json")
     keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "symfony"),
             "php-frankenphp": ("composer", "redis_version", "xdebug_version", "symfony", "apcu_version"),
-            "flowbite-xor-dev": ("node",),
+            "flowbite-xor-dev": ("node", "tailwind"),
             "python-dev": ("uv",)}.get(d["family"], ())
     h.update(encoded({key: tools[key] for key in keys}).encode())
     for path in sorted(paths):

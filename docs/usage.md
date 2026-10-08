@@ -97,15 +97,17 @@ not `127.0.0.1`.
 
 ## FrankenPHP and flowbite-xor
 
-`php-frankenphp/8.5-trixie` adds Caddy/FrankenPHP, APCu and worker-mode execution
+`php-frankenphp/8.4-trixie` and `8.5-trixie` add Caddy/FrankenPHP, APCu and worker-mode execution
 to the loaded PHP toolchain. Supply the project's Caddyfile, worker entrypoint
 and PHP settings. Its default command is Bash, like the other library images.
 
-The [`flowbite-xor` profile](flowbite-xor.md) uses `flowbite-xor-dev/8.5-trixie`,
-which adds Node 22/npm to the exact FrankenPHP parent. It overlays the checkout's
+The [`flowbite-xor` profile](flowbite-xor.md) offers `flowbite-xor-dev/8.4-trixie` and `8.5-trixie`,
+which add Node 22/npm and a cached Tailwind CLI to the exact FrankenPHP parent. It overlays the checkout's
 existing demo Compose files, Caddyfile, entrypoint and PHP configuration, and
 starts the official Playwright container at the version in its lockfile. Tests
 execute inside the app container; no Docker socket is mounted there.
+The runner supports `phpunit`, per-command Xdebug coverage, and an opt-in
+read-only Git metadata mount for linked worktrees; see the profile for commands.
 
 New definitions describe intent until publication produces an available catalog
 entry. Use the catalog's digest, or build locally for validation; never guess a

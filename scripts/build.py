@@ -27,6 +27,8 @@ def build(line, image, source, parent=None, cache=None):
         args["APCU_VERSION"] = tools["apcu_version"]
     if d["family"] == "flowbite-xor-dev":
         args["NODE_IMAGE"] = pinned(tools["node"])
+        args.update(TAILWIND_VERSION=tools["tailwind"]["version"],
+                    TAILWIND_URL=tools["tailwind"]["url"], TAILWIND_SHA256=tools["tailwind"]["sha256"])
     if d["family"] == "python-dev":
         args["UV_IMAGE"] = pinned(tools["uv"])
     local_parent = parent and parent.startswith("image-library-")

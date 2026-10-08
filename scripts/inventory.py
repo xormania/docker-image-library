@@ -29,7 +29,8 @@ if family.startswith("php") or family == "flowbite-xor-dev":
     if family in ("php-frankenphp", "flowbite-xor-dev"):
         commands["frankenphp"] = ["frankenphp", "version"]
     if family == "flowbite-xor-dev":
-        commands.update({"node": ["node", "--version"], "npm": ["npm", "--version"]})
+        commands.update({"node": ["node", "--version"], "npm": ["npm", "--version"],
+                         "tailwindcss": ["tailwindcss", "--help"]})
 elif family == "python-dev":
     runtime = run("python", "-c", "import platform; print(platform.python_version())")
     commands.update({"python": ["python", "--version"], "uv": ["uv", "--version"], "pip": ["python", "-m", "pip", "--version"]})

@@ -24,7 +24,7 @@ start=$SECONDS
 if [[ "$kind" = php || "$kind" = python ]]; then
   "${compose[@]}" run --rm dev bash run.sh
   if [[ "$kind" = php ]]; then
-    "${compose[@]}" run --rm -e XDEBUG_MODE=coverage dev php -r 'if (!in_array("coverage", xdebug_info("mode"), true)) {exit(1);} echo "Xdebug coverage can be enabled\n";'
+    "${compose[@]}" run --rm -e XDEBUG_MODE=coverage dev php coverage.php
   fi
   test "$(stat -c %u "$work/workspace-proof.txt")" = "$PUID"
   # Cache persists between invocations, independently of service process lifetime.

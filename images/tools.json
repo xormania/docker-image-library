@@ -19,5 +19,10 @@
     "tag": "docker.io/library/node:22-trixie",
     "digest": "sha256:def2655045ff1ee91b28a48cb3ec84feafef6d128bda0ff6903e7847ed0b27b4"
   },
-  "apcu_version": "5.1.28"
+  "apcu_version": "5.1.28",
+  "tailwind": {
+    "version": "v4.3.3",
+    "url": "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64",
+    "sha256": "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a"
+  }
 }

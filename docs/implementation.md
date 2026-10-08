@@ -3,9 +3,9 @@
 The initial implementation defines six Debian Trixie / Linux amd64 lines:
 PHP development and browser profiles for 8.4 and 8.5, Rust 1.99 and Python 3.14.
 The PHP scope is the first release; Rust/Python reuse the same machinery.
-The additional `php-frankenphp/8.5-trixie` and `flowbite-xor-dev/8.5-trixie`
-definitions supply worker-mode PHP and a Node 22 derivative with an official
-Playwright companion. See [the flowbite-xor profile](flowbite-xor.md) for the
+The additional `php-frankenphp` and `flowbite-xor-dev` definitions for PHP 8.4
+and 8.5 supply worker-mode PHP and a Node 22 derivative with cached Tailwind
+and an official Playwright companion. See [the flowbite-xor profile](flowbite-xor.md) for the
 pinned source inspection and real consumer acceptance recipe.
 
 Runtime choices were checked against project manifests on 8 October 2026:
