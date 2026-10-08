@@ -6,7 +6,7 @@ apt-get update
 python_packages=()
 if ! command -v python3 >/dev/null; then python_packages=(python3); fi
 apt-get install -y --no-install-recommends \
-  bash ca-certificates curl git gh jq ripgrep unzip zip xz-utils tar \
+  bash ca-certificates openssl curl git gh jq ripgrep unzip zip xz-utils tar \
   build-essential autoconf file re2c pkg-config libssl-dev libpq-dev postgresql-client \
   gosu procps "${python_packages[@]}"
 rm -rf /var/lib/apt/lists/*

@@ -28,6 +28,16 @@ jobs:
       - run: python -m compileall -q scripts tests
       - name: Shell syntax
         run: find scripts images tests -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+      - name: Resolve proposed profile inputs
+        run: |
+          python - <<'PY'
+          import sys, json, urllib.request
+          sys.path.insert(0, "scripts")
+          from registry import resolve
+          for ref in ("docker.io/dunglas/frankenphp:1-php8.5-trixie", "docker.io/library/node:22-trixie"):
+              print(json.dumps({"reference": ref, **resolve(ref)}))
+          print("APCU_VERSION=" + urllib.request.urlopen("https://pecl.php.net/rest/r/apcu/stable.txt", timeout=30).read().decode())
+          PY
       - id: matrix
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

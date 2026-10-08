@@ -45,7 +45,7 @@
     "8.4-trixie": {
       "runtime_line": "8.4",
       "os": "debian-trixie",
-      "revision": "1.0.1",
+      "revision": "1.1.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -53,14 +53,14 @@
         "parent": "php-dev/8.4-trixie"
       },
       "changes": [
-        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision."
+        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
       ],
-      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
+      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
     },
     "8.5-trixie": {
       "runtime_line": "8.5",
       "os": "debian-trixie",
-      "revision": "1.0.1",
+      "revision": "1.1.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -68,9 +68,9 @@
         "parent": "php-dev/8.5-trixie"
       },
       "changes": [
-        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision."
+        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
       ],
-      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
+      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
     }
   }
 }
