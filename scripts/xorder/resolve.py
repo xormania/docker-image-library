@@ -57,6 +57,14 @@ def compatibility(resource, target):
             gaps.append({"code": "target_fact_missing", "fact": "scope"})
         elif scope != target["scope"]:
             gaps.append({"code": "scope_mismatch", "expected": scope, "actual": target["scope"]})
+    if resource["kind"] == "context":
+        audience = resource["details"]["audience"]
+        audiences = audience if isinstance(audience, list) else [audience]
+        if "any" not in audiences:
+            if not target.get("harness"):
+                gaps.append({"code": "target_fact_missing", "fact": "harness", "audience": audiences})
+            elif target["harness"] not in audiences:
+                gaps.append({"code": "audience_mismatch", "expected": audiences, "actual": target["harness"]})
     return gaps
 
 

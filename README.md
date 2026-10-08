@@ -107,6 +107,8 @@ and direct usage pages remains sufficient.
 - [Architecture, resource boundaries, and discovery](docs/architecture.md)
 - [Verified downloadable resources and prerequisites](docs/resources/index.md)
 - [Applying locks, ownership, recovery, and rollback](docs/application.md)
+- [URL discovery and host/container acceptance](docs/discovery.md)
+- [Profiles and private assignment overlays](docs/profiles.md)
 - [Selection and requirement gaps](docs/selection.md)
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [FrankenPHP and flowbite-xor development/testing](docs/flowbite-xor.md)

@@ -23,7 +23,7 @@ def definition(name="composer", kind="binary", revision="1.0.0"):
         elif kind == "configuration":
             details["target_application"] = "editor"
         else:
-            details["audience"] = "coding-agents"
+            details["audience"] = "any"
     return {"schema_version": 2, "id": f"{kind}/{name}", "kind": kind, "name": name,
             "revision": revision, "purpose": "Controlled test resource",
             "capabilities": ["package-management"], "targets": ["linux/amd64"],
@@ -252,6 +252,45 @@ class ResourceContracts(unittest.TestCase):
         self.assertEqual(result["lock"]["resources"], [])
         result = self.resolve(p, target={"platform": "linux/amd64", "commands": [], "scope": "project"})
         self.assertEqual(result["gaps"][0]["code"], "target_fact_missing")
+
+    def test_context_audience_cannot_be_bypassed_by_custom_profile_overlay_or_pin(self):
+        d = definition("codex-guide", "context")
+        d["details"]["audience"] = "codex"
+        self.add(d)
+        p = profile(d["id"])
+        # No role.when clause is needed to enforce the authored audience.
+        lock = self.resolve(p)["lock"]
+        other_target = {**self.target, "harness": "claude"}
+        for kwargs in ({"target": other_target},
+                       {"overlay": {"target": {"harness": "claude"}}},
+                       {"target": other_target, "pins": lock}):
+            with self.subTest(kwargs=kwargs):
+                result = self.resolve(p, **kwargs)
+                self.assertEqual(result["status"], "resolution_failed")
+                self.assertNotIn("lock", result)
+                reasons = result["gaps"][0]["mismatches"][0]["reasons"]
+                self.assertEqual(reasons[0]["code"], "audience_mismatch")
+        changed_lock = copy.deepcopy(lock)
+        changed_lock["target"]["harness"] = "claude"
+        with self.assertRaisesRegex(ValueError, "incompatible"):
+            validate_lock(changed_lock, self.cat(), self.root)
+
+    def test_context_audience_requires_harness_unless_any_is_explicit(self):
+        d = definition("guide", "context")
+        d["details"]["audience"] = ["codex", "claude"]
+        self.add(d)
+        p = profile(d["id"])
+        no_harness = {key: value for key, value in self.target.items() if key != "harness"}
+        result = self.resolve(p, target=no_harness)
+        reason = result["gaps"][0]["mismatches"][0]["reasons"][0]
+        self.assertEqual((reason["code"], reason["fact"]), ("target_fact_missing", "harness"))
+        self.assertEqual(self.resolve(p, target={**self.target, "harness": "claude"})["status"], "resolved")
+        d["details"]["audience"] = "any"
+        self.add(d)
+        self.assertEqual(self.resolve(p, target=no_harness)["status"], "resolved")
+        d["details"]["audience"] = "coding-agents"
+        self.add(d)
+        self.assertEqual(self.resolve(p)["status"], "resolution_failed")
 
     def test_overlay_is_explicit_pinned_and_cannot_override_unknown_roles(self):
         self.add(definition("guide", "context"))

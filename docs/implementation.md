@@ -1,40 +1,75 @@
 # Implementation status
 
-The initial implementation defines six Debian Trixie / Linux amd64 lines:
-PHP development and browser profiles for 8.4 and 8.5, Rust 1.99 and Python 3.14.
-The PHP scope is the first release; Rust/Python reuse the same machinery.
-The additional `php-frankenphp` and `flowbite-xor-dev` definitions for PHP 8.4
-and 8.5 supply worker-mode PHP and a Node 22 derivative with cached Tailwind
-and an official Playwright companion. See [the flowbite-xor profile](flowbite-xor.md) for the
-pinned source inspection and real consumer acceptance recipe.
+xorder extends the existing image library with independently versioned binaries,
+native environments, configuration, and context. The public repository URL
+remains the discovery entry point; no installed helper, skill, plugin, or service
+is required to read the catalog and follow a resource's usage page.
 
-Runtime choices were checked against project manifests on 8 October 2026:
-`flowbite-xor/demo/composer.json` requires PHP >=8.4 and Symfony 8.1;
-`cue-rust/Cargo.toml` declares Rust 1.96 and edition 2024;
-`chess-crawl/pyproject.toml` declares Python >=3.11 and psycopg. Rust 1.99
-and Python 3.14 are available stable upstream lines at input resolution time.
-These constraints justify candidates; they do not establish that every project
-dependency works without the project's own validation.
+## Current source capabilities
 
-Implemented: definitions and schemas, a deterministic catalog/docs generator,
-selection scenarios and pin preservation, shared workspace handling, locked
-real consumer fixtures, PHP/browser/native/WASM/Python recipes, Actions CI,
-candidate/durable-record/exact publication, PR writeback, accepted aliases and
-weekly/manual refresh PRs.
+The shared model validates resource definitions, verified release records,
+profiles, and exact resolution locks. It generates the compact typed
+[catalog](../catalog-v2.json), the unchanged schema-1 [image view](../catalog.json),
+README availability tables, and the [downloadable resource index](resources/index.md)
+from the accepted ledger. Detailed image inventories remain linked evidence.
 
-Availability is represented only by [catalog.json](../catalog.json). This status
-document never promotes a definition to a published image. CI and publication
-results, exact digests, dates and inventories are retained by workflow artifacts
-and verified release records. First publication needs the concrete repository
-settings listed in [releases](releases.md), including public GHCR visibility.
+The existing image families are `php-dev`, `php-browser`, `php-frankenphp`,
+`flowbite-xor-dev`, `rust-dev`, and `python-dev`. PHP has 8.4 and 8.5 Trixie lines;
+the Rust and Python lines are 1.99 and 3.14. Exact available revisions, measured
+capabilities, platforms, and digests come from the catalog. The
+[flowbite-xor usage profile](flowbite-xor.md) documents worker-mode PHP, Node 22,
+cached Tailwind, and its project-locked official Playwright companion.
 
-[Source validation on 8 October 2026](https://github.com/xormania/docker-image-library/actions/runs/37713857904)
-passed all six builds and their behavioral recipes: both PHP runtimes and real
-Panther browser interactions, Python/PostgreSQL, native/WASM Rust, mounted file
-ownership, caches and inventory validation. This is GitHub Actions execution,
-not registry publication or a live Claude observation. Publication/writeback
-permissions and anonymous pulling must still be exercised after source merge.
+The authored non-image examples are an upstream Composer PHAR, a locked devenv
+PHP/Symfony environment, EditorConfig, and sample Codex project guidance. The
+[profiles](profiles.md) select a runtime, formatting, and optional targeted
+context without also selecting Composer when the environment already supplies
+it. The standalone Composer profile requires an existing compatible PHP runtime.
+Definitions and profiles can exist before their releases become available.
 
-Required acceptance: mock requirement scenarios with real Docker behavior using
-the documented recipes. Optional: a live Claude cloud observation. No live model
-session is needed to complete acceptance, and none is claimed here.
+Read-only resolution preserves supplied pins, selects compatible verified
+releases for explicit target facts, and checks dependencies, cycles, version
+conflicts, and overlapping destinations. Explicit local overlays keep private
+assignments outside the public catalog. [Application](application.md) stages
+verified HTTP bytes, caches by checksum, locks each target, records owned files,
+and supports repeat application, conflict detection, recovery, rollback, and
+explicit removal. Native backends own activation and service processes; images
+are reported as external usage actions rather than falsely recorded as installed.
+
+The publication adapters retain exact source tags and content identities,
+verify anonymous public retrieval and behavior, and stage verified records
+through protected-branch writeback. Selective CI distinguishes images, HTTP
+resources, and native environments. Resource configuration/context changes do
+not require unrelated image builds. Existing image refresh, measurements, aliases,
+and release recovery continue to use their original contracts.
+
+## Availability and verification evidence
+
+Only accepted verified release records make resources selectable. Consult the
+generated catalog and resource index for current availability; this authored
+status document does not promote definitions or pending CI candidates. New
+validation and publication paths in the source tree do not establish that their
+CI runs have passed or that their HTTP releases have been accepted.
+
+The historical
+[source validation on 8 October 2026](https://github.com/xormania/docker-image-library/actions/runs/37713857904)
+passed the initial six image build jobs and their behavior recipes: both PHP
+runtimes and Panther interactions, Python/PostgreSQL, native/WASM Rust, mounted
+file ownership, caches, and inventory validation. That run establishes source
+validation on GitHub Actions, rather than registry publication or a live Claude
+observation. Subsequent accepted image records retain their own publication,
+anonymous-pull evidence, exact digests, timestamps, inventories, and measurements.
+The old repository name in the historical run URL preserves its provenance.
+
+[Discovery acceptance](discovery.md) combines independent requirement scenarios
+with real execution fixtures. The bundle consumer fixture exercises authored
+payloads through the public helper and a temporary controlled HTTPS endpoint;
+its candidate records stay outside the accepted ledger. Image readiness,
+Composer execution, native environment activation, and public retrieval require
+their corresponding verification surfaces. File receipts establish delivery and
+ownership; they do not establish that an agent followed delivered instructions.
+
+The source-label rename remains a deliberate next-refresh image change, as
+documented in [contributing](contributing.md). Portable PHP, Devbox, additional
+platforms, and optional CDN mirrors can extend this structure. A live cloud-chat
+observation can add evidence but is not a foundation acceptance prerequisite.
