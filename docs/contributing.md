@@ -1,4 +1,4 @@
-# Maintaining and expanding the library
+# Maintaining and expanding xorder
 
 Use feature branches and PRs against master. The canonical source layout is:
 
@@ -13,6 +13,14 @@ Use feature branches and PRs against master. The canonical source layout is:
 | `catalog.json`, README table, `docs/images/`, `docs/releases/` | Generated outputs |
 | `scripts/` | Small build, inventory, release, generation and refresh helpers |
 | `tests/fixtures/`, `tests/requirements/` | Locked real consumer fixtures and independent mock requirements |
+
+The image paths remain stable. [Architecture](architecture.md) describes the
+extension boundaries for binaries, environments, configuration, context, and
+profiles. Add a new path with its first meaningful definition or implementation;
+do not create empty category directories or list an unverified resource as
+available. Keep one normalized resource model and generate any compatibility
+views from it. Existing image selection inputs and outputs are compatibility
+contracts while generic discovery is introduced.
 
 Local metadata validation:
 
@@ -50,6 +58,15 @@ parent remains visible while both parent and browser caches can be exported.
 Build artifacts and job summaries retain image size and build/verification
 times. A source-label-only rebuild checks that filesystem layers stay identical.
 
+The repository is now `xormania/xorder`; existing GHCR package names are unchanged.
+Dockerfile source labels still record the former repository URL. Update those
+labels with the next deliberate image refresh, allocate new patch revisions for
+every affected line and derived consumer, and run normal build/publication
+verification. Changing a label changes the input fingerprint even when the
+filesystem layers are unchanged. Keep that image-input change separate from
+documentation-only rename work; never rebuild an accepted exact revision or
+rewrite historical release evidence to disguise it.
+
 PR build metrics describe validation artifacts; they are not published release
 facts. Measured release facts belong in verified `release-records/`, and their
 documentation is generated from that ledger in the image/release pages and
@@ -84,7 +101,12 @@ official upstream base and resolve its digest, define its intended profile,
 extend the build/inventory/behavior recipes, add independent selection scenarios,
 and keep it unavailable until the shared publication path produces a verified
 record. Extend platform schema/build/tests together before adding arm64.
-Do not create a second catalog, pipeline service, MCP server or agent skill.
+Keep discovery usable from the repository URL without a pipeline service, MCP
+server, or installed discovery skill. A selected context resource may contain a
+skill; that payload is independent of the discovery entry point. Reuse common
+release evidence and orchestration, with kind-specific build/verification and
+application behavior. Configuration/context changes must not rebuild unrelated
+images.
 
 Pins make build inputs traceable; apt repositories and project download
 services still change. Byte-for-byte reproducible rebuilds are not claimed.
