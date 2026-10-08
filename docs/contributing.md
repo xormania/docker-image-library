@@ -52,8 +52,19 @@ times. A source-label-only rebuild checks that filesystem layers stay identical.
 
 PR build metrics describe validation artifacts; they are not published release
 facts. Measured release facts belong in verified `release-records/`, and their
-documentation is generated from that ledger. Rebuild timings depend on cache
-state and runner/network conditions; compare equivalent inputs and image stores.
+documentation is generated from that ledger in the image/release pages and
+[release measurements](metrics.md). Publication records local image size,
+measurement method/store, timestamps, evidence, and public-artifact verification
+time. Fresh builds also record build time and external cache input; resumed
+artifacts have no invented build time.
+
+Size comparisons use the preceding available accepted revision. Publication
+reuses its recorded size when the method/store match, or anonymously pulls its
+digest and measures it in the current store. This supports older records without
+metrics without rewriting their durable release assets. A comparison appears
+only when that accepted baseline is present; missing measurements stay absent.
+Rebuild timings depend on cache state and runner/network conditions; compare
+equivalent inputs rather than treating one run as a guaranteed duration.
 
 `Refresh build inputs` runs weekly and manually. It resolves upstream digests,
 PECL versions and the Symfony artifact checksum, then stages fresh patch

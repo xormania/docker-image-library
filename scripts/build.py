@@ -52,6 +52,21 @@ def image_facts(image):
     return json.loads(subprocess.check_output(["docker", "image", "inspect", image], text=True))[0]
 
 
+def image_measurements(image):
+    info = json.loads(subprocess.check_output(["docker", "info", "--format", "{{json .}}"], text=True))
+    driver_type = dict(info.get("DriverStatus") or []).get("driver-type", "classic")
+    return {"image_size_bytes": image_facts(image)["Size"],
+            "size_method": "docker-image-inspect-size", "image_store": info["Driver"] + "/" + driver_type}
+
+
+def cache_source(cache):
+    """Describe the external cache input, without claiming a layer cache hit."""
+    directory = os.environ.get("LIBRARY_CACHE_DIR")
+    if not cache or not directory:
+        return "disabled"
+    return "restored" if (Path(directory) / cache / "index.json").is_file() else "empty"
+
+
 def cache_probe(line, image, source, parent=None):
     """A new source label must reuse the tested filesystem layers."""
     before = image_facts(image)
@@ -90,12 +105,13 @@ if __name__ == "__main__":
     p.add_argument("--inventory", default="out/inventory.json")
     p.add_argument("--cache-probe", action="store_true")
     a = p.parse_args()
+    cache = cache_source(a.cache)
     start = time.monotonic()
     build(a.line, a.image, a.source, a.parent, a.cache)
     built = time.monotonic()
     verify(a.line, a.image, a.inventory)
     verified = time.monotonic()
-    metrics = {"line": a.line, "image_size_bytes": image_facts(a.image)["Size"],
+    metrics = {"line": a.line, **image_measurements(a.image), "cache_source": cache,
                "build_seconds": round(built-start, 2), "verify_seconds": round(verified-built, 2)}
     if a.cache_probe:
         metrics["source_label_rebuild_seconds"] = cache_probe(a.line, a.image, a.source, a.parent)

@@ -5,9 +5,10 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from build import build, pinned, verify
+from build import build, cache_source, image_measurements, pinned, verify
 from library import ROOT, definitions, encoded, fingerprint, read, records, validate_record, version
 from registry import resolve
 
@@ -47,9 +48,33 @@ def release_asset(tag, destination):
     return None
 
 
+def release_measurements(line, revision, artifact, accepted, evidence, measured_at, verification_seconds,
+                         anonymous_env, build_seconds=None, build_cache=None):
+    measurements = {**image_measurements(artifact), "measured_at": measured_at, "evidence": evidence,
+                    "verification_seconds": verification_seconds}
+    if build_seconds is not None:
+        measurements.update(build_seconds=build_seconds, cache_source=build_cache)
+    peers = [r for r in accepted if r["line_id"] == line and r["lifecycle"] == "available"
+             and version(r["version"]) < version(revision)]
+    if peers:
+        previous = max(peers, key=lambda r: version(r["version"]))
+        prior_metrics = previous["platforms"][0].get("metrics", {})
+        reference = previous["publication"]["repository"] + "@" + previous["publication"]["digest"]
+        if (prior_metrics.get("size_method"), prior_metrics.get("image_store")) == (measurements["size_method"], measurements["image_store"]):
+            baseline = {key: prior_metrics[key] for key in ("image_size_bytes", "size_method", "image_store", "measured_at", "evidence")}
+        else:
+            # Older records have no size measurements. Measure their published
+            # digest in this same store, without rewriting the durable record.
+            run("docker", "pull", "--platform", "linux/amd64", reference, env=anonymous_env)
+            baseline = {**image_measurements(reference), "measured_at": now(), "evidence": evidence}
+        measurements["baseline"] = {"version": previous["version"], "digest_reference": reference, **baseline}
+    return measurements
+
+
 def publish(line, source, destination, parent=None):
     d = definitions()[line]
-    prior = [r for r in records() if r["line_id"] == line and r["version"] == d["revision"]]
+    accepted = records()
+    prior = [r for r in accepted if r["line_id"] == line and r["version"] == d["revision"]]
     fp = fingerprint(d)
     if parent:
         import hashlib
@@ -79,6 +104,7 @@ def publish(line, source, destination, parent=None):
     existing = resolve(candidate, authenticated=True)
     inventory_path = destination / "inventory.json"
     resolved_base = parent or pinned(d["base"])
+    build_seconds = build_cache = None
     if existing:
         artifact = repository + "@" + existing["digest"]
         run("docker", "pull", artifact)
@@ -87,7 +113,10 @@ def publish(line, source, destination, parent=None):
             raise RuntimeError("Candidate metadata does not match this release")
         verify(line, artifact, inventory_path)
     else:
+        build_cache = cache_source(line.replace("/", "-"))
+        build_start = time.monotonic()
         build(line, candidate, source, parent, cache=line.replace("/", "-"))
+        build_seconds = round(time.monotonic() - build_start, 2)
         verify(line, candidate, inventory_path)
         run("docker", "push", candidate)
     published = resolve(candidate, authenticated=True)
@@ -102,16 +131,21 @@ def publish(line, source, destination, parent=None):
         raise RuntimeError(f"Make GHCR package {d['family']} public, then rerun this workflow to reuse the candidate") from error
     if not public or public["digest"] != digest:
         raise RuntimeError("Anonymous registry resolution failed")
+    evidence = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
     with tempfile.TemporaryDirectory() as config:
         env = dict(os.environ, DOCKER_CONFIG=config)
         run("docker", "pull", "--platform", "linux/amd64", artifact, env=env)
+        verification_start = time.monotonic()
         verify(line, artifact, inventory_path)
-    evidence = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+        verification_seconds = round(time.monotonic() - verification_start, 2)
+        measurements = release_measurements(line, d["revision"], artifact, accepted, evidence, now(),
+                                            verification_seconds, env, build_seconds, build_cache)
     date = now()
     record = {"schema_version": 1, "line_id": line, "version": d["revision"], "source_commit": source, "source_tag": source_tag,
               "created_at": date, "definition": d, "tools": read(ROOT / "images/tools.json"), "resolved_base": resolved_base,
               "input_fingerprint": fp, "lifecycle": "available",
-              "platforms": [{"platform": "linux/amd64", "digest": published["platforms"].get("linux/amd64", digest), "inventory": read(inventory_path)}],
+              "platforms": [{"platform": "linux/amd64", "digest": published["platforms"].get("linux/amd64", digest),
+                             "inventory": read(inventory_path), "metrics": measurements}],
               "publication": {"repository": repository, "digest": digest, "exact_tag": f"{d['line']}-v{d['revision']}", "public_pull_verified_at": date, "evidence": evidence},
               "verification": {"status": "passed", "surface": "github-actions-linux-amd64", "completed_at": date, "evidence": evidence}}
     validate_record(record)

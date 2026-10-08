@@ -72,6 +72,9 @@
           },
           "inventory": {
             "type": "object"
+          },
+          "metrics": {
+            "$ref": "#/$defs/metrics"
           }
         },
         "additionalProperties": false
@@ -153,5 +156,110 @@
       "format": "date-time"
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "metrics": {
+      "type": "object",
+      "required": [
+        "image_size_bytes",
+        "size_method",
+        "image_store",
+        "measured_at",
+        "evidence",
+        "verification_seconds"
+      ],
+      "properties": {
+        "image_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "size_method": {
+          "const": "docker-image-inspect-size"
+        },
+        "image_store": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        },
+        "measured_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "evidence": {
+          "type": "string",
+          "format": "uri"
+        },
+        "verification_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "build_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cache_source": {
+          "enum": [
+            "disabled",
+            "empty",
+            "restored"
+          ]
+        },
+        "baseline": {
+          "$ref": "#/$defs/size_baseline"
+        }
+      },
+      "dependentRequired": {
+        "build_seconds": [
+          "cache_source"
+        ],
+        "cache_source": [
+          "build_seconds"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "size_baseline": {
+      "type": "object",
+      "required": [
+        "image_size_bytes",
+        "size_method",
+        "image_store",
+        "measured_at",
+        "evidence",
+        "version",
+        "digest_reference"
+      ],
+      "properties": {
+        "image_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "size_method": {
+          "const": "docker-image-inspect-size"
+        },
+        "image_store": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        },
+        "measured_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "evidence": {
+          "type": "string",
+          "format": "uri"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        },
+        "digest_reference": {
+          "type": "string",
+          "pattern": "^ghcr.io/xormania/[a-z0-9-]+@sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }
