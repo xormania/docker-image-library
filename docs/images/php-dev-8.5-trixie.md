@@ -2,13 +2,13 @@
 
 Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.1.0**. Pin:
 
 ```text
-ghcr.io/xormania/php-dev@sha256:8a824a7e88ef81f63611629ad5e4a1de1fc17adc7cb278e8c48ab1d43e745b0c
+ghcr.io/xormania/php-dev@sha256:53a1728c55ad8059184ef2ccc0bfb5c62e1b97c3cda87f14ae0897e46cf1317d
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37717501432); 2026-10-08T02:26:03.065396Z.
+[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:37.954900Z.
 
 ## Measured inventory — linux/amd64
 
@@ -29,7 +29,21 @@ Runtime: 8.5.11; OS: Debian GNU/Linux 13 (trixie).
 
 Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `lexbor`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `uri`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
 
-[Release notes](../releases/php-dev-8.5-trixie-v1.0.0.md).
+### Release measurements — linux/amd64
+
+| Metric | Measured value |
+| --- | ---: |
+| Local image size | 903.5 MiB (947,431,802 bytes) |
+| Build, cache export and image load | 171.56s |
+| Public-artifact behavior and inventory verification | 11.62s |
+
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:34.043560Z.
+
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
+
+Size baseline: v1.0.0, `ghcr.io/xormania/php-dev@sha256:8a824a7e88ef81f63611629ad5e4a1de1fc17adc7cb278e8c48ab1d43e745b0c`; 903.5 MiB in the same image store. Change: **+0.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:37.954772Z.
+
+[Release notes](../releases/php-dev-8.5-trixie-v1.1.0.md).
 
 Capabilities: `php`, `composer`, `symfony`, `postgresql-client`, `native-build`, `xdebug`.
 

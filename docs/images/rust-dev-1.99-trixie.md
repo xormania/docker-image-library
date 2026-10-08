@@ -2,13 +2,13 @@
 
 Rust 2024 native compilation, Clippy, formatting and wasm32-unknown-unknown builds.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.1.0**. Pin:
 
 ```text
-ghcr.io/xormania/rust-dev@sha256:f7a732022c49f33478b4237d9a8dcd78c8925ee14a6df5fec16ad08729dd0e04
+ghcr.io/xormania/rust-dev@sha256:3bd310edbdd171c59bde5818d7fae4ff05e1b1f63f9a5c3ff5e3da8b5311e809
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37717501432); 2026-10-08T02:24:12.570047Z.
+[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:52.318142Z.
 
 ## Measured inventory — linux/amd64
 
@@ -29,7 +29,21 @@ Runtime: 1.99.0; OS: Debian GNU/Linux 13 (trixie).
 | rustfmt | rustfmt 1.10.0-stable (b940084d7e 2026-09-28) |
 | rustup | rustup 1.29.1 (d95a37b6a 2026-08-13) |
 
-[Release notes](../releases/rust-dev-1.99-trixie-v1.0.0.md).
+### Release measurements — linux/amd64
+
+| Metric | Measured value |
+| --- | ---: |
+| Local image size | 1,274.9 MiB (1,336,841,082 bytes) |
+| Build, cache export and image load | 55.26s |
+| Public-artifact behavior and inventory verification | 3.51s |
+
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:28.971289Z.
+
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
+
+Size baseline: v1.0.0, `ghcr.io/xormania/rust-dev@sha256:f7a732022c49f33478b4237d9a8dcd78c8925ee14a6df5fec16ad08729dd0e04`; 1,784.0 MiB in the same image store. Change: **-28.5%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:52.317985Z.
+
+[Release notes](../releases/rust-dev-1.99-trixie-v1.1.0.md).
 
 Capabilities: `rust`, `cargo`, `rustfmt`, `clippy`, `native-build`, `postgresql-client`, `wasm32-unknown-unknown`.
 

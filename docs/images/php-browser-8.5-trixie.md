@@ -2,13 +2,13 @@
 
 PHP and Symfony development plus real Chromium and Panther browser tests.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.1.0**. Pin:
 
 ```text
-ghcr.io/xormania/php-browser@sha256:b4bc2f409c6ca21a828855e25fec51c8df32d778b119e1e0c7a84be68f912d86
+ghcr.io/xormania/php-browser@sha256:fd4f250816cd15db0e111ea9cb71c40df1def9174633ce1b7e9bdba587cd6882
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37717501432); 2026-10-08T02:28:10.857576Z.
+[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:46.753541Z.
 
 ## Measured inventory — linux/amd64
 
@@ -31,7 +31,21 @@ Runtime: 8.5.11; OS: Debian GNU/Linux 13 (trixie).
 
 Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `lexbor`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `uri`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
 
-[Release notes](../releases/php-browser-8.5-trixie-v1.0.0.md).
+### Release measurements — linux/amd64
+
+| Metric | Measured value |
+| --- | ---: |
+| Local image size | 1,606.7 MiB (1,684,722,779 bytes) |
+| Build, cache export and image load | 55.74s |
+| Public-artifact behavior and inventory verification | 12.46s |
+
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:37.139406Z.
+
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
+
+Size baseline: v1.0.0, `ghcr.io/xormania/php-browser@sha256:b4bc2f409c6ca21a828855e25fec51c8df32d778b119e1e0c7a84be68f912d86`; 1,606.7 MiB in the same image store. Change: **+0.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:46.753398Z.
+
+[Release notes](../releases/php-browser-8.5-trixie-v1.1.0.md).
 
 Capabilities: `browser`, `composer`, `native-build`, `panther`, `php`, `postgresql-client`, `symfony`, `xdebug`.
 
