@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 from . import model
@@ -19,8 +20,8 @@ def run(*args):
     return subprocess.run(args, cwd=ROOT, check=True)
 
 
-def gh(*args):
-    return subprocess.check_output(["gh", *args], cwd=ROOT, text=True)
+def gh(*args, timeout=None):
+    return subprocess.check_output(["gh", *args], cwd=ROOT, text=True, timeout=timeout)
 
 
 def now():
@@ -28,13 +29,52 @@ def now():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def release_info(tag):
+def release_info(tag, release_id=None, timeout=None):
+    repository = f"repos/{os.environ['GITHUB_REPOSITORY']}/releases"
+    if release_id is not None:
+        release = json.loads(gh("api", f"{repository}/{release_id}", timeout=timeout))
+        if release["id"] != release_id or release["tag_name"] != tag:
+            raise RuntimeError("Observed release identity differs from the exact release")
+        return release
     # Listing successfully distinguishes absence from auth/network/API failure.
-    pages = json.loads(gh("api", "--paginate", "--slurp", f"repos/{os.environ['GITHUB_REPOSITORY']}/releases"))
+    pages = json.loads(gh("api", "--paginate", "--slurp", repository, timeout=timeout))
     matches = [release for page in pages for release in page if release["tag_name"] == tag]
     if len(matches) > 1:
         raise RuntimeError("Duplicate namespaced release tag")
     return matches[0] if matches else None
+
+
+class ReleaseVisibility:
+    """Bound successful post-write visibility misses across one publication."""
+    def __init__(self):
+        self.remaining = 20.0
+
+    def wait(self, tag, source, ready, failure, release_id=None):
+        started = time.monotonic()
+        deadline = started + self.remaining
+        delay = 0.25
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise RuntimeError(failure)
+                # Only successful API reads returning stale state are retried.
+                # Authentication, API, timeout, and malformed-response errors escape.
+                release = release_info(tag, release_id, timeout=remaining)
+                if release is not None:
+                    if release["tag_name"] != tag or release["target_commitish"] != source:
+                        raise RuntimeError("Observed release source or tag differs; recover using its original commit")
+                    if ready(release):
+                        return release
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise RuntimeError(failure)
+                time.sleep(min(delay, remaining))
+                delay = min(delay * 2, 2.0)
+        finally:
+            # Slow artifact preparation or runtime verification does not consume
+            # this allowance; all visibility reads and waits share one budget.
+            self.remaining = max(0.0, self.remaining - (time.monotonic() - started))
 
 
 def tag_guard(tag, source):
@@ -116,12 +156,12 @@ def publish(resource_id, source, destination, root=ROOT):
     if release and release["target_commitish"] != source:
         raise RuntimeError("Existing release source differs; recover using its original commit")
     artifact, facts = prepare(definition, destination, root)
+    visibility = ReleaseVisibility()
     if not release:
         run("gh", "release", "create", tag, "--target", source, "--draft", "--title", tag,
             "--notes", "Candidate resource. Public retrieval verification and catalog acceptance are pending.")
-        release = release_info(tag)
-        if release is None:
-            raise RuntimeError("Candidate release creation was not observable")
+        release = visibility.wait(tag, source, lambda observed: True,
+                                  "Candidate release creation was not observable")
     tag_guard(tag, source)
     payload_asset = asset_named(release, facts["filename"])
     if payload_asset:
@@ -131,11 +171,15 @@ def publish(resource_id, source, destination, root=ROOT):
                 raise RuntimeError("Exact resource asset already contains different bytes")
     else:
         run("gh", "release", "upload", tag, str(artifact))
+        release = visibility.wait(tag, source, lambda observed: asset_named(observed, facts["filename"]) is not None,
+                                  "Uploaded candidate resource asset is not observable", release["id"])
     # Unlike registry candidates, GitHub draft assets are not public. Publication
     # exposes bytes, while the merged verified ledger alone makes them selectable.
     if release["draft"]:
         run("gh", "release", "edit", tag, "--draft=false")
-    release = release_info(tag)
+        release = visibility.wait(tag, source,
+                                  lambda observed: asset_named(observed, facts["filename"]) is not None and not observed["draft"],
+                                  "Published resource asset is not observable", release["id"])
     payload_asset = asset_named(release, facts["filename"])
     if release["draft"] or payload_asset is None:
         raise RuntimeError("Published resource asset is not observable")
@@ -153,8 +197,21 @@ def publish(resource_id, source, destination, root=ROOT):
                                "evidence": evidence, "commands": [command]}}
     model.validate_record(record, root)
     record_path = destination / "record.json"
+    # The workflow exports out/**/record.json even when publication fails. Keep
+    # the upload input outside that tree until the durable asset is observable.
+    def durable_ready(observed):
+        payload = asset_named(observed, facts["filename"])
+        if payload is not None and payload["browser_download_url"] != publication["url"]:
+            raise RuntimeError("Published resource payload URL changed")
+        return asset_named(observed, "record.json") is not None and payload is not None and not observed["draft"]
+
+    with tempfile.TemporaryDirectory(prefix="xorder-record-upload-") as temporary:
+        upload_path = Path(temporary) / "record.json"
+        upload_path.write_text(model.encoded(record))
+        run("gh", "release", "upload", tag, str(upload_path))
+        visibility.wait(tag, source, durable_ready,
+                        "Durable resource record is not observable", release["id"])
     record_path.write_text(model.encoded(record))
-    run("gh", "release", "upload", tag, str(record_path))
     notes = "\n".join("- " + change for change in definition.get("changes", ["Published independently versioned resource."]))
     notes += f"\n\nMigration: {definition.get('migration', 'See the resource usage documentation.')}\n\nSHA256: `{facts['sha256']}`\n\n[Verification]({evidence}). Catalog acceptance is staged through a protected-branch PR."
     run("gh", "release", "edit", tag, "--notes", notes)
