@@ -5,9 +5,10 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
-from library import ROOT, definitions, read, validate_inventory
+from library import ROOT, children, definitions, read, validate_inventory
 
 
 def pinned(base):
@@ -19,9 +20,13 @@ def build(line, image, source, parent=None, cache=None):
     tools = read(ROOT / "images/tools.json")
     args = {"BASE_IMAGE": parent or pinned(d["base"]), "SOURCE_COMMIT": source,
             "IMAGE_VERSION": d["revision"], "APT_REFRESH": d["revision"]}
-    if d["family"] == "php-dev":
+    if d["family"] in ("php-dev", "php-frankenphp"):
         args.update(COMPOSER_IMAGE=pinned(tools["composer"]), REDIS_VERSION=tools["redis_version"],
                     XDEBUG_VERSION=tools["xdebug_version"], SYMFONY_URL=tools["symfony"]["url"], SYMFONY_SHA256=tools["symfony"]["sha256"])
+    if d["family"] == "php-frankenphp":
+        args["APCU_VERSION"] = tools["apcu_version"]
+    if d["family"] == "flowbite-xor-dev":
+        args["NODE_IMAGE"] = pinned(tools["node"])
     if d["family"] == "python-dev":
         args["UV_IMAGE"] = pinned(tools["uv"])
     local_parent = parent and parent.startswith("image-library-")
@@ -104,6 +109,7 @@ if __name__ == "__main__":
     p.add_argument("--source", default="local"); p.add_argument("--parent"); p.add_argument("--cache")
     p.add_argument("--inventory", default="out/inventory.json")
     p.add_argument("--cache-probe", action="store_true")
+    p.add_argument("--children", action="store_true", help="Build and verify immediate derived profiles with this exact local parent")
     a = p.parse_args()
     cache = cache_source(a.cache)
     start = time.monotonic()
@@ -123,3 +129,14 @@ if __name__ == "__main__":
                           f"build: {metrics['build_seconds']}s; behavior/inventory: {metrics['verify_seconds']}s.\n")
             if a.cache_probe:
                 summary.write(f"Source-label-only rebuild: {metrics['source_label_rebuild_seconds']}s; filesystem layers unchanged.\n")
+    if a.children:
+        for child in children(a.line, definitions()):
+            family = definitions()[child]["family"]
+            command = [sys.executable, __file__, child, "image-library-check:" + family,
+                       "--source", a.source, "--parent", a.image,
+                       "--inventory", str(Path(a.inventory).with_name(family + ".json"))]
+            if a.cache:
+                command += ["--cache", child.replace("/", "-")]
+            if a.cache_probe:
+                command += ["--cache-probe"]
+            subprocess.run(command, check=True)

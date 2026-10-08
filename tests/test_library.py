@@ -17,6 +17,8 @@ def record(line, revision="1.0.0", digest="a"):
     inv = {"platform": "linux/amd64", "runtime_version": d["runtime_line"] + ".1",
            "os": {"VERSION_CODENAME": "trixie", "PRETTY_NAME": "Debian 13"},
            "extensions": {e: "test" for e in d["extensions"]}, "tools": {t: "test" for t in d["tools"]}}
+    if "node" in d["capabilities"]:
+        inv["tools"].update(node="v22.1.0", npm="10.1.0")
     if d["family"] == "php-browser":
         inv["tools"].update(chromium="Chromium 140.0", chromedriver="ChromeDriver 140.0")
     return {"schema_version": 1, "line_id": line, "version": revision, "source_commit": "b" * 40,
@@ -71,12 +73,12 @@ class DiscoveryTests(unittest.TestCase):
     def test_metadata_and_fixture_changes_select_only_their_consumers(self):
         defs = definitions()
         self.assertEqual(affected(["scripts/release.py", "scripts/writeback.py", "tests/test_library.py", "tests/requirements/php.json", ".github/workflows/refresh.yml"], defs), [])
-        self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie"])
+        self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
         self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
-        self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "python-dev/3.14-trixie"])
-        self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 4)
-        self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 4)
+        self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie"])
+        self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 5)
+        self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 5)
 
     def test_unrelated_tool_pins_do_not_change_release_inputs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -107,13 +109,26 @@ class DiscoveryTests(unittest.TestCase):
                 fp = hashlib.sha256((fp + ref).encode()).hexdigest()
             r["input_fingerprint"] = fp
             accepted.append(r)
-        self.assertEqual(pending_releases(defs, []), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "python-dev/3.14-trixie", "rust-dev/1.99-trixie"])
+        self.assertEqual(pending_releases(defs, []), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie", "rust-dev/1.99-trixie"])
         self.assertEqual(pending_releases(defs, accepted), [])
         missing = [r for r in accepted if r["line_id"] != "php-browser/8.4-trixie"]
         self.assertEqual(pending_releases(defs, missing), ["php-dev/8.4-trixie"])
         changed = copy.deepcopy(accepted)
         next(r for r in changed if r["line_id"] == "rust-dev/1.99-trixie")["input_fingerprint"] = "0" * 64
         self.assertEqual(pending_releases(defs, changed), ["rust-dev/1.99-trixie"])
+
+    def test_frankenphp_and_project_profile_selection_and_scope(self):
+        defs = definitions()
+        req = {"runtime_line": "8.5", "capabilities": ["frankenphp", "worker-server"], "extensions": ["intl", "apcu"]}
+        cat = catalog([record("php-frankenphp/8.5-trixie"), record("flowbite-xor-dev/8.5-trixie", digest="e")])
+        self.assertEqual(select(cat, req)["image"]["line_id"], "php-frankenphp/8.5-trixie")
+        req["capabilities"].append("node")
+        self.assertEqual(select(cat, req)["image"]["line_id"], "flowbite-xor-dev/8.5-trixie")
+        self.assertEqual(select(catalog([]), req)["status"], "no_matching_image")
+        self.assertEqual(affected(["examples/flowbite-xor/run.sh"], defs), ["php-frankenphp/8.5-trixie"])
+        self.assertEqual(affected(["images/flowbite-xor-dev/Dockerfile"], defs), ["php-frankenphp/8.5-trixie"])
+        from library import children
+        self.assertEqual(children("php-frankenphp/8.5-trixie", defs), ["flowbite-xor-dev/8.5-trixie"])
 
     def test_generated_output_is_deterministic(self):
         self.assertEqual(generated(), generated())

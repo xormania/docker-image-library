@@ -24,8 +24,8 @@ python3 -m unittest discover -s tests -v
 ```
 
 On a Docker-capable host, use `scripts/build.py LINE_ID LOCAL_TAG` and
-`scripts/verify-image.sh LINE_ID IMAGE`. Browser build input must be the exact
-matching php-dev artifact; PR tests use the just-built local parent. Publication
+`scripts/verify-image.sh LINE_ID IMAGE`. Derived build input must be the exact
+matching parent artifact; PR tests use the just-built local parent. Publication
 uses its immutable registry digest. Image builds collect measured versions,
 packages, runtime and extensions using `scripts/inventory.py`.
 

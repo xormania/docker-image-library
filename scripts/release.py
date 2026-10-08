@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from build import build, cache_source, image_measurements, pinned, verify
-from library import ROOT, definitions, encoded, fingerprint, read, records, validate_record, version
+from library import ROOT, children, definitions, encoded, fingerprint, read, records, validate_record, version
 from registry import resolve
 
 
@@ -227,8 +227,7 @@ if __name__ == "__main__":
         record = publish(args.line, args.source, output)
         output.mkdir(parents=True, exist_ok=True)
         (output / "record.json").write_text(encoded(record))
-        if d["family"] == "php-dev":
-            browser = "php-browser/" + d["line"]
+        for browser in children(args.line, definitions()):
             parent = record["publication"]["repository"] + "@" + record["publication"]["digest"]
             browser_output = ROOT / "out" / browser.replace("/", "-")
             browser_record = publish(browser, args.source, browser_output, parent)

@@ -16,9 +16,9 @@ def refresh(base_ref=None):
 
     tools_path = ROOT / "images/tools.json"
     tools = inputs(tools_path)
-    for name in ("composer", "uv"):
+    for name in ("composer", "uv", "node"):
         tools[name]["digest"] = resolve(tools[name]["tag"])["digest"]
-    for name in ("redis", "xdebug"):
+    for name in ("redis", "xdebug", "apcu"):
         with urllib.request.urlopen(f"https://pecl.php.net/rest/r/{name}/stable.txt", timeout=60) as response:
             tools[name + "_version"] = response.read().decode().strip()
     with urllib.request.urlopen("https://api.github.com/repos/symfony-cli/symfony-cli/releases/latest", timeout=60) as response:

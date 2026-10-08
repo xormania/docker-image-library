@@ -1,0 +1,50 @@
+{
+  "purpose": "FrankenPHP/PHP 8.5 plus Node 22 for flowbite-xor development and Playwright test orchestration.",
+  "capabilities": [
+    "node",
+    "npm",
+    "playwright-client"
+  ],
+  "extensions": [],
+  "limitations": [
+    "Playwright and application packages come from project lockfiles; browsers run in the version-matched official Playwright companion.",
+    "Use examples/flowbite-xor/run.sh to reuse repository-owned worker, Caddy, PHP and mount configuration without an in-container Docker socket."
+  ],
+  "schema_version": 1,
+  "family": "flowbite-xor-dev",
+  "tools": [
+    "node",
+    "npm"
+  ],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [
+    "mcr.microsoft.com/playwright:<project-locked-version>-noble"
+  ],
+  "lines": {
+    "8.5-trixie": {
+      "runtime_line": "8.5",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "parent": "php-frankenphp/8.5-trixie"
+      },
+      "changes": [
+        "Add Node 22/npm to the exact FrankenPHP parent and provide a flowbite-xor demo/test profile."
+      ],
+      "migration": "New optional project profile. Select its verified digest, install project lockfiles, and use the companion version derived from package-lock.json."
+    }
+  }
+}

@@ -25,6 +25,15 @@ root to adjust home/cache ownership and then drops privileges. It never changes
 the project's entire bind mount ownership. A cache belongs to one project/user;
 avoid sharing it with concurrent processes that use different UIDs.
 
+A root-owned checkout can use `PUID=0 PGID=0` explicitly. This keeps the
+entrypoint's CA setup and home/cache handling while running the command as root;
+there is no need to bypass the entrypoint or recursively change project ownership.
+The wrapper honors these overrides:
+
+```sh
+PUID=0 PGID=0 bash scripts/run-image.sh "$IMAGE" composer install --no-interaction
+```
+
 For direct invocation:
 
 ```sh
@@ -68,7 +77,8 @@ image; they do not claim those moving companion tags are immutable.
 Mercure should use the consuming project's existing official
 [`dunglas/mercure`](https://github.com/dunglas/mercure) image and configuration.
 Keep its version, JWT keys, URL and allowed origins explicit. Mercure is not
-bundled in a development image or needed by the acceptance fixture.
+bundled in the CLI profiles or needed by their acceptance fixture. FrankenPHP's
+upstream Caddy binary includes Mercure; use the consuming repository's configuration.
 
 ## Browser workflow
 
@@ -84,6 +94,22 @@ It uses `--no-sandbox` for hosts that disallow Chromium sandbox namespaces; use
 that option only with trusted development content. Compose supplies 1 GiB of
 shared memory. A project server in another container needs its service hostname,
 not `127.0.0.1`.
+
+## FrankenPHP and flowbite-xor
+
+`php-frankenphp/8.5-trixie` adds Caddy/FrankenPHP, APCu and worker-mode execution
+to the loaded PHP toolchain. Supply the project's Caddyfile, worker entrypoint
+and PHP settings. Its default command is Bash, like the other library images.
+
+The [`flowbite-xor` profile](flowbite-xor.md) uses `flowbite-xor-dev/8.5-trixie`,
+which adds Node 22/npm to the exact FrankenPHP parent. It overlays the checkout's
+existing demo Compose files, Caddyfile, entrypoint and PHP configuration, and
+starts the official Playwright container at the version in its lockfile. Tests
+execute inside the app container; no Docker socket is mounted there.
+
+New definitions describe intent until publication produces an available catalog
+entry. Use the catalog's digest, or build locally for validation; never guess a
+published tag.
 
 ## Python and Rust
 
@@ -125,11 +151,38 @@ image size; no speculative size/time threshold is imposed.
 
 ## Network access
 
+Image pulls require host/daemon access to **`ghcr.io` and
+`pkg-containers.githubusercontent.com`** (registry and layer downloads).
+GitHub [documents these endpoints](https://docs.github.com/en/actions/reference/runners/github-hosted-runners#communication-requirements-for-github-hosted-runners).
+Project dependencies need their own hosts, including GitHub, Composer repositories,
+importmap/CDN resources and npm as appropriate. The Playwright companion is pulled
+from `mcr.microsoft.com`; use the registry's redirects as required by your network.
+
 The wrappers forward `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` when set on the
 host. Include service names, localhost and 127.0.0.1 in NO_PROXY for local HTTP
 connections. Host networking policy is not automatically inherited by a Docker
-container. Run the readiness recipe inside the selected container to verify
-Composer/uv downloads. If the host uses a private certificate authority, mount
-its PEM certificate and supply the relevant tool's CA option, or build an
-explicit project derivative that trusts it. Do not disable TLS verification.
+container. Run the readiness recipe to verify downloads inside the selected image.
+
+For a proxy that signs HTTPS with a private CA, mount **one PEM CA certificate**
+read-only and set `LIBRARY_CA_FILE` to its absolute container path. The root
+entrypoint adds it to Debian's certificate bundle before dropping privileges.
+Composer, curl and git use the trusted bundle; Node gets `NODE_EXTRA_CA_CERTS`.
+Explicit existing Composer/Node CA settings take precedence.
+
+```sh
+export CA_CERTIFICATE='/absolute/path/to/proxy-ca.pem'
+bash scripts/run-image.sh "$IMAGE" composer install --no-interaction
+# Equivalent direct invocation:
+docker run --rm -e LIBRARY_CA_FILE=/run/proxy.pem \
+  --mount "type=bind,src=$CA_CERTIFICATE,dst=/run/proxy.pem,readonly" \
+  "$IMAGE" curl --fail https://github.com
+```
+
+Missing/invalid certificates fail startup. This option needs the normal root
+entrypoint; with an explicit non-root `--user`, use a pre-trusted derivative or
+mount a CA bundle and set the tool's CA option (`COMPOSER_CAFILE`, `CURL_CA_BUNDLE`,
+`GIT_SSL_CAINFO`, `NODE_EXTRA_CA_CERTS`) directly. Keep public roots in that bundle
+when the tool replaces its default trust store. Never disable TLS verification.
+The Docker host/daemon must separately trust the proxy to pull images: a
+container entrypoint cannot fix a pull that happens before it starts.
 No Docker socket is mounted by these recipes.

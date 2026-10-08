@@ -1,0 +1,84 @@
+{
+  "purpose": "Loaded PHP/Symfony development with FrankenPHP, Caddy and worker-mode HTTP execution.",
+  "capabilities": [
+    "php",
+    "composer",
+    "symfony",
+    "postgresql-client",
+    "native-build",
+    "xdebug",
+    "frankenphp",
+    "worker-server"
+  ],
+  "extensions": [
+    "intl",
+    "mbstring",
+    "curl",
+    "zip",
+    "bcmath",
+    "dom",
+    "xml",
+    "pdo_pgsql",
+    "pgsql",
+    "pdo_mysql",
+    "mysqli",
+    "pdo_sqlite",
+    "gd",
+    "redis",
+    "sockets",
+    "pcntl",
+    "xdebug",
+    "apcu",
+    "zend opcache"
+  ],
+  "limitations": [
+    "Project dependencies and Caddy/worker configuration belong to the consuming repository.",
+    "Xdebug is off by default; enable explicitly for debugging or coverage.",
+    "Node and Playwright browsers are supplied by the flowbite-xor profile and its official companion, respectively."
+  ],
+  "schema_version": 1,
+  "family": "php-frankenphp",
+  "tools": [
+    "bash",
+    "git",
+    "gh",
+    "curl",
+    "jq",
+    "rg",
+    "psql",
+    "frankenphp"
+  ],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [
+    "postgres:17-trixie",
+    "redis:7.4"
+  ],
+  "lines": {
+    "8.5-trixie": {
+      "runtime_line": "8.5",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "tag": "docker.io/dunglas/frankenphp:1-php8.5-trixie",
+        "digest": "sha256:06e3a490ff76db5bfd1c3c410677fc22bdbcb2c735c240cfa4111727d7641f38"
+      },
+      "changes": [
+        "Introduce a loaded FrankenPHP/PHP 8.5 development environment with APCu, worker-mode validation and the shared workspace/CA contract."
+      ],
+      "migration": "New optional line. Reuse the project Caddyfile and PHP configuration, and validate its worker and upload behavior before switching an existing pin."
+    }
+  }
+}
