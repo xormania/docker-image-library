@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "composer": {
+    "tag": "docker.io/library/composer:2",
+    "digest": "sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac"
+  },
+  "uv": {
+    "tag": "ghcr.io/astral-sh/uv:latest",
+    "digest": "sha256:61d393e44e249f2e4b526b6c7ddcecce245946826e608e11c93ad4f5bba55b21"
+  },
+  "redis_version": "6.3.0",
+  "xdebug_version": "3.5.3",
+  "symfony": {
+    "version": "5.22.0",
+    "url": "https://github.com/symfony-cli/symfony-cli/releases/download/v5.22.0/symfony-cli_linux_amd64.tar.gz",
+    "sha256": "26af8671c2ea0cefd72c3629513e190af7c2e239e81e0ea84842716f4db3a585"
+  }
+}

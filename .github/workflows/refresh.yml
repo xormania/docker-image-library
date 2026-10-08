@@ -1,0 +1,22 @@
+name: Refresh build inputs
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: library-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.LIBRARY_BOT_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.LIBRARY_BOT_TOKEN || github.token }}
+      - name: Open input refresh PR
+        run: python scripts/writeback.py --refresh

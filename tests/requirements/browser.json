@@ -1,0 +1,14 @@
+{
+  "runtime_line": "8.4",
+  "capabilities": [
+    "php",
+    "composer",
+    "postgresql-client",
+    "browser",
+    "panther"
+  ],
+  "extensions": [
+    "intl",
+    "pdo_pgsql"
+  ]
+}
