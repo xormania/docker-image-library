@@ -24,6 +24,13 @@ results, exact digests, dates and inventories are retained by workflow artifacts
 and verified release records. First publication needs the concrete repository
 settings listed in [releases](releases.md), including public GHCR visibility.
 
+[Source validation on 8 October 2026](https://github.com/xormania/docker-image-library/actions/runs/37713857904)
+passed all six builds and their behavioral recipes: both PHP runtimes and real
+Panther browser interactions, Python/PostgreSQL, native/WASM Rust, mounted file
+ownership, caches and inventory validation. This is GitHub Actions execution,
+not registry publication or a live Claude observation. Publication/writeback
+permissions and anonymous pulling must still be exercised after source merge.
+
 Required acceptance: mock requirement scenarios with real Docker behavior using
 the documented recipes. Optional: a live Claude cloud observation. No live model
 session is needed to complete acceptance, and none is claimed here.

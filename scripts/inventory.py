@@ -2,6 +2,7 @@
 """Run inside the tested container; collect facts, not declared capabilities."""
 import json
 import platform
+import re
 import shlex
 import subprocess
 import sys
@@ -9,7 +10,8 @@ from pathlib import Path
 
 
 def run(*command):
-    return subprocess.check_output(command, text=True, stderr=subprocess.STDOUT).strip()
+    output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
+    return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", output).strip()
 
 
 family = sys.argv[1]
