@@ -36,7 +36,9 @@ Reading the catalog does not activate context bundles.
 ## Available downloadable resources
 
 <!-- resources:start -->
-No verified non-image releases yet. Authored definitions are not available artifacts.
+| Resource | Revision | Tested target | Prerequisites | Exact identity |
+| --- | --- | --- | --- | --- |
+| [binary/composer](docs/resources/binary-composer.md) | 1.0.0 | linux/amd64 | `php` | `sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6` |
 <!-- resources:end -->
 
 The generated [resource index](docs/resources/index.md) links verified usage,
