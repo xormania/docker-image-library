@@ -2,7 +2,9 @@
 """Optional xorder discovery helper; Python 3 and requirements-ci.txt are required."""
 import argparse
 import hashlib
+import json
 from pathlib import Path
+from jsonschema.exceptions import ValidationError
 
 from xorder import model
 from xorder.resolve import resolve
@@ -10,7 +12,7 @@ from xorder.resolve import resolve
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=model.ROOT, help="repository root")
+    parser.add_argument("--repository-root", type=Path, default=model.ROOT, help="repository root")
     sub = parser.add_subparsers(dest="command", required=True)
     listing = sub.add_parser("list")
     listing.add_argument("--kind", choices=("image",) + model.KINDS)
@@ -21,19 +23,45 @@ def main():
     resolution.add_argument("--target", required=True, help="JSON with observed target facts")
     resolution.add_argument("--pins", help="previous lock JSON; pins are preserved")
     resolution.add_argument("--overlay", help="explicit private local overlay JSON")
+    resolution.add_argument("--output", type=Path, help="save only the resolved lock for later application")
+    for verb in ("plan", "apply", "verify", "recover", "rollback", "remove"):
+        command = sub.add_parser(verb)
+        if verb in ("plan", "apply"):
+            command.add_argument("lock", help="exact resolved lock JSON")
+        if verb == "remove":
+            command.add_argument("ids", nargs="+", help="installed resource IDs to remove")
+        command.add_argument("--root", required=True, type=Path, help="target directory")
+        command.add_argument("--state-dir", type=Path, help="override per-user state directory")
+        if verb in ("apply", "recover", "rollback", "remove"):
+            command.add_argument("--cache-dir", type=Path, help="override per-user verified content cache")
     sub.add_parser("generate")
     sub.add_parser("check")
     args = parser.parse_args()
     if args.command == "generate":
         from library import generated
-        for path, content in generated(args.root).items():
+        for path, content in generated(args.repository_root).items():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
         return
     if args.command == "check":
-        model.check(args.root)
+        model.check(args.repository_root)
         return
-    cat = model.catalog(args.root)
+    if args.command in ("plan", "apply", "verify", "recover", "rollback", "remove"):
+        from xorder import apply as application
+        common = {"root": args.root, "state_dir": args.state_dir}
+        if args.command in ("apply", "recover", "rollback", "remove"):
+            common["cache_dir"] = args.cache_dir
+        if args.command in ("plan", "apply"):
+            common["lock"] = model.read(args.lock)
+            common["accepted_catalog"] = model.catalog(args.repository_root)
+        if args.command == "remove":
+            common["resource_ids"] = args.ids
+        result = getattr(application, args.command)(**common)
+        print(model.encoded(result), end="")
+        if result["status"] not in ("ready", "applied", "unchanged", "passed", "recovered"):
+            raise SystemExit(2)
+        return
+    cat = model.catalog(args.repository_root)
     if args.command == "list":
         result = {"schema_version": 2, "resources": [item for item in cat["resources"]
                   if (not args.kind or item["kind"] == args.kind)
@@ -51,11 +79,18 @@ def main():
                          overlay=model.read(overlay) if overlay else None,
                          profile_sha256=hashlib.sha256(profile.read_bytes()).hexdigest(),
                          overlay_sha256=hashlib.sha256(overlay.read_bytes()).hexdigest() if overlay else None,
-                         root=args.root)
+                         root=args.repository_root)
+        if args.output and result["status"] == "resolved":
+            from xorder.apply import atomic_json
+            atomic_json(args.output, result["lock"])
     print(model.encoded(result), end="")
     if result.get("status") == "resolution_failed":
         raise SystemExit(2)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, ValidationError) as error:
+        print(model.encoded({"status": "error", "reason": str(error)}), end="")
+        raise SystemExit(2)

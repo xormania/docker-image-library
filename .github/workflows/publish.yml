@@ -1,8 +1,8 @@
-name: Publish verified images
+name: Publish verified resources
 on:
   push:
     branches: [master]
-    paths: ['images/**', 'scripts/**', 'schemas/**', 'tests/**', 'examples/**', '.github/workflows/publish.yml']
+    paths: ['images/**', 'artifacts/**', 'scripts/**', 'schemas/**', 'tests/**', 'examples/**', '.github/workflows/publish.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -13,20 +13,94 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare:
+    permissions:
+      contents: read
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       has_images: ${{ steps.matrix.outputs.has_images }}
+      resources: ${{ steps.resources.outputs.resources }}
+      environments: ${{ steps.resources.outputs.environments }}
+      has_resources: ${{ steps.resources.outputs.has_resources }}
+      has_environments: ${{ steps.resources.outputs.has_environments }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - run: python -m pip install -r requirements-ci.txt
       - id: matrix
         run: |
           matrix=$(python scripts/library.py release-matrix)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "has_images=$(python -c 'import json,sys; print(str(bool(json.loads(sys.argv[1])["line"])).lower())' "$matrix")" >> "$GITHUB_OUTPUT"
+      - id: resources
+        env:
+          PYTHONPATH: scripts
+        run: |
+          matrix=$(python -m xorder.release --matrix)
+          python -c 'import json,sys; m=json.loads(sys.argv[1]); print("resources="+json.dumps({"resource":m["resource"]})); print("environments="+json.dumps({"resource":m["environment"]})); print("has_resources="+str(bool(m["resource"])).lower()); print("has_environments="+str(bool(m["environment"])).lower())' "$matrix" >> "$GITHUB_OUTPUT"
+  resources:
+    permissions:
+      contents: write
+    needs: prepare
+    if: needs.prepare.outputs.has_resources == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.resources) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts
+      RESOURCE: ${{ matrix.resource }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: python -m pip install -r requirements-ci.txt
+      - name: Publish and verify public exact resource
+        run: python -m xorder.release "$RESOURCE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: release-resource-${{ strategy.job-index }}
+          path: out/resources/**/record.json
+          if-no-files-found: ignore
+  environments:
+    permissions:
+      contents: write
+    needs: prepare
+    if: needs.prepare.outputs.has_environments == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.environments) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts
+      RESOURCE: ${{ matrix.resource }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: python -m pip install -r requirements-ci.txt
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: |
+            extra-substituters = https://devenv.cachix.org
+            extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+      - name: Install pinned devenv
+        run: nix profile install 'github:cachix/devenv/b904dcb51fe48c30db250038241507f60752f222#devenv'
+      - name: Publish and verify public native environment
+        run: python -m xorder.release "$RESOURCE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: release-environment-${{ strategy.job-index }}
+          path: out/resources/**/record.json
+          if-no-files-found: ignore
   publish:
     needs: prepare
     if: needs.prepare.outputs.has_images == 'true'
@@ -69,8 +143,11 @@ jobs:
           path: out/**/record.json
           if-no-files-found: ignore
   documentation:
-    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.has_images == 'true'
-    needs: [prepare, publish]
+    permissions:
+      contents: write
+      pull-requests: write
+    if: always() && needs.prepare.result == 'success' && (needs.prepare.outputs.has_images == 'true' || needs.prepare.outputs.has_resources == 'true' || needs.prepare.outputs.has_environments == 'true')
+    needs: [prepare, publish, resources, environments]
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ secrets.LIBRARY_BOT_TOKEN || github.token }}
@@ -85,4 +162,6 @@ jobs:
           path: out/releases
           merge-multiple: true
       - name: Stage verified records and generate catalog
-        run: python scripts/writeback.py
+        run: |
+          python -m pip install -r requirements-ci.txt
+          python scripts/writeback.py

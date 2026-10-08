@@ -95,6 +95,28 @@ class ResourceContracts(unittest.TestCase):
         self.assertIn("binary/composer", model.definitions(self.root))
         self.assertEqual(self.cat()["resources"], [])
 
+    def test_resource_changes_do_not_launch_image_builds(self):
+        defs = library.definitions()
+        resource_changes = [
+            "artifacts/context/project-guidance/payload/project-guidance.md",
+            "profiles/php-project.json", "scripts/xorder/resolve.py",
+            "scripts/xorder_cli.py", "schemas/resource.schema.json",
+            "schemas/artifact-release-record.schema.json", "schemas/catalog-v2.schema.json",
+            "schemas/profile.schema.json", "schemas/resolution-lock.schema.json",
+            "schemas/installation-receipt.schema.json",
+            "tests/fixtures/devenv/composer.lock", "tests/fixtures/artifacts/example.txt",
+            "examples/resources/use.sh", "examples/devenv/devenv.nix",
+        ]
+        for path in resource_changes:
+            with self.subTest(path=path):
+                self.assertEqual(library.affected([path], defs), [])
+        expected = library.affected(["images/php-browser/Dockerfile"], defs)
+        self.assertEqual(library.affected(resource_changes + ["images/php-browser/Dockerfile"], defs), expected)
+        all_images = sorted({library.root_line(line, defs) for line in defs})
+        for path in ("scripts/library.py", "scripts/new-build-helper.py", "schemas/unknown.schema.json"):
+            with self.subTest(path=path):
+                self.assertEqual(library.affected([path], defs), all_images)
+
     def test_new_records_do_not_enter_legacy_image_ledger(self):
         self.add(definition())
         self.assertEqual(library.records(self.root), [])

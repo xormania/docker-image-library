@@ -20,16 +20,17 @@ Start here:
 
 ## Resource kinds
 
-| Kind | Current availability | Purpose |
-| --- | --- | --- |
-| Images | Verified releases below | Ready-to-pull PHP/Symfony, browser, Rust, and Python toolchains |
-| Binaries | No verified release yet | Downloadable software with exact hashes and explicit runtime/platform prerequisites |
-| Environments | No verified release yet | Reusable native definitions, starting with devenv and its locked inputs |
-| Configuration | No verified release yet | Independently versioned settings installed into explicit owned scopes |
-| Context | No verified release yet | Selected guidance or skills for an explicit task, role, or harness |
+| Kind | Purpose |
+| --- | --- |
+| Images | Ready-to-pull PHP/Symfony, browser, Rust, and Python toolchains |
+| Binaries | Downloadable software with exact hashes and explicit runtime/platform prerequisites |
+| Environments | Reusable native definitions, starting with devenv and its locked inputs |
+| Configuration | Independently versioned settings installed into explicit owned scopes |
+| Context | Selected guidance or skills for an explicit task, role, or harness |
 
 [Architecture](docs/architecture.md) describes the extension boundaries and
-profiles that compose resources. Planned kinds are not selectable releases.
+profiles that compose resources. Only verified releases in the generated tables
+and catalog are selectable; authored definitions remain unavailable until accepted.
 Reading the catalog does not activate context bundles.
 
 ## Available downloadable resources
@@ -105,6 +106,7 @@ and direct usage pages remains sufficient.
 
 - [Architecture, resource boundaries, and discovery](docs/architecture.md)
 - [Verified downloadable resources and prerequisites](docs/resources/index.md)
+- [Applying locks, ownership, recovery, and rollback](docs/application.md)
 - [Selection and requirement gaps](docs/selection.md)
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [FrankenPHP and flowbite-xor development/testing](docs/flowbite-xor.md)

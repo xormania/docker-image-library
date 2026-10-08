@@ -11,8 +11,33 @@ concurrency:
   group: library-release
   cancel-in-progress: false
 jobs:
-  promote:
+  prepare:
     if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    outputs:
+      has_images: ${{ steps.records.outputs.has_images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: records
+        env:
+          BASE_SHA: ${{ github.event.before }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, subprocess
+          from pathlib import PurePosixPath
+          base = os.environ.get("BASE_SHA", "")
+          if not base or set(base) == {"0"}:
+              selected = True
+          else:
+              changed = subprocess.check_output(["git", "diff", "--name-only", base, "HEAD"], text=True).splitlines()
+              selected = any(len(PurePosixPath(path).parts) == 4 and path.startswith("release-records/") and path.endswith(".json") for path in changed)
+          print("has_images=" + str(selected).lower())
+          PY
+  promote:
+    needs: prepare
+    if: needs.prepare.outputs.has_images == 'true'
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
