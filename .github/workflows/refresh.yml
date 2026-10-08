@@ -18,7 +18,5 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ secrets.LIBRARY_BOT_TOKEN || github.token }}
-      - run: python scripts/refresh.py
-      - run: python scripts/library.py generate
       - name: Open input refresh PR
         run: python scripts/writeback.py --refresh

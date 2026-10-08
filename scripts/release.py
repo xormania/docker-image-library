@@ -155,6 +155,19 @@ def aliases():
     run("git", "fetch", "origin", "master")
     run("git", "checkout", "--detach", "origin/master")
     accepted = records()
+    groups = {}
+    for r in accepted:
+        p = r["publication"]
+        alias = f"{p['repository']}:{r['definition']['line']}-v{version(r['version'])[0]}"
+        groups.setdefault(alias, []).append(r)
+    # Check every major before changing any aliases. A withdrawal must not leave
+    # a stale recommendation silently successful, or delete a shared exact digest.
+    blocked = [alias for alias, peers in groups.items()
+               if not any(r["lifecycle"] == "available" for r in peers)
+               and resolve(alias, authenticated=True) is not None]
+    if blocked:
+        raise RuntimeError("No available replacement for existing aliases: " + ", ".join(blocked)
+                           + ". Restore a verified available release or retire these alias tags while preserving exact artifacts, then rerun.")
     for r in accepted:
         if not alias_eligible(r, accepted):
             continue

@@ -84,6 +84,50 @@ class PromotionTests(unittest.TestCase):
         self.assertTrue(alias_eligible(new, [old, new]))
         self.assertFalse(alias_eligible(new, [old]))  # unpublished candidate
 
+    def test_last_withdrawn_or_deprecated_release_blocks_existing_alias(self):
+        for lifecycle in ("withdrawn", "deprecated"):
+            with self.subTest(lifecycle=lifecycle):
+                r = record("php-dev/8.4-trixie")
+                r["lifecycle"] = lifecycle
+                with patch.object(release, "records", return_value=[r]), \
+                        patch.object(release, "resolve", return_value={"digest": r["publication"]["digest"]}), \
+                        patch.object(release, "run") as run:
+                    with self.assertRaisesRegex(RuntimeError, "No available replacement.*php-dev:8.4-trixie-v1"):
+                        release.aliases()
+                    self.assertFalse(any(call.args[0] == "docker" for call in run.call_args_list))
+
+    def test_retired_alias_that_is_already_absent_needs_no_promotion(self):
+        r = record("php-dev/8.4-trixie")
+        r["lifecycle"] = "withdrawn"
+        with patch.object(release, "records", return_value=[r]), \
+                patch.object(release, "resolve", return_value=None), \
+                patch.object(release, "run") as run:
+            release.aliases()
+            self.assertFalse(any(call.args[0] == "docker" for call in run.call_args_list))
+
+    def test_withdrawal_rolls_alias_back_to_available_revision(self):
+        old = record("php-dev/8.4-trixie")
+        withdrawn = record("php-dev/8.4-trixie", "1.0.1", "e")
+        withdrawn["lifecycle"] = "withdrawn"
+        with patch.object(release, "records", return_value=[old, withdrawn]), \
+                patch.object(release, "resolve", return_value={"digest": old["publication"]["digest"]}), \
+                patch.object(release, "run") as run:
+            release.aliases()
+            promotions = [call.args for call in run.call_args_list if call.args[0] == "docker"]
+            self.assertEqual(len(promotions), 1)
+            self.assertEqual(promotions[0][-1], old["publication"]["repository"] + "@" + old["publication"]["digest"])
+
+    def test_blocked_major_is_detected_before_other_aliases_change(self):
+        available = record("php-dev/8.4-trixie")
+        withdrawn = record("php-dev/8.5-trixie")
+        withdrawn["lifecycle"] = "withdrawn"
+        with patch.object(release, "records", return_value=[available, withdrawn]), \
+                patch.object(release, "resolve", return_value={"digest": withdrawn["publication"]["digest"]}), \
+                patch.object(release, "run") as run:
+            with self.assertRaises(RuntimeError):
+                release.aliases()
+            self.assertFalse(any(call.args[0] == "docker" for call in run.call_args_list))
+
     def test_retry_resumes_durable_artifact_without_rebuilding(self):
         r = record("php-dev/8.4-trixie")
         r["input_fingerprint"] = fingerprint(definitions()[r["line_id"]])

@@ -40,6 +40,10 @@ tag. To withdraw/deprecate a recommendation, change its release record's
 the docs through a PR. Withdrawing removes it from selection. Alias promotion
 chooses the newest remaining available revision in that major line, permitting
 an intentional rollback with an explicit ledger change.
+If no available revision remains and an alias still exists, promotion fails
+explicitly before changing any aliases. Restore a verified available replacement
+or retire the alias tag while retaining exact tags and digests, then rerun.
+Withdrawal changes recommendations; it does not itself remove registry artifacts.
 
 New language minor/OS lines have separate names and independent revisions.
 A php-dev artifact change must allocate a new revision for its derived browser

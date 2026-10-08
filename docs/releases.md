@@ -72,6 +72,13 @@ GitHub, git and the registry do not form an atomic transaction.
 | Docs merged, alias job failed | Rerun `Promote accepted aliases`; fetch current ledger and verify exact references |
 | Exact tag exists with a different digest | Stop; workflow refuses overwrite; allocate a fresh revision or recover the intended record |
 | Existing record cannot be fetched | Stop; do not interpret an API failure as an absent release |
+| Last available revision withdrawn/deprecated with an existing alias | Stop before any alias updates; restore a verified available replacement or retire the alias tag while retaining exact artifacts, then rerun |
+| Refresh branch pushed, PR creation failed | Rerun; fetch/reuse the branch, merge current master, and recover the PR even when the generated files are unchanged |
+
+Refresh writeback prepares its branch before resolving upstream inputs. Reruns
+allocate the proposed revision from current master, preserving a pending
+refresh's revision instead of incrementing it again, and use ordinary pushes.
+`python3 scripts/writeback.py --refresh` performs that complete refresh flow.
 
 The candidate tag includes full source SHA and revision. A different-input retry
 of a persisted revision fails, requiring a new revision. An exact tag without
