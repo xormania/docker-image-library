@@ -1,0 +1,20 @@
+{
+  "name": "xormania/image-library-fixture",
+  "description": "Small locked Symfony and Panther consumer for image acceptance",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.4",
+    "ext-intl": "*",
+    "ext-pdo_pgsql": "*",
+    "symfony/http-foundation": "8.1.*",
+    "symfony/routing": "8.1.*"
+  },
+  "require-dev": {
+    "symfony/panther": "^2.3"
+  },
+  "config": {
+    "platform": { "php": "8.4.1" },
+    "sort-packages": true
+  }
+}

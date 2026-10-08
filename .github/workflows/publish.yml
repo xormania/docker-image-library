@@ -1,0 +1,80 @@
+name: Publish verified images
+on:
+  push:
+    branches: [master]
+    paths: ['images/**', 'scripts/**', 'schemas/**', 'tests/**', 'examples/**', '.github/workflows/publish.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+concurrency:
+  group: library-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - id: matrix
+        # Cheap release identity checks skip unchanged lines; retries cover incomplete peers.
+        run: echo "matrix=$(python scripts/library.py affected --all)" >> "$GITHUB_OUTPUT"
+  publish:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /tmp/image-library-build-cache
+          key: buildx-${{ runner.os }}-${{ matrix.line }}-${{ github.sha }}
+          restore-keys: |
+            buildx-${{ runner.os }}-${{ matrix.line }}-
+      - name: Publish or resume exact artifacts
+        env:
+          LIBRARY_CACHE_DIR: /tmp/image-library-build-cache
+          LINE: ${{ matrix.line }}
+        run: python scripts/release.py "$LINE"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: release-${{ strategy.job-index }}
+          path: out/**/record.json
+          if-no-files-found: ignore
+  documentation:
+    if: always() && needs.prepare.result == 'success'
+    needs: [prepare, publish]
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.LIBRARY_BOT_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.LIBRARY_BOT_TOKEN || github.token }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: release-*
+          path: out/releases
+          merge-multiple: true
+      - name: Stage verified records and generate catalog
+        run: python scripts/writeback.py

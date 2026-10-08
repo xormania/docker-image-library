@@ -1,0 +1,95 @@
+{
+  "purpose": "Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.",
+  "capabilities": [
+    "php",
+    "composer",
+    "symfony",
+    "postgresql-client",
+    "native-build",
+    "xdebug"
+  ],
+  "extensions": [
+    "intl",
+    "mbstring",
+    "curl",
+    "zip",
+    "bcmath",
+    "dom",
+    "xml",
+    "pdo_pgsql",
+    "pgsql",
+    "pdo_mysql",
+    "mysqli",
+    "pdo_sqlite",
+    "gd",
+    "redis",
+    "sockets",
+    "pcntl",
+    "xdebug"
+  ],
+  "limitations": [
+    "Project PHP dependencies come from Composer lockfiles.",
+    "Xdebug is off by default; enable with XDEBUG_MODE=coverage or debug.",
+    "No PHP-FPM, web server daemon, or Node toolchain is supplied."
+  ],
+  "schema_version": 1,
+  "family": "php-dev",
+  "tools": [
+    "bash",
+    "git",
+    "gh",
+    "curl",
+    "jq",
+    "rg",
+    "psql"
+  ],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [
+    "postgres:17-trixie",
+    "redis:7.4"
+  ],
+  "lines": {
+    "8.4-trixie": {
+      "runtime_line": "8.4",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "tag": "docker.io/library/php:8.4-cli-trixie",
+        "digest": "sha256:1d2cf2b7d715b5b3aa959f0150ccbcc7b71e0181b637e443abf40a7fb56bf79a"
+      },
+      "changes": [
+        "Initial stable development profile."
+      ],
+      "migration": "First release; no previous library revision."
+    },
+    "8.5-trixie": {
+      "runtime_line": "8.5",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "tag": "docker.io/library/php:8.5-cli-trixie",
+        "digest": "sha256:01a109229f4465bc9ef042d9198f09a4d9da7775a825dbd8572dcdbd8756c4d3"
+      },
+      "changes": [
+        "Initial stable development profile."
+      ],
+      "migration": "First release; no previous library revision."
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "purpose": "Rust 2024 native compilation, Clippy, formatting and wasm32-unknown-unknown builds.",
+  "capabilities": [
+    "rust",
+    "cargo",
+    "rustfmt",
+    "clippy",
+    "native-build",
+    "postgresql-client",
+    "wasm32-unknown-unknown"
+  ],
+  "extensions": [],
+  "limitations": [
+    "WASM target compilation is tested; a WASM runtime and browser execution are not provided.",
+    "No CUE executable or global third-party Cargo tools are included."
+  ],
+  "schema_version": 1,
+  "family": "rust-dev",
+  "tools": [
+    "bash",
+    "git",
+    "gh",
+    "curl",
+    "jq",
+    "rg",
+    "psql"
+  ],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [
+    "postgres:17-trixie"
+  ],
+  "lines": {
+    "1.99-trixie": {
+      "runtime_line": "1.99",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "tag": "docker.io/library/rust:1.99-trixie",
+        "digest": "sha256:6ff07edce8775d0f64be7aba9197229407301bddf2054d62c27b541a6238a181"
+      },
+      "changes": [
+        "Initial stable development profile."
+      ],
+      "migration": "First release; no previous library revision."
+    }
+  }
+}

@@ -1,0 +1,45 @@
+services:
+  dev:
+    image: ${IMAGE:?Set IMAGE to a verified catalog digest reference}
+    working_dir: /workspace
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      DATABASE_DSN: pgsql:host=postgres;dbname=fixture
+      DATABASE_URL: postgresql://fixture:fixture@postgres:5432/fixture
+      REDIS_URL: redis://redis:6379
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,redis}
+    volumes:
+      - ${WORKSPACE:?Set WORKSPACE to the project directory}:/workspace
+      - cache:/home/dev
+    shm_size: 1gb
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  postgres:
+    image: postgres:17-trixie
+    environment:
+      POSTGRES_USER: fixture
+      POSTGRES_PASSWORD: fixture
+      POSTGRES_DB: fixture
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U fixture -d fixture]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7.4
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  cache:
+  pgdata:

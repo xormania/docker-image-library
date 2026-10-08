@@ -1,0 +1,59 @@
+{
+  "purpose": "Python development with uv, pip, venv, native compilation and PostgreSQL clients.",
+  "capabilities": [
+    "python",
+    "uv",
+    "pip",
+    "venv",
+    "native-build",
+    "postgresql-client"
+  ],
+  "extensions": [],
+  "limitations": [
+    "Install project dependencies from uv.lock, requirements files, or the project manifest.",
+    "Compatibility with a particular project must include its dependencies, not only requires-python."
+  ],
+  "schema_version": 1,
+  "family": "python-dev",
+  "tools": [
+    "bash",
+    "git",
+    "gh",
+    "curl",
+    "jq",
+    "rg",
+    "psql"
+  ],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [
+    "postgres:17-trixie"
+  ],
+  "lines": {
+    "3.14-trixie": {
+      "runtime_line": "3.14",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "tag": "docker.io/library/python:3.14-trixie",
+        "digest": "sha256:a11116e648ddd8a05e1120014c8e6ac259f718040b67e2dcd6a7c0b7bab3ff2c"
+      },
+      "changes": [
+        "Initial stable development profile."
+      ],
+      "migration": "First release; no previous library revision."
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "images"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "line_id",
+          "version",
+          "digest_reference",
+          "exact_reference",
+          "definition",
+          "platforms",
+          "verification",
+          "publication",
+          "lifecycle"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}
