@@ -95,12 +95,14 @@ def fingerprint(definition, root=ROOT):
     resource_root = Path(root) / "artifacts" / definition["kind"] / definition["name"]
     payload = resource_root / "payload"
     paths = set()
+    payload_paths = set()
     if definition["kind"] != "binary":
         for mapping in definition["details"]["files"]:
             path = payload / relative_path(mapping["source"])
             if not path.resolve().is_relative_to(payload.resolve()) or not path.is_file():
                 raise ValueError(f"Declared payload must be a contained file: {path}")
             paths.add(path)
+            payload_paths.add(path)
     for argument in definition["verification"]["command"]:
         if argument.startswith("scripts/"):
             paths.add(Path(root) / relative_path(argument))
@@ -110,6 +112,11 @@ def fingerprint(definition, root=ROOT):
             raise ValueError(f"Resource inputs must not be symlinks: {path}")
         if path.is_file():
             digest.update(str(path.relative_to(root)).encode())
+            if path in payload_paths:
+                # The archive normalizes executable files to 0755 and other
+                # files to 0644; fingerprint the same published mode.
+                mode = b"0755" if path.stat().st_mode & 0o111 else b"0644"
+                digest.update(b"\0mode=" + mode + b"\0")
             digest.update(path.read_bytes())
     return digest.hexdigest()
 

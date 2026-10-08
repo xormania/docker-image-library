@@ -168,6 +168,22 @@ class ResourceContracts(unittest.TestCase):
         self.assertIn("../../release-records/artifacts/binary/composer/1.0.0.json", index)
         self.assertIn("docs/resources/binary-composer.md", model.availability_table(self.cat()))
 
+    def test_payload_fingerprint_tracks_normalized_executable_mode(self):
+        d = definition("guide", "context")
+        self.add(d, released=False)
+        payload = self.root / "artifacts/context/guide/payload/example.txt"
+        payload.parent.mkdir()
+        payload.write_text("unchanged content")
+        payload.chmod(0o644)
+        ordinary = model.fingerprint(d, self.root)
+        payload.chmod(0o744)
+        executable = model.fingerprint(d, self.root)
+        self.assertNotEqual(ordinary, executable)
+        payload.chmod(0o755)
+        self.assertEqual(executable, model.fingerprint(d, self.root))
+        payload.chmod(0o600)
+        self.assertEqual(ordinary, model.fingerprint(d, self.root))
+
     def test_resolve_exact_verified_resources(self):
         self.add(definition())
         result = self.resolve(profile("binary/composer"))
