@@ -37,7 +37,7 @@ planned profile.
 The images supply toolchains. Your project's dependencies and database remain
 explicit. `php-browser` adds Chromium and Panther prerequisites; it does not
 assume Node is needed for Symfony UX or Tailwind. The
-[flowbite-xor profile](docs/flowbite-xor.md) adds Node 22 to FrankenPHP and uses
+[flowbite-xor profile](docs/flowbite-xor.md) offers PHP 8.4/8.5, adds Node 22 and cached Tailwind to FrankenPHP, and uses
 the project-locked official Playwright companion. New lines remain unavailable
 until their verified public releases enter the catalog.
 

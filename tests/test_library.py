@@ -73,12 +73,12 @@ class DiscoveryTests(unittest.TestCase):
     def test_metadata_and_fixture_changes_select_only_their_consumers(self):
         defs = definitions()
         self.assertEqual(affected(["scripts/release.py", "scripts/writeback.py", "tests/test_library.py", "tests/requirements/php.json", ".github/workflows/refresh.yml"], defs), [])
-        self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.5-trixie"])
+        self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
         self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
-        self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie"])
-        self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 5)
-        self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 5)
+        self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie"])
+        self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 6)
+        self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 6)
 
     def test_unrelated_tool_pins_do_not_change_release_inputs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -96,6 +96,20 @@ class DiscoveryTests(unittest.TestCase):
             for line in ("php-dev/8.4-trixie", "php-browser/8.4-trixie", "rust-dev/1.99-trixie"):
                 self.assertEqual(before[line], after[line])
 
+    def test_tailwind_checksum_changes_only_the_project_profiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            import shutil
+            shutil.copytree(ROOT / "images", root / "images")
+            defs = definitions(root)
+            before = {line: fingerprint(d, root) for line, d in defs.items()}
+            path = root / "images/tools.json"
+            tools = json.loads(path.read_text())
+            tools["tailwind"]["sha256"] = "f" * 64
+            path.write_text(json.dumps(tools))
+            changed = [line for line, d in defs.items() if fingerprint(d, root) != before[line]]
+            self.assertEqual(changed, ["flowbite-xor-dev/8.4-trixie", "flowbite-xor-dev/8.5-trixie"])
+
     def test_release_matrix_preserves_incomplete_peers_and_changed_input_guards(self):
         defs = definitions()
         accepted = []
@@ -109,7 +123,7 @@ class DiscoveryTests(unittest.TestCase):
                 fp = hashlib.sha256((fp + ref).encode()).hexdigest()
             r["input_fingerprint"] = fp
             accepted.append(r)
-        self.assertEqual(pending_releases(defs, []), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie", "rust-dev/1.99-trixie"])
+        self.assertEqual(pending_releases(defs, []), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie", "rust-dev/1.99-trixie"])
         self.assertEqual(pending_releases(defs, accepted), [])
         missing = [r for r in accepted if r["line_id"] != "php-browser/8.4-trixie"]
         self.assertEqual(pending_releases(defs, missing), ["php-dev/8.4-trixie"])
@@ -125,8 +139,8 @@ class DiscoveryTests(unittest.TestCase):
         req["capabilities"].append("node")
         self.assertEqual(select(cat, req)["image"]["line_id"], "flowbite-xor-dev/8.5-trixie")
         self.assertEqual(select(catalog([]), req)["status"], "no_matching_image")
-        self.assertEqual(affected(["examples/flowbite-xor/run.sh"], defs), ["php-frankenphp/8.5-trixie"])
-        self.assertEqual(affected(["images/flowbite-xor-dev/Dockerfile"], defs), ["php-frankenphp/8.5-trixie"])
+        self.assertEqual(affected(["examples/flowbite-xor/run.sh"], defs), ["php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
+        self.assertEqual(affected(["images/flowbite-xor-dev/Dockerfile"], defs), ["php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         from library import children
         self.assertEqual(children("php-frankenphp/8.5-trixie", defs), ["flowbite-xor-dev/8.5-trixie"])
 
@@ -145,7 +159,7 @@ class DiscoveryTests(unittest.TestCase):
             tools["node"]["digest"] = "sha256:" + "f" * 64
             path.write_text(json.dumps(tools))
             changed = [line for line, d in defs.items() if fingerprint(d, root) != before[line]]
-            self.assertEqual(changed, ["flowbite-xor-dev/8.5-trixie"])
+            self.assertEqual(changed, ["flowbite-xor-dev/8.4-trixie", "flowbite-xor-dev/8.5-trixie"])
         r = record("flowbite-xor-dev/8.5-trixie")
         r["platforms"][0]["inventory"]["tools"]["node"] = "v24.1.0"
         with self.assertRaisesRegex(AssertionError, "Node line must match CI"):
