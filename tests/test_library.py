@@ -133,8 +133,35 @@ class DiscoveryTests(unittest.TestCase):
     def test_generated_output_is_deterministic(self):
         self.assertEqual(generated(), generated())
 
+    def test_node_input_and_inventory_are_scoped_to_the_project_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            import shutil
+            shutil.copytree(ROOT / "images", root / "images")
+            defs = definitions(root)
+            before = {line: fingerprint(d, root) for line, d in defs.items()}
+            path = root / "images/tools.json"
+            tools = json.loads(path.read_text())
+            tools["node"]["digest"] = "sha256:" + "f" * 64
+            path.write_text(json.dumps(tools))
+            changed = [line for line, d in defs.items() if fingerprint(d, root) != before[line]]
+            self.assertEqual(changed, ["flowbite-xor-dev/8.5-trixie"])
+        r = record("flowbite-xor-dev/8.5-trixie")
+        r["platforms"][0]["inventory"]["tools"]["node"] = "v24.1.0"
+        with self.assertRaisesRegex(AssertionError, "Node line must match CI"):
+            validate_record(r)
+
 
 class PromotionTests(unittest.TestCase):
+    def test_project_publication_uses_the_exact_verified_parent(self):
+        parent = record("php-frankenphp/8.5-trixie", digest="f")
+        child = record("flowbite-xor-dev/8.5-trixie", digest="e")
+        with tempfile.TemporaryDirectory() as tmp, patch.object(release, "ROOT", Path(tmp)), \
+                patch.object(release, "publish", side_effect=[parent, child]) as publish:
+            release.publish_tree("php-frankenphp/8.5-trixie", "b" * 40)
+            self.assertEqual(publish.call_args_list[1].args[3], "ghcr.io/xormania/php-frankenphp@sha256:" + "f" * 64)
+            self.assertEqual(json.loads((Path(tmp) / "out/flowbite-xor-dev-8.5-trixie/record.json").read_text()), child)
+
     def test_exact_tag_is_idempotent_but_never_reassigned(self):
         exact_guard(None, "a"); exact_guard("a", "a")
         with self.assertRaises(RuntimeError): exact_guard("a", "b")

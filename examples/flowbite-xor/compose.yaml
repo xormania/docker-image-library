@@ -13,6 +13,8 @@ services:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,php}
       LIBRARY_CA_FILE: ${CONTAINER_CA_FILE:-}
+      COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
+      NODE_EXTRA_CA_CERTS: ${CONTAINER_CA_FILE:-}
       DEMO_URL: https://localhost
       PHP_BINARY: php
       # The browser is already started by Compose in this service's network.

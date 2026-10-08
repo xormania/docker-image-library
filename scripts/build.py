@@ -133,7 +133,7 @@ if __name__ == "__main__":
         for child in children(a.line, definitions()):
             family = definitions()[child]["family"]
             command = [sys.executable, __file__, child, "image-library-check:" + family,
-                       "--source", a.source, "--parent", a.image,
+                       "--source", a.source, "--parent", a.image, "--children",
                        "--inventory", str(Path(a.inventory).with_name(family + ".json"))]
             if a.cache:
                 command += ["--cache", child.replace("/", "-")]

@@ -6,7 +6,16 @@ work=$(mktemp -d)
 export IMAGE="$image" WORKSPACE="$work/repo" FLOWBITE_PROJECT="flowbite-check-${RANDOM}-${RANDOM}"
 export HTTP_PORT=18084 HTTPS_PORT=18444 HTTP3_PORT=18444
 cleanup() {
+  status=$?
+  if [ "$status" != 0 ]; then
+    bash "$root/examples/flowbite-xor/run.sh" logs --tail 100 >/dev/stderr 2>&1 || true
+  fi
   bash "$root/examples/flowbite-xor/run.sh" down --volumes --remove-orphans >/dev/null 2>&1 || true
+  # Only this disposable cloned fixture, even if a failing command wrote as root.
+  if [ -d "$WORKSPACE" ]; then
+    docker run --rm -e PUID=0 -e PGID=0 --mount "type=bind,src=$WORKSPACE,dst=/workspace" \
+      "$image" find /workspace -mindepth 1 -delete >/dev/null 2>&1 || true
+  fi
   rm -rf "$work"
 }
 trap cleanup EXIT

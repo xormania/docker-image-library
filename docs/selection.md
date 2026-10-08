@@ -22,7 +22,11 @@ agent; there is no separate skill to install.
 For PHP with intl and PostgreSQL, use a compatible `php-dev` line and an explicit
 PostgreSQL companion. Add Panther/browser requirements to select `php-browser`.
 Symfony UX and Tailwind alone do not imply a Node requirement. When Node is
-actually declared, the initial PHP profiles do not satisfy it.
+actually declared, the CLI/Panther profiles do not satisfy it. For a FrankenPHP
+worker project, consider `php-frankenphp`; for flowbite-xor's Node/Playwright
+workflow, use the [project profile](flowbite-xor.md) and
+`tests/requirements/flowbite-xor.json`. Definitions are candidates until their
+verified available releases enter the catalog.
 
 An optional deterministic helper accepts explicit requirements:
 

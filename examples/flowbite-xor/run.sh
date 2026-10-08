@@ -27,11 +27,12 @@ compose=(docker compose --project-directory "$WORKSPACE/demo" -p "${FLOWBITE_PRO
 case "$action" in
   up)
     "${compose[@]}" up --wait --wait-timeout 600 --no-build
-    "${compose[@]}" exec -T -w /app php php tools/sync-demo
-    "${compose[@]}" exec -T -w /app php npm ci
+    "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app php php tools/sync-demo
+    "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app php npm ci
     ;;
-  test) "${compose[@]}" exec -T -w /app php npx playwright test "$@" ;;
-  exec) "${compose[@]}" exec -T -w /app php "$@" ;;
+  test) "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app php npx playwright test "$@" ;;
+  exec) "${compose[@]}" exec -T --user "$PUID:$PGID" -w /app php "$@" ;;
+  logs) "${compose[@]}" logs "$@" ;;
   down) "${compose[@]}" down "$@" ;;
   *) echo "Unknown action: $action" >&2; exit 64 ;;
 esac

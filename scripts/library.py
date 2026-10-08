@@ -363,7 +363,12 @@ def fingerprint(d, root=ROOT):
 def cache_key(line, defs):
     # One CI job owns the PHP parent and browser caches. Neither source commit
     # nor unrelated tool pins belong in their immutable Actions cache key.
-    peers = [line] + children(line, defs)
+    peers = []
+    def visit(item):
+        peers.append(item)
+        for child in children(item, defs):
+            visit(child)
+    visit(line)
     return hashlib.sha256("".join(fingerprint(defs[peer]) for peer in peers).encode()).hexdigest()
 
 
