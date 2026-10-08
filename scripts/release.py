@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from build import build, cache_source, image_measurements, pinned, verify
-from library import ROOT, definitions, encoded, fingerprint, read, records, validate_record, version
+from library import ROOT, children, definitions, encoded, fingerprint, read, records, validate_record, version
 from registry import resolve
 
 
@@ -214,6 +214,16 @@ def aliases():
             raise RuntimeError("Alias promotion verification failed")
 
 
+def publish_tree(line, source, parent=None):
+    output = ROOT / "out" / line.replace("/", "-")
+    record = publish(line, source, output, parent)
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "record.json").write_text(encoded(record))
+    reference = record["publication"]["repository"] + "@" + record["publication"]["digest"]
+    for child in children(line, definitions()):
+        publish_tree(child, source, reference)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("line", nargs="?"); parser.add_argument("--source", default=os.environ.get("GITHUB_SHA"))
@@ -222,15 +232,4 @@ if __name__ == "__main__":
     if args.aliases:
         aliases()
     else:
-        d = definitions()[args.line]
-        output = ROOT / "out" / args.line.replace("/", "-")
-        record = publish(args.line, args.source, output)
-        output.mkdir(parents=True, exist_ok=True)
-        (output / "record.json").write_text(encoded(record))
-        if d["family"] == "php-dev":
-            browser = "php-browser/" + d["line"]
-            parent = record["publication"]["repository"] + "@" + record["publication"]["digest"]
-            browser_output = ROOT / "out" / browser.replace("/", "-")
-            browser_record = publish(browser, args.source, browser_output, parent)
-            browser_output.mkdir(parents=True, exist_ok=True)
-            (browser_output / "record.json").write_text(encoded(browser_record))
+        publish_tree(args.line, args.source)

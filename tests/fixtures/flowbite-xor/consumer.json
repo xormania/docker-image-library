@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/xormania/flowbite-xor.git",
+  "commit": "15e520c8d1bba19f721e92fc15ed3785ac0a130b",
+  "tests": ["tests/e2e/lab.calendar.spec.ts", "tests/e2e/lab.dropzone.spec.ts"]
+}

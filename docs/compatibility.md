@@ -16,6 +16,10 @@ files; services still need to be started in each session. Checked during plannin
 on 7 October 2026; vendor documentation is a claim about their platform, not an
 observation of these images there. Recheck it when configuring a session.
 
+Image pulls need both `ghcr.io` and `pkg-containers.githubusercontent.com` in
+the host/daemon network allowlist. See [network and private CA setup](usage.md#network-access);
+registry access and in-container dependency access are separate prerequisites.
+
 Setup: pre-pull selected digest references and download locked project
 dependencies where the platform allows. Session startup: mount the current
 project, start required service containers and run commands in the development

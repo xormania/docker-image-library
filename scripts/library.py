@@ -56,13 +56,32 @@ def definitions(root=ROOT):
             item["line_id"] = f"{family}/{line}"
             item["line"] = line
             result[item["line_id"]] = item
-    for item in result.values():
+    completed = set()
+    def inherit(line, visiting):
+        assert line not in visiting, "Cyclic image parent"
+        if line in completed:
+            return
+        item = result[line]
         parent = item["base"].get("parent")
         if parent:
             assert parent in result
+            inherit(parent, visiting | {line})
             for key in ("capabilities", "extensions", "tools", "limitations"):
                 item[key] = sorted(set(item[key] + result[parent][key]))
+        completed.add(line)
+    for line in result:
+        inherit(line, set())
     return result
+
+
+def root_line(line, defs):
+    while defs[line]["base"].get("parent"):
+        line = defs[line]["base"]["parent"]
+    return line
+
+
+def children(line, defs):
+    return sorted(key for key, d in defs.items() if d["base"].get("parent") == line)
 
 
 def validate_inventory(definition, inventory):
@@ -75,6 +94,8 @@ def validate_inventory(definition, inventory):
         browser = re.search(r"\d+", inventory["tools"]["chromium"])[0]
         driver = re.search(r"\d+", inventory["tools"]["chromedriver"])[0]
         assert browser == driver, "Chromium and driver major versions differ"
+    if "node" in definition["capabilities"]:
+        assert inventory["tools"]["node"].startswith("v22."), "The flowbite-xor Node line must match CI"
     if "wasm32-unknown-unknown" in definition["capabilities"]:
         assert "wasm32-unknown-unknown" in inventory["rust_targets"]
 
@@ -294,11 +315,18 @@ def affected(changed, defs):
     for path in changed:
         families = set()
         if path == "images/tools.json":
-            families = {"php-dev", "php-browser", "python-dev"}
+            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
         elif path.startswith("tests/fixtures/php/"):
-            families = {"php-dev", "php-browser"}
+            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev"}
+        elif path.startswith("tests/fixtures/frankenphp/"):
+            families = {"php-frankenphp", "flowbite-xor-dev"}
+        elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
+            families = {"flowbite-xor-dev"}
+        elif path.startswith("tests/fixtures/trust/"):
+            result.update(defs)
+            continue
         elif path.startswith("examples/php/"):
-            families = {"php-dev", "php-browser", "python-dev"}
+            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
         elif path.startswith("tests/fixtures/python/"):
             families = {"python-dev"}
         elif path.startswith("tests/fixtures/rust/"):
@@ -313,12 +341,7 @@ def affected(changed, defs):
         else:
             families = {d["family"] for d in defs.values() if path.startswith(f"images/{d['family']}/")}
         result.update(line for line, d in defs.items() if d["family"] in families)
-    for line, d in defs.items():
-        if d["base"].get("parent") in result:
-            result.add(line)
-    # The PHP root job builds/tests its matching derived browser line too.
-    result |= {defs[line]["base"]["parent"] for line in list(result) if defs[line]["family"] == "php-browser"}
-    return sorted(line for line in result if defs[line]["family"] != "php-browser")
+    return sorted({root_line(line, defs) for line in result})
 
 
 def fingerprint(d, root=ROOT):
@@ -326,6 +349,8 @@ def fingerprint(d, root=ROOT):
     h = hashlib.sha256(encoded(d).encode())
     tools = read(root / "images" / "tools.json")
     keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "symfony"),
+            "php-frankenphp": ("composer", "redis_version", "xdebug_version", "symfony", "apcu_version"),
+            "flowbite-xor-dev": ("node",),
             "python-dev": ("uv",)}.get(d["family"], ())
     h.update(encoded({key: tools[key] for key in keys}).encode())
     for path in sorted(paths):
@@ -338,9 +363,12 @@ def fingerprint(d, root=ROOT):
 def cache_key(line, defs):
     # One CI job owns the PHP parent and browser caches. Neither source commit
     # nor unrelated tool pins belong in their immutable Actions cache key.
-    peers = [line]
-    if defs[line]["family"] == "php-dev":
-        peers.append("php-browser/" + defs[line]["line"])
+    peers = []
+    def visit(item):
+        peers.append(item)
+        for child in children(item, defs):
+            visit(child)
+    visit(line)
     return hashlib.sha256("".join(fingerprint(defs[peer]) for peer in peers).encode()).hexdigest()
 
 
@@ -354,13 +382,13 @@ def pending_releases(defs, accepted):
         if parent_line:
             parent = current.get((parent_line, defs[parent_line]["revision"]))
             if not parent:
-                pending.add(parent_line)
+                pending.add(root_line(line, defs))
                 continue
             parent_ref = parent["publication"]["repository"] + "@" + parent["publication"]["digest"]
             fp = hashlib.sha256((fp + parent_ref).encode()).hexdigest()
         prior = current.get((line, d["revision"]))
         if not prior or prior["input_fingerprint"] != fp:
-            pending.add(parent_line or line)
+            pending.add(root_line(line, defs))
     return sorted(pending)
 
 

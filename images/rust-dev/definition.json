@@ -43,7 +43,7 @@
     "1.99-trixie": {
       "runtime_line": "1.99",
       "os": "debian-trixie",
-      "revision": "1.0.1",
+      "revision": "1.1.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -52,10 +52,9 @@
         "digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273"
       },
       "changes": [
-        "Reuse build layers across source-label changes; explicitly refresh Debian packages for each image revision.",
-        "Use the official slim Trixie base with explicitly installed native build tools and PostgreSQL clients."
+        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
       ],
-      "migration": "Compatible patch update; advertised development capabilities and invocation remain unchanged. Verify project dependencies before changing an existing digest pin."
+      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
     }
   }
 }

@@ -1,0 +1,13 @@
+{
+    admin off
+    auto_https off
+}
+:8080 {
+    root * /workspace/public
+    php_server {
+        worker {
+            file /workspace/public/index.php
+            num 1
+        }
+    }
+}
