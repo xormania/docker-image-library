@@ -13,6 +13,10 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       has_images: ${{ steps.matrix.outputs.has_images }}
+      resources: ${{ steps.resources.outputs.resources }}
+      environments: ${{ steps.resources.outputs.environments }}
+      has_resources: ${{ steps.resources.outputs.has_resources }}
+      has_environments: ${{ steps.resources.outputs.has_environments }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,6 +43,68 @@ jobs:
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "has_images=$(python -c 'import json,sys; print(str(bool(json.loads(sys.argv[1])["line"])).lower())' "$matrix")" >> "$GITHUB_OUTPUT"
+      - id: resources
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PYTHONPATH: scripts
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            matrix=$(python -m xorder.verify matrix --base "$BASE_SHA")
+          else
+            matrix=$(python -m xorder.verify matrix --all)
+          fi
+          python -c 'import json,sys; m=json.loads(sys.argv[1]); print("resources="+json.dumps({"resource":m["resource"]})); print("environments="+json.dumps({"resource":m["environment"]})); print("has_resources="+str(bool(m["resource"])).lower()); print("has_environments="+str(bool(m["environment"])).lower())' "$matrix" >> "$GITHUB_OUTPUT"
+  resources:
+    needs: metadata
+    if: needs.metadata.outputs.has_resources == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.metadata.outputs.resources) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: scripts
+      RESOURCE: ${{ matrix.resource }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python -m pip install -r requirements-ci.txt
+      - name: Exercise downloaded or packaged resource bytes
+        run: python -m xorder.verify verify "$RESOURCE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: resource-check-${{ strategy.job-index }}
+          path: out/resources/
+          if-no-files-found: ignore
+  environments:
+    needs: metadata
+    if: needs.metadata.outputs.has_environments == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.metadata.outputs.environments) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: scripts
+      RESOURCE: ${{ matrix.resource }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python -m pip install -r requirements-ci.txt
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: |
+            extra-substituters = https://devenv.cachix.org
+            extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+      - name: Install pinned devenv
+        run: nix profile install 'github:cachix/devenv/b904dcb51fe48c30db250038241507f60752f222#devenv'
+      - name: Exercise the packaged native environment
+        run: python -m xorder.verify verify "$RESOURCE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: environment-check-${{ strategy.job-index }}
+          path: out/resources/
+          if-no-files-found: ignore
   images:
     needs: metadata
     if: needs.metadata.outputs.has_images == 'true'
@@ -83,12 +149,16 @@ jobs:
           if-no-files-found: ignore
   checks:
     if: always()
-    needs: [metadata, images]
+    needs: [metadata, images, resources, environments]
     runs-on: ubuntu-24.04
     steps:
       - env:
           METADATA: ${{ needs.metadata.result }}
           IMAGES: ${{ needs.images.result }}
+          RESOURCES: ${{ needs.resources.result }}
+          ENVIRONMENTS: ${{ needs.environments.result }}
         run: |
           test "$METADATA" = success
           [[ "$IMAGES" == success || "$IMAGES" == skipped ]]
+          [[ "$RESOURCES" == success || "$RESOURCES" == skipped ]]
+          [[ "$ENVIRONMENTS" == success || "$ENVIRONMENTS" == skipped ]]

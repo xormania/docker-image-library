@@ -9,9 +9,14 @@ Use feature branches and PRs against master. The canonical source layout is:
 | `images/shared/` | Shared tools and workspace/user handling |
 | `images/tools.json` | Resolved Composer/uv digests, PECL versions and verified Symfony CLI artifact |
 | `release-records/<family>/<line>/<revision>.json` | Published, behavior-tested release facts; created by publication |
+| `artifacts/<kind>/<name>/definition.json` | Authored binary, environment, configuration, or context contract |
+| `artifacts/<kind>/<name>/payload/` | Explicit bundle inputs and upstream notices |
+| `release-records/artifacts/<kind>/<name>/<revision>.json` | Verified downloadable artifact facts; created by publication |
+| `profiles/` | Explicit role choices and exact resource revisions |
 | `schemas/` | Definition/release/catalog structure; cross-field invariants live in the validator |
-| `catalog.json`, README table, `docs/images/`, `docs/releases/` | Generated outputs |
+| `catalog.json`, `catalog-v2.json`, README tables, `docs/images/`, `docs/resources/index.md`, `docs/releases/` | Generated outputs |
 | `scripts/` | Small build, inventory, release, generation and refresh helpers |
+| `scripts/xorder/` | Shared typed model, resolution, transport, application, and artifact release helpers |
 | `tests/fixtures/`, `tests/requirements/` | Locked real consumer fixtures and independent mock requirements |
 
 The image paths remain stable. [Architecture](architecture.md) describes the
@@ -30,6 +35,27 @@ python3 scripts/library.py generate
 python3 scripts/library.py check
 python3 -m unittest discover -s tests -v
 ```
+
+For a downloadable resource, pin an exact upstream URL and SHA-256 or declare
+every authored payload file. Set its prerequisites, owned destination paths,
+limitations, usage page, and behavior verifier in the definition. Allocate a new
+SemVer packaging revision for changed input bytes, executable modes, destination
+paths, or verification behavior. Fingerprints normalize payload modes to `0644`
+or `0755`; executable intent is part of the release input.
+
+Run its actual packaging and readiness check before opening the PR:
+
+```sh
+PYTHONPATH=scripts python3 -m xorder.verify verify KIND/NAME
+```
+
+Publication checks the anonymous released bytes again before proposing a durable
+release record. Review and merge that record through normal metadata checks;
+only then does generation expose the resource as available. Definitions and
+profile pins alone cannot make a release selectable. Update a native environment's
+committed lock through its backend and verify that readiness leaves it unchanged.
+Keep profile updates explicit: adding a newer accepted resource does not upgrade
+an existing profile, resolution lock, or managed installation.
 
 On a Docker-capable host, use `scripts/build.py LINE_ID LOCAL_TAG` and
 `scripts/verify-image.sh LINE_ID IMAGE`. Derived build input must be the exact

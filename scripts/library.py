@@ -322,11 +322,16 @@ def generated(root=ROOT):
 
 def affected(changed, defs):
     result = set()
-    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py"}
+    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py", "scripts/xorder_cli.py"}
     metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml"}
     for path in changed:
         families = set()
-        if path == "images/tools.json":
+        if path.startswith(("scripts/xorder/", "artifacts/", "profiles/", "tests/fixtures/devenv/", "tests/fixtures/artifacts/", "examples/resources/", "examples/devenv/")) or path in {
+            "schemas/resource.schema.json", "schemas/artifact-release-record.schema.json", "schemas/catalog-v2.schema.json", "schemas/profile.schema.json",
+            "schemas/resolution-lock.schema.json", "schemas/installation-receipt.schema.json",
+        }:
+            continue
+        elif path == "images/tools.json":
             families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
         elif path.startswith("tests/fixtures/php/"):
             families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev"}

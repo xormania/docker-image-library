@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "target_root", "files", "resources"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "target_root": {"type": "string", "minLength": 1},
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["sha256", "mode", "resource"],
+        "properties": {
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "mode": {"type": "integer", "minimum": 0, "maximum": 511},
+          "resource": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["identity", "version", "kind"],
+        "properties": {
+          "identity": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+          "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+          "kind": {"enum": ["binary", "environment", "configuration", "context"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "resolution": {"type": "object"}
+  },
+  "additionalProperties": false
+}

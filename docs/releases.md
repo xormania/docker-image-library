@@ -1,5 +1,48 @@
 # Publication and recovery
 
+## HTTP resources
+
+The same publication workflow also handles binary, environment, configuration,
+and context resources. Their authored intent lives under `artifacts/`; accepted
+facts live under `release-records/artifacts/`. Image publication and existing
+GHCR names keep their established behavior.
+
+Source PR validation retrieves the pinned upstream binary or packages only the
+declared bundle files, then exercises those exact staged bytes. Environment jobs
+install a pinned Nix/devenv toolchain and execute the native locked environment.
+These PR results are verification evidence, not public release availability.
+
+After master accepts the source, each independently versioned resource uses its
+`<kind>/<name>/v<revision>` source tag and GitHub Release:
+
+1. Prepare exact payload bytes. Bundle archives contain the declared paths from
+   `payload/`, with deterministic headers and no links or special files.
+2. Create a draft Release at the original source commit and upload the payload
+   without replacing any existing asset. A retry compares existing bytes.
+3. Publish that Release so its assets can be retrieved without credentials.
+4. Download its public asset anonymously, check its exact checksum and size,
+   and execute the kind's trusted verifier against the downloaded payload.
+5. Upload the durable passed `record.json` without `--clobber`, then stage the
+   accepted record and generated discovery views through the existing PR flow.
+
+GitHub draft assets cannot provide anonymous download verification. Therefore a
+public Release can exist while verification or catalog acceptance is pending.
+Only accepted verified records appear as available in the catalog. A failed
+runtime or corrupted public download never produces an available recommendation.
+
+On retry, a persisted record identifies the artifact and original source.
+Without a record, publication verifies and reuses the existing candidate at its
+original source commit; it never replaces payload bytes. A different input at an
+existing revision requires a new revision. Authentication/API failures do not
+mean that a release is absent. Catalog writeback rechecks the public asset and
+source Release before accepting it. It advances no HTTP aliases.
+
+Configuration/context-only changes avoid image build jobs. Native environment
+checks run only for affected environments; common delivery changes exercise the
+resource consumers. Existing image input guards and release concurrency remain.
+
+## Image publication
+
 Source PRs build and execute behavioral fixtures on Linux amd64. After a source
 PR lands on master, `Publish verified images` follows this path:
 

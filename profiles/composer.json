@@ -1,0 +1,9 @@
+{
+  "schema_version": 2,
+  "id": "profile/composer",
+  "revision": "1.0.0",
+  "purpose": "An exact standalone Composer PHAR for a target that already has compatible PHP.",
+  "roles": [
+    {"name": "package-manager", "alternatives": [{"id": "binary/composer", "version": "1.0.0"}]}
+  ]
+}
