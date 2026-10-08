@@ -19,7 +19,8 @@ def resolve(reference, authenticated=False):
     host = "registry-1.docker.io" if registry == "docker.io" else registry
     auth = "https://auth.docker.io/token" if registry == "docker.io" else f"https://{host}/token"
     service = "registry.docker.io" if registry == "docker.io" else host
-    query = urllib.parse.urlencode({"service": service, "scope": f"repository:{repository}:pull"})
+    scope = "pull,push" if authenticated else "pull"
+    query = urllib.parse.urlencode({"service": service, "scope": f"repository:{repository}:{scope}"})
     req = urllib.request.Request(auth + "?" + query)
     if authenticated and registry == "ghcr.io":
         credentials = f"{os.environ['GITHUB_ACTOR']}:{os.environ['GH_TOKEN']}".encode()

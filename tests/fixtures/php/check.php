@@ -15,5 +15,5 @@ $db->exec("INSERT INTO image_checks VALUES (1, 'ready') ON CONFLICT (id) DO UPDA
 check($db->query('SELECT value FROM image_checks WHERE id=1')->fetchColumn() === 'ready', 'PostgreSQL round trip');
 file_put_contents(__DIR__.'/workspace-proof.txt', "written by container\n");
 file_put_contents(getenv('HOME').'/.cache/cache-proof', "cache writable\n");
-check(!str_contains(shell_exec('php -r '.escapeshellarg('echo ini_get("xdebug.mode");')), 'coverage'), 'Xdebug defaults');
+check(!in_array('coverage', xdebug_info('mode'), true), 'Xdebug coverage is off by default');
 echo "PHP extensions, PostgreSQL, Redis and workspace passed\n";

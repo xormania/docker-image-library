@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import subprocess
-from pathlib import Path
 from library import ROOT, encoded, generated, read, validate_record
 from registry import resolve
 

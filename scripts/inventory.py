@@ -3,7 +3,6 @@
 import json
 import platform
 import shlex
-import shutil
 import subprocess
 import sys
 from pathlib import Path

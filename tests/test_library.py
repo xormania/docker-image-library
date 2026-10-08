@@ -1,12 +1,15 @@
 import copy
 import json
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from library import ROOT, affected, catalog, definitions, generated, select, validate_record
 from release import alias_eligible, exact_guard
+import release
+from library import fingerprint
+from unittest.mock import patch
+import tempfile
 
 
 def record(line, revision="1.0.0", digest="a"):
@@ -80,6 +83,42 @@ class PromotionTests(unittest.TestCase):
         self.assertFalse(alias_eligible(old, [old, new]))
         self.assertTrue(alias_eligible(new, [old, new]))
         self.assertFalse(alias_eligible(new, [old]))  # unpublished candidate
+
+    def test_retry_resumes_durable_artifact_without_rebuilding(self):
+        r = record("php-dev/8.4-trixie")
+        r["input_fingerprint"] = fingerprint(definitions()[r["line_id"]])
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(release, "records", return_value=[]), \
+                patch.object(release, "release_asset", return_value=r), \
+                patch.object(release, "resolve", return_value={"digest": r["publication"]["digest"]}), \
+                patch.object(release, "build") as build, \
+                patch.object(release, "promote_exact") as promote, \
+                patch.object(release, "finalize_release") as finalize:
+            self.assertEqual(release.publish(r["line_id"], "f" * 40, Path(tmp)), r)
+            build.assert_not_called()
+            promote.assert_called_once_with(r)
+            finalize.assert_called_once_with(r)
+
+    def test_changed_inputs_cannot_resume_old_revision(self):
+        r = record("php-dev/8.4-trixie")
+        r["input_fingerprint"] = "0" * 64
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(release, "records", return_value=[]), \
+                patch.object(release, "release_asset", return_value=r), \
+                patch.object(release, "build") as build:
+            with self.assertRaisesRegex(RuntimeError, "different inputs"):
+                release.publish(r["line_id"], "f" * 40, Path(tmp))
+            build.assert_not_called()
+
+    def test_ambiguous_existing_exact_tag_never_rebuilds(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(release, "records", return_value=[]), \
+                patch.object(release, "release_asset", return_value=None), \
+                patch.object(release, "resolve", return_value={"digest": "sha256:" + "a" * 64}), \
+                patch.object(release, "build") as build:
+            with self.assertRaisesRegex(RuntimeError, "without a durable record"):
+                release.publish("php-dev/8.4-trixie", "f" * 40, Path(tmp))
+            build.assert_not_called()
 
 
 if __name__ == "__main__":

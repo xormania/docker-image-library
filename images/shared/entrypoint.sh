@@ -6,8 +6,10 @@ gid=${PGID:-1000}
 # Explicit --user bypasses privilege changes, but keeps the writable HOME convention.
 if [ "$(id -u)" = 0 ]; then
   if [ "$uid" != 0 ]; then
-    groupmod --non-unique --gid "$gid" dev
-    usermod --non-unique --uid "$uid" --gid "$gid" dev
+    if [ "$(id -g dev)" != "$gid" ]; then groupmod --non-unique --gid "$gid" dev >&2; fi
+    if [ "$(id -u dev)" != "$uid" ] || [ "$(id -g dev)" != "$gid" ]; then
+      usermod --non-unique --uid "$uid" --gid "$gid" dev >&2
+    fi
   fi
   # Never recursively change the consuming project's bind mount.
   chown -R "$uid:$gid" /home/dev

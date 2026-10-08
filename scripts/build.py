@@ -30,6 +30,7 @@ def build(line, image, source, parent=None, cache=None):
     cache_path = None
     if cache and not local_parent and os.environ.get("LIBRARY_CACHE_DIR"):
         cache_path = Path(os.environ["LIBRARY_CACHE_DIR"]) / cache
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
         if cache_path.exists():
             cmd += ["--cache-from", f"type=local,src={cache_path}"]
         cmd += ["--cache-to", f"type=local,dest={cache_path}-next,mode=max"]
@@ -45,8 +46,12 @@ def inspect(line, image, destination):
     cmd = ["docker", "run", "--rm", "--mount", f"type=bind,src={ROOT / 'scripts'},dst=/inventory,readonly", image,
            "python3", "/inventory/inventory.py", line.split("/")[0]]
     result = subprocess.check_output(cmd, text=True)
-    validate_inventory(definitions()[line], json.loads(result))
     Path(destination).parent.mkdir(parents=True, exist_ok=True)
+    try:
+        validate_inventory(definitions()[line], json.loads(result))
+    except (ValueError, AssertionError):
+        Path(str(destination) + ".stdout").write_text(result)
+        raise
     Path(destination).write_text(result)
 
 
