@@ -1,6 +1,6 @@
 # Choosing an image from the repository URL
 
-Start at [the public README](https://github.com/xormania/docker-image-library).
+Start at [the public README](https://github.com/xormania/xorder).
 Read [catalog.json](../catalog.json) for available artifacts and the linked image
 inventory. These documents contain the information needed by a person or an
 agent; there is no separate skill to install.

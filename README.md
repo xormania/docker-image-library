@@ -1,10 +1,36 @@
-# Docker image library
+# xorder
 
-Ready-to-pull development environments for PHP/Symfony, browser tests, Rust,
-and Python. Give an agent this repository URL together with its project task.
-It can read the [catalog](catalog.json), follow the [selection procedure](docs/selection.md),
-and run the [usage recipes](docs/usage.md). No skill, plugin, or discovery service
-is required. The host needs a working Docker engine and access to the registry.
+xorder distributes prepared software, development environments, configuration,
+and agent context for computers and containers. **Give an agent
+https://github.com/xormania/xorder together with its project task.** This README,
+the catalog, and the linked usage pages provide discovery without an installed
+CLI, skill, plugin, or discovery service.
+
+Start here:
+
+1. Inspect the project's runtime constraints, lockfiles, services, and test needs.
+2. Inspect the execution environment and its prerequisites. Images need a working
+   Docker engine and registry access; a Docker client alone is insufficient.
+3. Read the [catalog](catalog.json) and [selection procedure](docs/selection.md)
+   for available resources matching those requirements.
+4. Pin an exact verified release and run the [usage/readiness recipe](docs/usage.md)
+   before installing project dependencies from their own lockfiles.
+5. Report any missing capability or prerequisite precisely. Keep an established
+   compatible project pin unless an update is requested.
+
+## Resource kinds
+
+| Kind | Current availability | Purpose |
+| --- | --- | --- |
+| Images | Verified releases below | Ready-to-pull PHP/Symfony, browser, Rust, and Python toolchains |
+| Binaries | Planned | Downloadable software with exact hashes and explicit runtime/platform prerequisites |
+| Environments | Planned | Reusable native definitions, starting with devenv and its locked inputs |
+| Configuration | Planned | Independently versioned settings installed into explicit owned scopes |
+| Context | Planned | Selected guidance or skills for an explicit task, role, or harness |
+
+[Architecture](docs/architecture.md) describes the extension boundaries and
+profiles that compose resources. Planned kinds are not selectable releases.
+Reading the catalog does not activate context bundles.
 
 ## Available images
 
@@ -24,17 +50,22 @@ is required. The host needs a working Docker engine and access to the registry.
 <!-- catalog:end -->
 
 Use catalog entries marked `available`, check their verified architecture and
-capabilities, and pin the chosen `digest_reference`. Keep an existing compatible
-project pin unless an update is requested. Never pull a guessed tag from a
-planned profile.
+capabilities, and pin the chosen `digest_reference`. Never pull a guessed tag
+from a planned profile. Existing GHCR image names and exact references remain
+valid after the repository rename.
 
 ## Using an image
 
-1. Read the project's runtime constraints, extensions, lockfiles, services, and test needs.
-2. Follow [selection](docs/selection.md), or pass a requirements JSON file to
-   `python3 scripts/library.py select requirements.json` after cloning this repository.
-3. Use the exact digest from the result in [usage](docs/usage.md).
-4. Run its readiness checks; install project dependencies from project lockfiles.
+Follow [selection](docs/selection.md) and use the selected exact digest in
+[usage](docs/usage.md). An optional deterministic helper accepts an explicit
+requirements JSON file after cloning this repository:
+
+```sh
+python3 scripts/library.py select requirements.json
+```
+
+The helper requires Python and the dependencies in `requirements-ci.txt`.
+Reading the catalog and following its usage instructions does not require it.
 
 The images supply toolchains. Your project's dependencies and database remain
 explicit. `php-browser` adds Chromium and Panther prerequisites; it does not
@@ -45,6 +76,7 @@ until their verified public releases enter the catalog.
 
 ## Documentation
 
+- [Architecture, resource boundaries, and discovery](docs/architecture.md)
 - [Selection and requirement gaps](docs/selection.md)
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [FrankenPHP and flowbite-xor development/testing](docs/flowbite-xor.md)
@@ -52,7 +84,7 @@ until their verified public releases enter the catalog.
 - [Versions, pins, upgrades, and rollback](docs/versioning.md)
 - [Verified release measurements](docs/metrics.md)
 - [Publication, retry, and repository setup](docs/releases.md)
-- [Adding images and refreshing dependencies](docs/contributing.md)
+- [Contributing resources and refreshing dependencies](docs/contributing.md)
 - [Implementation status](docs/implementation.md)
 
 Generated inventories describe measured released artifacts. Supported upstream
