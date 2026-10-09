@@ -179,12 +179,41 @@ requires source-repository access and does not promise success through every
 restricted gateway.
 
 `HTTP_PROXY`, `HTTPS_PROXY`, their lowercase forms and `ALL_PROXY`/`all_proxy`
-are forwarded unless
-they point at loopback (`localhost`, 127.0.0.0/8, IPv6 `::1`, including mapped
-IPv4 loopback). Host loopback is not reachable in the container. Set
-`PROXY_PASSTHROUGH=0` to disable these proxies, or `PROXY_PASSTHROUGH=1` to deliberately
-forward them unchanged. `NO_PROXY`/`no_proxy` remain configurable; readiness
-requests explicitly bypass proxies. Proxy values are not printed in diagnostics.
+are forwarded. In automatic mode, loopback endpoints (`localhost`, 127.0.0.0/8,
+IPv6 `::1`, including mapped IPv4) get a TCP relay bound only to the local Docker
+bridge gateway. Container proxy URLs use that numeric address, so reaching the
+proxy needs no container DNS. The upstream proxy still handles authentication,
+CONNECT and destination policy; TLS verification remains enabled. Host commands
+retain their original proxy settings. Tools must honor proxy configuration;
+this does not provide general DNS or transparently proxy every protocol.
+
+Each workspace/project owns its relay. It survives `up`, is reused by later
+commands, restores the same ports after an interrupted relay, and is stopped by
+that project's successful `down`. Concurrent worktrees do not share relay
+ownership. Changed upstream endpoints require `up`. Private state under the
+host temporary directory contains endpoints/ports and an authenticated local
+control token, never proxy credentials. Keep the checkout available while using
+the runner. After host reboot, run `up` again before using retained containers.
+
+Before opening an upstream connection, the relay checks the client's source IP
+against Docker's live container addresses and the runner's
+`dev.xorder.proxy-owner` label. Only this workspace/project's PHP container
+(including the browser sharing its network namespace) can use its relay.
+Unrelated containers and failed Docker lookups are rejected. Addresses are
+checked on every connection so a removed container's IP is not kept authorized.
+This requires continued host-side Docker access; host networking is unsupported.
+Docker daemon administrators remain trusted, as they can create labeled
+containers or join another container's network namespace.
+
+Automatic forwarding requires a Docker bridge address bindable from the sandbox
+where the upstream proxy listens. A remote daemon, Docker Desktop VM, rootless
+engine, or isolated Docker socket may need a separately configured reachable
+proxy; the runner reports an unavailable route instead of dropping the proxy.
+Set `PROXY_PASSTHROUGH=0` to disable container proxies, or
+`PROXY_PASSTHROUGH=1` to forward URLs unchanged deliberately. Upper/lowercase
+`NO_PROXY` settings retain their entries and add localhost, loopback and the
+profile's service names. Readiness requests explicitly bypass proxies. Proxy
+values are not printed in diagnostics.
 
 The app uses your UID/GID by default. `PUID=0 PGID=0` supports a root-owned
 sandbox checkout. Only the named home, Caddy and demo-var cache volumes have
