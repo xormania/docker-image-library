@@ -111,8 +111,14 @@ if args[0] == "info":
     sys.exit(1 if os.environ.get("MOCK_DAEMON_FAIL") == "1" else 0)
 if args[0] == "ps":
     project = args[-1].rsplit("=", 1)[1]
+    if not state["containers"] and os.environ.get("MOCK_RESERVED_PORTS") == "1":
+        print("port-reservation")
+        sys.exit(0)
     print("\\n".join(c["Id"] for c in state["containers"] if c["Config"]["Labels"]["com.docker.compose.project"] == project))
 elif args[0] == "inspect":
+    if "port-reservation" in args:
+        print(json.dumps([{"Id": "port-reservation", "Config": {"Labels": {"com.docker.compose.project": os.environ["FLOWBITE_PROJECT"], "com.docker.compose.service": "php", "dev.xorder.workspace": os.environ["WORKSPACE"]}}, "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": os.environ["HTTP_PORT"]}], "443/tcp": [{"HostPort": os.environ["HTTPS_PORT"]}], "443/udp": [{"HostPort": os.environ["HTTP3_PORT"]}]}}}]))
+        sys.exit(0)
     print(json.dumps([c for c in state["containers"] if c["Id"] in args[1:]]))
 elif args[0] == "exec":
     sys.exit(22 if os.environ.get("MOCK_APP_FAIL") == "1" else 0)
@@ -140,12 +146,55 @@ statefile.write_text(json.dumps(state))
         self.docker.chmod(0o755)
         self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
         self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), MOCK_STATE=str(self.directory / "state.json"), XDG_CACHE_HOME=str(self.directory / "cache"))
+        # Keep kernel-allocated TCP/UDP sockets reserved for this mocked profile.
+        # The Docker mock reports those reservations as project-owned ports, so
+        # unrelated local services cannot make orchestration fixtures flaky.
+        # The occupied-port test opts out and exercises the real bind probe.
+        def reserve_tcp(start):
+            for port in range(start, 20000):
+                listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                try:
+                    listener.bind(("127.0.0.1", port))
+                except OSError:
+                    listener.close()
+                    continue
+                self.addCleanup(listener.close)
+                return listener
+            self.fail("No free test TCP port below 20000")
+
+        http = reserve_tcp(10000)
+        candidate = http.getsockname()[1] + 1
+        while candidate < 20000:
+            https = reserve_tcp(candidate)
+            http3 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                http3.bind(("127.0.0.1", https.getsockname()[1]))
+            except OSError:
+                candidate = https.getsockname()[1] + 1
+                https.close()
+                http3.close()
+                continue
+            self.addCleanup(http3.close)
+            break
+        else:
+            self.fail("No free paired test TCP/UDP port below 20000")
+        self.env.update(HTTP_PORT=str(http.getsockname()[1]), HTTPS_PORT=str(https.getsockname()[1]),
+                        HTTP3_PORT=str(http3.getsockname()[1]))
 
     def run_profile(self, *arguments, **environment):
+        selected = dict(self.env, **environment)
+        selected = {key: value for key, value in selected.items() if value is not None}
+        selected.setdefault("MOCK_RESERVED_PORTS", "1" if "up" in arguments else "0")
         result = subprocess.run(["bash", str(ROOT / "examples/flowbite-xor/run.sh"), *arguments],
-                                env=dict(self.env, **environment), capture_output=True, text=True)
+                                env=selected, capture_output=True, text=True)
         self.calls = [json.loads(line) for line in self.commands.read_text().splitlines()] if self.commands.exists() else []
+        self.last_result = result
         return result
+
+    def assertEqual(self, first, second, msg=None):
+        if first != second and hasattr(self, "last_result"):
+            msg = (msg or "") + "\nProfile stdout:\n" + self.last_result.stdout + "\nProfile stderr:\n" + self.last_result.stderr
+        super().assertEqual(first, second, msg)
 
     def test_filters_all_loopback_proxy_spellings_and_preserves_remote(self):
         for value in ("http://127.0.0.1:3128", "http://127.9.0.1:3128", "localhost:3128", "http://LOCALHOST.:3128", "http://[::1]:3128", "http://[::ffff:127.0.0.1]:3128"):
@@ -251,25 +300,37 @@ statefile.write_text(json.dumps(state))
         self.assertTrue(any("cache:warmup" in call["args"] for call in self.calls))
 
     def test_stable_names_slot_ports_and_explicit_overrides(self):
-        self.assertEqual(self.run_profile("--slot", "2", "exec", "true").returncode, 0)
+        self.assertEqual(self.run_profile("--slot", "2", "exec", "true", HTTP_PORT=None, HTTPS_PORT=None, HTTP3_PORT=None).returncode, 0)
         first = self.calls[-1]
         self.assertEqual(first["env"]["HTTP_PORT"], "20004")
         self.assertEqual(first["env"]["HTTPS_PORT"], "20005")
         self.assertEqual(first["env"]["HTTP3_PORT"], "20005")
         project = first["env"]["FLOWBITE_PROJECT"]
-        self.assertEqual(self.run_profile("exec", "--slot", "3", "true", HTTP_PORT="28001", HTTPS_PORT="28002").returncode, 0)
+        self.assertEqual(self.run_profile("exec", "--slot", "3", "true", HTTP_PORT="28001", HTTPS_PORT="28002", HTTP3_PORT=None).returncode, 0)
         self.assertEqual(self.calls[-1]["env"]["FLOWBITE_PROJECT"], project)
         self.assertEqual(self.calls[-1]["env"]["HTTP_PORT"], "28001")
         self.assertEqual(self.calls[-1]["env"]["HTTP3_PORT"], "28002")
         self.assertEqual(self.run_profile("exec", "true", FLOWBITE_PROJECT="explicit-project").returncode, 0)
         self.assertEqual(self.calls[-1]["env"]["FLOWBITE_PROJECT"], "explicit-project")
 
+    def test_default_workspace_project_and_ports_are_stable(self):
+        defaults = dict(HTTP_PORT=None, HTTPS_PORT=None, HTTP3_PORT=None)
+        self.assertEqual(self.run_profile("exec", "true", **defaults).returncode, 0)
+        first = self.calls[-1]["env"]
+        self.assertEqual(self.run_profile("exec", "true", **defaults).returncode, 0)
+        second = self.calls[-1]["env"]
+        for key in ("FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT"):
+            self.assertEqual(first[key], second[key])
+        self.assertTrue(20000 <= int(first["HTTP_PORT"]) <= 29998)
+        self.assertEqual(int(first["HTTPS_PORT"]), int(first["HTTP_PORT"]) + 1)
+        self.assertEqual(first["HTTP3_PORT"], first["HTTPS_PORT"])
+
     def test_occupied_port_fails_before_compose_up(self):
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             listener.listen()
             port = listener.getsockname()[1]
-            self.assertEqual(self.run_profile("up", HTTP_PORT=str(port)).returncode, 64)
+            self.assertEqual(self.run_profile("up", HTTP_PORT=str(port), MOCK_RESERVED_PORTS="0").returncode, 64)
         self.assertFalse(any("up" in call["args"] for call in self.calls))
 
     def test_status_needs_neither_image_nor_lock_and_starts_no_container(self):
