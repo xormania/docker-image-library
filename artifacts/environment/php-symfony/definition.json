@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "id": "environment/php-symfony",
+  "kind": "environment",
+  "name": "php-symfony",
+  "revision": "1.0.0",
+  "purpose": "A reusable native devenv PHP 8.4 and Symfony development toolchain for a project on Linux amd64.",
+  "capabilities": ["php", "php-8.4", "composer", "symfony-cli", "intl", "mbstring", "pdo-pgsql", "dom", "bcmath", "zip", "curl"],
+  "targets": ["linux/amd64"],
+  "prerequisites": {
+    "commands": ["nix", "devenv"],
+    "requirements": ["Nix with nix-command and flakes enabled", "devenv 2.4.0", "Writable Nix store and access to the locked upstream inputs and binary caches"]
+  },
+  "documentation": "docs/resources/environment-php-symfony.md",
+  "details": {
+    "backend": "devenv",
+    "scope": "project",
+    "activation": "devenv shell",
+    "files": [
+      {"source": "devenv.nix", "destination": "devenv.nix"},
+      {"source": "devenv.yaml", "destination": "devenv.yaml"},
+      {"source": "devenv.lock", "destination": "devenv.lock"}
+    ]
+  },
+  "verification": {"command": ["bash", "scripts/xorder/verify-devenv.sh"]}
+}

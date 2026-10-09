@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "id": "context/project-guidance",
+  "kind": "context",
+  "name": "project-guidance",
+  "revision": "1.0.0",
+  "purpose": "Example Codex project-local guidance delivered explicitly as AGENTS.md.",
+  "capabilities": ["context:project-guidance"],
+  "targets": ["any"],
+  "prerequisites": {
+    "commands": [],
+    "requirements": ["Select only when project-local Codex guidance is wanted; review the sample before adoption."]
+  },
+  "documentation": "docs/resources/context-project-guidance.md",
+  "details": {
+    "audience": "codex",
+    "scope": "project",
+    "files": [{"source": "project-guidance.md", "destination": "AGENTS.md"}]
+  },
+  "verification": {
+    "command": ["python3", "scripts/xorder/verify-bundles.py", "context/project-guidance"]
+  }
+}

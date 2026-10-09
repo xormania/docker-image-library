@@ -368,7 +368,8 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "uniqueItems": true
+                    "uniqueItems": true,
+                    "minItems": 1
                   }
                 ]
               },

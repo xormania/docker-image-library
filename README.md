@@ -36,7 +36,7 @@ Reading the catalog does not activate context bundles.
 ## Available downloadable resources
 
 <!-- resources:start -->
-| Resource | Revision | Tested target | Prerequisites | Exact identity |
+| Resource | Revision | Target | Prerequisites | Exact identity |
 | --- | --- | --- | --- | --- |
 | [binary/composer](docs/resources/binary-composer.md) | 1.0.0 | linux/amd64 | `php` | `sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6` |
 <!-- resources:end -->
@@ -109,6 +109,8 @@ and direct usage pages remains sufficient.
 - [Architecture, resource boundaries, and discovery](docs/architecture.md)
 - [Verified downloadable resources and prerequisites](docs/resources/index.md)
 - [Applying locks, ownership, recovery, and rollback](docs/application.md)
+- [URL discovery and host/container acceptance](docs/discovery.md)
+- [Profiles and private assignment overlays](docs/profiles.md)
 - [Selection and requirement gaps](docs/selection.md)
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [FrankenPHP and flowbite-xor development/testing](docs/flowbite-xor.md)

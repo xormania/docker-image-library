@@ -8,10 +8,10 @@ An installed CLI, skill, plugin, or separate discovery service is unnecessary.
 
 ## Current capability and extension boundaries
 
-The compact [catalog](../catalog-v2.json) currently contains verified images.
-Their detailed [image view](../catalog.json),
-existing definitions, records, commands, GHCR references, and usage remain the
-working path. Additional kinds extend that structure as verified examples land:
+The compact [catalog](../catalog-v2.json) lists accepted verified releases. The
+detailed [image view](../catalog.json), existing image definitions, records,
+commands, GHCR references, and usage remain available. Additional kinds extend
+that structure as verified releases enter the ledger:
 
 | Kind | Owns |
 | --- | --- |
@@ -22,10 +22,10 @@ working path. Additional kinds extend that structure as verified examples land:
 | Context | Audience, task/harness scope, source and selected guidance payload |
 
 A profile composes resources for an explicit target; it is not another software
-payload. The first binary example will be Composer, whose PHAR requires PHP.
-The first environment backend will be devenv, which retains responsibility for
-native package resolution and process lifecycle. Neither is available merely
-because its intended definition is documented.
+payload. The authored first examples include Composer, whose PHAR requires PHP,
+and a devenv PHP/Symfony environment. Devenv retains responsibility for native
+package resolution and process lifecycle. Neither is available merely because
+its definition or usage instructions are present in the source tree.
 
 ## Separate intent, evidence, selection, and target state
 
@@ -114,6 +114,13 @@ Only `available`, verified compatible records can resolve; multiple compatible
 resource alternatives require an explicit choice. Dependencies, version conflicts,
 cycles, and overlapping file destinations are checked before returning a lock.
 
+For context, `details.audience` is one exact harness identifier or a nonempty
+list of identifiers, such as `codex` or `["codex", "claude"]`. The explicit value
+`any` permits every harness. Other descriptive labels do not imply universal
+eligibility. A concrete audience requires the observed `target.harness` and must
+match it, even in a custom profile or private overlay without a role condition.
+Scope and audience are checked again when validating the lock before application.
+
 `--pins previous-lock.json` retains exact existing identities. An upgrade requires
 deliberately changing or omitting those pins. `--overlay private-overlay.json`
 accepts local overrides keyed by existing role name and explicit target overrides:
@@ -131,7 +138,7 @@ accepts local overrides keyed by existing role name and explicit target override
 
 The lock records profile and overlay source hashes, observed target facts, selected
 roles, and exact artifact identities. It is a local decision record; it does not
-replace native lockfiles, release evidence, or future target installation receipts.
+replace native lockfiles, release evidence, or target installation receipts.
 Private overlay files are not inputs to public catalog generation.
 
 ## Delivery and application
@@ -146,6 +153,9 @@ materialize only selected scopes, track owned files, and preserve locally edited
 or unrelated destinations. Native backends own their services. Installing context
 or changing configuration is independent of building a toolchain. Optional
 helpers use these same operations; direct documented use remains available.
+The [application guide](application.md) describes the implemented helper's target
+locks, receipts, repeated application, conflicts, recovery, rollback, and explicit
+removal. Runtime readiness checks remain separate from file receipt verification.
 
 ## Repository rename and image provenance
 

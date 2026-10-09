@@ -213,7 +213,7 @@ def availability_table(cat):
     available = latest_artifacts(cat)
     if not available:
         return "No verified non-image releases yet. Authored definitions are not available artifacts."
-    rows = ["| Resource | Revision | Tested target | Prerequisites | Exact identity |",
+    rows = ["| Resource | Revision | Target | Prerequisites | Exact identity |",
             "| --- | --- | --- | --- | --- |"]
     for item in available:
         prerequisites = ", ".join(f"`{command}`" for command in item["prerequisites"]["commands"]) or "See usage"
@@ -224,7 +224,8 @@ def availability_table(cat):
 def resource_index(cat):
     text = ("# Verified downloadable resources\n\n"
             "Generated from accepted release records. Read the prerequisites and usage before applying a resource. "
-            "Targets describe the published verification claim; they do not establish behavior in every vendor cloud. "
+            "Targets describe compatibility; verification evidence records the actual execution surface. "
+            "Do not infer behavior in every vendor cloud. "
             "Profiles select these exact releases; authored definitions without records remain unavailable.\n\n")
     available = latest_artifacts(cat)
     if not available:
@@ -233,13 +234,14 @@ def resource_index(cat):
         doc = "../../" + item["documentation"]
         ledger = "../../" + item["release_record"]
         text += (f"## {item['id']} v{item['version']}\n\n{item['purpose']}\n\n"
-                 f"Exact identity: `{item['identity']}`. Tested targets: {', '.join(item['targets'])}.\n\n")
+                 f"Exact identity: `{item['identity']}`. Declared targets: {', '.join(item['targets'])}.\n\n")
         commands = item["prerequisites"]["commands"]
         text += "Required commands: " + (", ".join(f"`{command}`" for command in commands) if commands else "none") + ".\n\n"
         requirements = item["prerequisites"].get("requirements", [])
         if requirements:
             text += "\n".join(f"- {requirement}" for requirement in requirements) + "\n\n"
-        text += (f"[Usage]({doc}) · [Release record]({ledger}) · "
+        text += (f"[Usage]({doc}) · [Download]({item['delivery']['url']}) "
+                 f"({item['delivery']['format']}, {item['delivery']['size_bytes']:,} bytes) · [Release record]({ledger}) · "
                  f"[Verification evidence]({item['verification']['evidence']}) "
                  f"({item['verification']['surface']}).\n\n")
     return text

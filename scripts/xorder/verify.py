@@ -67,6 +67,8 @@ def affected(changed, definitions):
             selected.update(key for key, d in definitions.items() if d["kind"] == "environment")
         elif path.startswith("tests/fixtures/php/"):
             selected.update(key for key, d in definitions.items() if d["kind"] in ("binary", "environment"))
+        elif path.startswith("tests/fixtures/artifacts/application/"):
+            selected.update(key for key, d in definitions.items() if d["kind"] in ("configuration", "context"))
         elif path.startswith(("tests/fixtures/artifacts/", "examples/resources/")):
             selected.update(definitions)
         else:

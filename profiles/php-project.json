@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "id": "profile/php-project",
+  "revision": "1.0.0",
+  "purpose": "PHP project setup with a devenv runtime, EditorConfig, and optional Codex project guidance.",
+  "roles": [
+    {
+      "name": "runtime",
+      "alternatives": [{"id": "environment/php-symfony", "version": "1.0.0"}]
+    },
+    {
+      "name": "formatting",
+      "alternatives": [{"id": "configuration/editorconfig", "version": "1.0.0"}]
+    },
+    {
+      "name": "project-context",
+      "optional": true,
+      "when": {"harness": "codex", "scope": "project"},
+      "alternatives": [{"id": "context/project-guidance", "version": "1.0.0"}]
+    }
+  ]
+}

@@ -419,6 +419,12 @@ class AffectedResourceTests(unittest.TestCase):
         self.assertEqual(verify.affected(changed, definitions), ["environment/php"])
         self.assertEqual(image_affected(changed, image_definitions()), [])
 
+    def test_application_fixture_does_not_select_unexercised_runtimes(self):
+        definitions = {"configuration/editorconfig": {"kind": "configuration"}, "context/guidance": {"kind": "context"}, "binary/composer": {"kind": "binary"}, "environment/php": {"kind": "environment"}}
+        changed = ["tests/fixtures/artifacts/application/check.py"]
+        self.assertEqual(verify.affected(changed, definitions), ["configuration/editorconfig", "context/guidance"])
+        self.assertEqual(image_affected(changed, image_definitions()), [])
+
 
 if __name__ == "__main__":
     unittest.main()

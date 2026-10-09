@@ -1,0 +1,30 @@
+{
+  "purpose": "Independent expectations for applying authored project configuration and scoped example context.",
+  "profile": "profiles/php-project.json",
+  "files": {
+    ".editorconfig": "artifacts/configuration/editorconfig/payload/editorconfig",
+    "AGENTS.md": "artifacts/context/project-guidance/payload/project-guidance.md"
+  },
+  "cases": [
+    {
+      "name": "codex-project",
+      "target": {"platform": "linux/amd64", "commands": [], "scope": "project", "harness": "codex"},
+      "expected_resources": ["configuration/editorconfig", "context/project-guidance"]
+    },
+    {
+      "name": "other-harness",
+      "target": {"platform": "linux/amd64", "commands": [], "scope": "project", "harness": "claude"},
+      "expected_resources": ["configuration/editorconfig"]
+    },
+    {
+      "name": "user-scope",
+      "target": {"platform": "linux/amd64", "commands": [], "scope": "user", "harness": "codex"},
+      "expected_gap": "scope_mismatch"
+    },
+    {
+      "name": "missing-harness-fact",
+      "target": {"platform": "linux/amd64", "commands": [], "scope": "project"},
+      "expected_gap": "target_fact_missing"
+    }
+  ]
+}

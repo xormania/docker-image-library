@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "id": "configuration/editorconfig",
+  "kind": "configuration",
+  "name": "editorconfig",
+  "revision": "1.0.0",
+  "purpose": "Small project-local EditorConfig starting point for PHP and common repository files.",
+  "capabilities": ["configuration:editorconfig"],
+  "targets": ["any"],
+  "prerequisites": {
+    "commands": [],
+    "requirements": ["An editor with EditorConfig support is needed to apply the formatting settings."]
+  },
+  "documentation": "docs/resources/configuration-editorconfig.md",
+  "details": {
+    "target_application": "EditorConfig-compatible editors",
+    "scope": "project",
+    "files": [{"source": "editorconfig", "destination": ".editorconfig"}]
+  },
+  "verification": {
+    "command": ["python3", "scripts/xorder/verify-bundles.py", "configuration/editorconfig"]
+  }
+}
