@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run inside the tested container; collect facts, not declared capabilities."""
 import json
+import hashlib
 import platform
 import re
 import shlex
@@ -54,4 +55,13 @@ result = {"platform": "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}[platfor
           "os": os_release, "packages": run("dpkg-query", "-W", "-f=${Package}=${Version}\\n").splitlines()}
 if family == "rust-dev":
     result["rust_targets"] = run("rustup", "target", "list", "--installed").splitlines()
+if family == "php-toolkit":
+    result["prepared_projects"] = {}
+    for name in ("validator", "symfony-7.4"):
+        project = Path("/opt/xorder/php-toolkit") / name
+        installed = json.loads((project / "vendor/composer/installed.json").read_text())
+        result["prepared_projects"][name] = {
+            "composer_lock_sha256": hashlib.sha256((project / "composer.lock").read_bytes()).hexdigest(),
+            "packages": {package["name"]: package["version"] for package in installed["packages"]},
+        }
 print(json.dumps(result, indent=2, sort_keys=True))

@@ -98,6 +98,13 @@ def validate_inventory(definition, inventory):
         browser = re.search(r"\d+", inventory["tools"]["chromium"])[0]
         driver = re.search(r"\d+", inventory["tools"]["chromedriver"])[0]
         assert browser == driver, "Chromium and driver major versions differ"
+    if definition["family"] == "php-toolkit":
+        projects = inventory["prepared_projects"]
+        assert set(projects) == {"validator", "symfony-7.4"}
+        for project in projects.values():
+            assert project["packages"]["symfony/ux-toolkit"] == "v3.5.1"
+            assert re.fullmatch(r"[a-f0-9]{64}", project["composer_lock_sha256"])
+        assert projects["symfony-7.4"]["packages"]["symfony/framework-bundle"].startswith("v7.4.")
     if "node" in definition["capabilities"]:
         assert inventory["tools"]["node"].startswith("v22."), "The flowbite-xor Node line must match CI"
     if "wasm32-unknown-unknown" in definition["capabilities"]:
@@ -299,6 +306,8 @@ def generated(root=ROOT):
             text += "**Not available:** no verified public release. The following capabilities describe the intended profile.\n\n"
         text += "Capabilities: " + ", ".join(f"`{c}`" for c in d["capabilities"]) + ".\n\n"
         text += "Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.\n\n"
+        if d["family"] == "php-toolkit":
+            text += "[Toolkit validation and fresh-app recipe](../php-toolkit.md) · "
         text += "[Usage](../usage.md) · [Selection](../selection.md) · [Compatibility evidence](../compatibility.md)\n\n"
         text += "## Limitations\n\n" + "\n".join(f"- {x}" for x in d["limitations"]) + "\n"
         outputs[root / "docs" / "images" / (line.replace("/", "-") + ".md")] = text
@@ -332,18 +341,22 @@ def affected(changed, defs):
         }:
             continue
         elif path == "images/tools.json":
-            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
+            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
         elif path.startswith("tests/fixtures/php/"):
-            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev"}
+            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev"}
+        elif path.startswith(("examples/php-toolkit/", "tests/fixtures/php-toolkit/")):
+            families = {"php-toolkit"}
         elif path.startswith("tests/fixtures/frankenphp/"):
             families = {"php-frankenphp", "flowbite-xor-dev"}
-        elif path == "examples/shared/network.py" or path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
+        elif path == "examples/shared/network.py":
+            families = {"flowbite-xor-dev", "php-toolkit"}
+        elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
             families = {"flowbite-xor-dev"}
         elif path.startswith("tests/fixtures/trust/"):
             result.update(defs)
             continue
         elif path.startswith("examples/php/"):
-            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
+            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
         elif path.startswith("tests/fixtures/python/"):
             families = {"python-dev"}
         elif path.startswith("tests/fixtures/rust/"):
@@ -363,6 +376,9 @@ def affected(changed, defs):
 
 def fingerprint(d, root=ROOT):
     paths = list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
+    if d["family"] == "php-toolkit":
+        paths += [root / "examples/php-toolkit/validator" / name for name in ("composer.json", "composer.lock")]
+        paths += list((root / "examples/php-toolkit/symfony-7.4").rglob("*"))
     h = hashlib.sha256(encoded(d).encode())
     tools = read(root / "images" / "tools.json")
     keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "pcov_version", "symfony"),

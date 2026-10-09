@@ -21,6 +21,12 @@ def record(line, revision="1.0.0", digest="a"):
         inv["tools"].update(node="v22.1.0", npm="10.1.0")
     if d["family"] == "php-browser":
         inv["tools"].update(chromium="Chromium 140.0", chromedriver="ChromeDriver 140.0")
+    if d["family"] == "php-toolkit":
+        inv["prepared_projects"] = {
+            "validator": {"composer_lock_sha256": "0" * 64, "packages": {"symfony/ux-toolkit": "v3.5.1"}},
+            "symfony-7.4": {"composer_lock_sha256": "1" * 64, "packages": {
+                "symfony/ux-toolkit": "v3.5.1", "symfony/framework-bundle": "v7.4.1"}},
+        }
     return {"schema_version": 1, "line_id": line, "version": revision, "source_commit": "b" * 40,
             "source_tag": line + "/v" + revision, "created_at": "2026-01-01T00:00:00Z", "definition": d,
             "resolved_base": "test@sha256:" + "c" * 64, "tools": {}, "input_fingerprint": "d" * 64,
@@ -77,7 +83,8 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
         self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
         self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie"])
-        self.assertEqual(affected(["examples/shared/network.py", "examples/flowbite-xor/runner.py"], defs), ["php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
+        self.assertEqual(affected(["examples/flowbite-xor/runner.py"], defs), ["php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
+        self.assertEqual(affected(["examples/shared/network.py"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 6)
         self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 6)
 
@@ -96,6 +103,37 @@ class DiscoveryTests(unittest.TestCase):
             self.assertNotEqual(before["python-dev/3.14-trixie"], after["python-dev/3.14-trixie"])
             for line in ("php-dev/8.4-trixie", "php-browser/8.4-trixie", "rust-dev/1.99-trixie"):
                 self.assertEqual(before[line], after[line])
+
+    def test_toolkit_selection_requires_prepared_dependencies_and_verified_release(self):
+        requirements = {"runtime_line": "8.5", "capabilities": ["ux-toolkit-validation", "symfony-toolkit-baseline"]}
+        self.assertEqual(select(catalog([record("php-dev/8.5-trixie")]), requirements)["status"], "no_matching_image")
+        toolkit = record("php-toolkit/8.5-trixie")
+        self.assertEqual(select(catalog([toolkit]), requirements)["image"]["line_id"], "php-toolkit/8.5-trixie")
+        self.assertEqual(select(catalog([]), requirements)["status"], "no_matching_image")
+        toolkit["platforms"][0]["inventory"]["prepared_projects"]["validator"]["packages"]["symfony/ux-toolkit"] = "v3.4.0"
+        with self.assertRaises(AssertionError):
+            validate_record(toolkit)
+
+    def test_toolkit_inputs_select_only_php_dev_build_trees(self):
+        expected = ["php-dev/8.4-trixie", "php-dev/8.5-trixie"]
+        for path in ("images/php-toolkit/Dockerfile", "examples/php-toolkit/validator/composer.lock",
+                     "examples/php-toolkit/symfony-7.4/config/services.yaml", "tests/fixtures/php-toolkit/run.sh"):
+            with self.subTest(path=path):
+                self.assertEqual(affected([path], definitions()), expected)
+
+    def test_toolkit_locked_manifests_and_baseline_source_are_release_inputs(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shutil.copytree(ROOT / "images", root / "images")
+            shutil.copytree(ROOT / "examples/php-toolkit", root / "examples/php-toolkit")
+            defs = definitions(root)
+            for relative in ("validator/composer.lock", "symfony-7.4/composer.json", "symfony-7.4/config/services.yaml"):
+                before = {line: fingerprint(d, root) for line, d in defs.items()}
+                path = root / "examples/php-toolkit" / relative
+                path.write_bytes(path.read_bytes() + b"\n")
+                changed = [line for line, d in defs.items() if fingerprint(d, root) != before[line]]
+                self.assertEqual(changed, ["php-toolkit/8.4-trixie", "php-toolkit/8.5-trixie"])
 
     def test_tailwind_checksum_changes_only_the_project_profiles(self):
         with tempfile.TemporaryDirectory() as tmp:

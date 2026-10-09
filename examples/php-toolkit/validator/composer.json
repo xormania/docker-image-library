@@ -1,0 +1,19 @@
+{
+    "name": "xormania/xorder-toolkit-validator",
+    "description": "Locked standalone UX Toolkit kit validation",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.4",
+        "symfony/ux-toolkit": "3.5.1",
+        "symfony/http-client": "7.4.*"
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.1"
+        },
+        "sort-packages": true,
+        "allow-plugins": {}
+    },
+    "minimum-stability": "stable"
+}

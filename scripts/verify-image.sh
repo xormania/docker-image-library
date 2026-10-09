@@ -6,7 +6,7 @@ image=${2:?Supply image reference}
 root=$(cd "$(dirname "$0")/.." && pwd)
 family=${line%%/*}
 kind=${family%-dev}
-case "$family" in php-browser|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
+case "$family" in php-browser|php-toolkit|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
 work=$(mktemp -d)
 project="image-check-${RANDOM}-${RANDOM}"
 cp -a "$root/tests/fixtures/$kind/." "$work/"
@@ -45,5 +45,8 @@ WORKSPACE="$work" CACHE_VOLUME="$project-cache" bash "$root/scripts/run-image.sh
 bash "$root/tests/fixtures/trust/run.sh" "$image"
 if [[ "$family" = flowbite-xor-dev ]]; then
   bash "$root/tests/fixtures/flowbite-xor/run.sh" "$image"
+fi
+if [[ "$family" = php-toolkit ]]; then
+  IMAGE="$image" TOOLKIT_LOCAL_IMAGE=1 TOOLKIT_REQUIRE_PREPARED=1 bash "$root/tests/fixtures/php-toolkit/run.sh"
 fi
 printf 'Behavioral recipe completed in %ss for %s\n' "$((SECONDS-start))" "$line"
