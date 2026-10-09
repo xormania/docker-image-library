@@ -25,6 +25,17 @@ git init "$work/main"
 git -C "$work/main" remote add origin "${consumer[0]}"
 git -C "$work/main" fetch --depth 1 origin "${consumer[1]}"
 git -C "$work/main" worktree add --detach "$WORKSPACE" FETCH_HEAD
+# The upstream test observes history before Turbo's promoted visit completes.
+# Keep this verification-only overlay tied to its reviewed source; changing the
+# consumer pin requires removing or reviewing the overlay, not applying it blindly.
+if [[ "${consumer[1]}" != c8878af66897d8c10af694050a7a588166942117 ]]; then
+  printf 'Review the frame-navigation completion overlay for the new consumer pin\n' >&2
+  exit 1
+fi
+fixture_patch="$root/tests/fixtures/flowbite-xor/frame-navigation-completion.patch"
+printf 'Applying xorder-owned test synchronization overlay to pinned flowbite-xor %s\n' "${consumer[1]}"
+git -C "$WORKSPACE" apply --check "$fixture_patch"
+git -C "$WORKSPACE" apply --whitespace=error "$fixture_patch"
 bash "$root/examples/flowbite-xor/run.sh" up
 test "$(bash "$root/examples/flowbite-xor/run.sh" exec git rev-parse HEAD)" = "${consumer[1]}"
 bash "$root/examples/flowbite-xor/run.sh" exec git status --porcelain

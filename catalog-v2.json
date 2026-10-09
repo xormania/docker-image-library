@@ -1,6 +1,60 @@
 {
-  "generated_at": "2026-10-08T22:27:17.573741Z",
+  "generated_at": "2026-10-08T23:49:01.153339Z",
   "resources": [
+    {
+      "capabilities": [
+        "software:composer",
+        "package-management:php"
+      ],
+      "created_at": "2026-10-08T23:49:01.153339Z",
+      "delivery": {
+        "filename": "composer.phar",
+        "format": "file",
+        "sha256": "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+        "size_bytes": 3642137,
+        "url": "https://github.com/xormania/xorder/releases/download/binary/composer/v1.0.0/composer.phar"
+      },
+      "details": {
+        "executable": "bin/composer.phar",
+        "filename": "composer.phar",
+        "sha256": "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+        "source_url": "https://getcomposer.org/download/2.10.3/composer.phar",
+        "upstream_version": "2.10.3"
+      },
+      "documentation": "docs/resources/binary-composer.md",
+      "id": "binary/composer",
+      "identity": "sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+      "kind": "binary",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "php"
+        ],
+        "requirements": [
+          "PHP CLI 7.2.5 or later with PHAR support; this resource does not install PHP.",
+          "The consuming project's extensions, services, archive tools and dependencies remain explicit."
+        ]
+      },
+      "purpose": "Exact upstream Composer PHAR for a target that already has compatible PHP CLI.",
+      "release_record": "release-records/artifacts/binary/composer/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "commands": [
+          [
+            "bash",
+            "scripts/xorder/verify-composer.sh",
+            "$ARTIFACT_ROOT"
+          ]
+        ],
+        "completed_at": "2026-10-08T23:49:01.153339Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/37861336161",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
     {
       "capabilities": [
         "composer",

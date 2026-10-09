@@ -1,0 +1,70 @@
+{
+  "created_at": "2026-10-08T23:49:01.153339Z",
+  "definition": {
+    "capabilities": [
+      "software:composer",
+      "package-management:php"
+    ],
+    "details": {
+      "executable": "bin/composer.phar",
+      "filename": "composer.phar",
+      "sha256": "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+      "source_url": "https://getcomposer.org/download/2.10.3/composer.phar",
+      "upstream_version": "2.10.3"
+    },
+    "documentation": "docs/resources/binary-composer.md",
+    "id": "binary/composer",
+    "kind": "binary",
+    "name": "composer",
+    "prerequisites": {
+      "commands": [
+        "php"
+      ],
+      "requirements": [
+        "PHP CLI 7.2.5 or later with PHAR support; this resource does not install PHP.",
+        "The consuming project's extensions, services, archive tools and dependencies remain explicit."
+      ]
+    },
+    "purpose": "Exact upstream Composer PHAR for a target that already has compatible PHP CLI.",
+    "revision": "1.0.0",
+    "schema_version": 2,
+    "targets": [
+      "linux/amd64"
+    ],
+    "verification": {
+      "command": [
+        "bash",
+        "scripts/xorder/verify-composer.sh"
+      ]
+    }
+  },
+  "id": "binary/composer",
+  "input_fingerprint": "e2ec9de7f861a344c05c5c3f822e3c2a6a1f1810eddcb0488a07a41f9ae107f7",
+  "lifecycle": "available",
+  "publication": {
+    "evidence": "https://github.com/xormania/xorder/actions/runs/37861336161",
+    "filename": "composer.phar",
+    "format": "file",
+    "public_download_verified_at": "2026-10-08T23:49:01.153339Z",
+    "sha256": "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+    "size_bytes": 3642137,
+    "url": "https://github.com/xormania/xorder/releases/download/binary/composer/v1.0.0/composer.phar"
+  },
+  "schema_version": 2,
+  "source_commit": "d271d52e66fa7810bee358a4a9d74da7dcce41ee",
+  "source_tag": "binary/composer/v1.0.0",
+  "verification": {
+    "commands": [
+      [
+        "bash",
+        "scripts/xorder/verify-composer.sh",
+        "$ARTIFACT_ROOT"
+      ]
+    ],
+    "completed_at": "2026-10-08T23:49:01.153339Z",
+    "evidence": "https://github.com/xormania/xorder/actions/runs/37861336161",
+    "status": "passed",
+    "surface": "github-actions-linux-amd64"
+  },
+  "version": "1.0.0"
+}

@@ -58,9 +58,19 @@ class ResourcePublicationTests(unittest.TestCase):
         self.release = None
         self.events = []
         self.fail_record = False
+        self.failed_record = None
         self.fail_notes = False
         self.corrupt_public = False
         self.authorization = []
+        self.visibility_delays = {}
+        self.pending_visibility = []
+        self.lookups = []
+        self.clock = 0.0
+        self.sleeps = []
+        self.hide_candidate = False
+        self.api_failure = None
+        self.observed_source = None
+        self.observed_tag = None
         owner = self
         class Handler(http.server.SimpleHTTPRequestHandler):
             def do_GET(self):
@@ -86,16 +96,21 @@ class ResourcePublicationTests(unittest.TestCase):
         self.events.append(args)
         self.assertEqual(args[:2], ("gh", "release"))
         action = args[2]
+        before = copy.deepcopy(self.release)
+        phase = None
         if action == "create":
             self.assertIsNone(self.release)
-            self.release = {"tag_name": self.tag, "target_commitish": self.source, "draft": True, "assets": []}
+            self.release = {"id": 101, "tag_name": self.tag, "target_commitish": self.source, "draft": True, "assets": []}
+            phase = "create"
         elif action == "upload":
             path = Path(args[4])
             if path.name == "record.json" and self.fail_record:
+                self.failed_record = json.loads(path.read_text())
                 raise RuntimeError("record upload interrupted")
             self.assertFalse((self.remote / path.name).exists(), "asset overwrite attempted")
             shutil.copyfile(path, self.remote / path.name)
             self.release["assets"].append({"name": path.name, "browser_download_url": "https://example.test/" + path.name})
+            phase = "record" if path.name == "record.json" else "payload"
         elif action == "download":
             filename = args[args.index("--pattern") + 1]
             destination = Path(args[args.index("--dir") + 1])
@@ -103,18 +118,111 @@ class ResourcePublicationTests(unittest.TestCase):
         elif action == "edit":
             if "--draft=false" in args:
                 self.release["draft"] = False
+                phase = "publish"
             elif "--notes" in args and self.fail_notes:
                 raise RuntimeError("notes edit interrupted")
         else:
             self.fail(f"Unexpected release command: {args}")
+        self.pending_visibility.extend(copy.deepcopy(before) for _ in range(self.visibility_delays.get(phase, 0)))
+
+    def lookup(self, tag, release_id=None, timeout=None):
+        self.assertEqual(tag, self.tag)
+        self.lookups.append((release_id, timeout))
+        if self.release is not None and self.api_failure:
+            raise self.api_failure
+        if self.release is not None and self.hide_candidate:
+            return None
+        observed = copy.deepcopy(self.pending_visibility.pop(0) if self.pending_visibility else self.release)
+        if observed is not None:
+            if self.observed_source:
+                observed["target_commitish"] = self.observed_source
+            if self.observed_tag:
+                observed["tag_name"] = self.observed_tag
+        return observed
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.clock += seconds
 
     def publish(self):
-        with patch.object(release, "release_info", side_effect=lambda tag: copy.deepcopy(self.release)), \
+        with patch.object(release, "release_info", side_effect=self.lookup), \
                 patch.object(release, "run", side_effect=self.fake_run), \
                 patch.object(release, "tag_guard"), \
                 patch.object(release, "download", side_effect=self.transfer), \
+                patch.object(release.time, "monotonic", side_effect=lambda: self.clock), \
+                patch.object(release.time, "sleep", side_effect=self.sleep), \
                 patch.dict(os.environ, {"GITHUB_REPOSITORY": "xormania/xorder", "GITHUB_RUN_ID": "42", "GH_TOKEN": "must-not-be-forwarded"}):
             return release.publish(self.resource_id, self.source, self.root / "out", self.repo)
+
+    def test_delayed_visibility_retries_reads_without_repeating_any_write(self):
+        self.visibility_delays = {"create": 2, "payload": 2, "publish": 2, "record": 2}
+        record = self.publish()
+        self.assertEqual(self.sleeps, [0.25, 0.5] * 4)
+        self.assertEqual(sum(event[2] == "create" for event in self.events), 1)
+        self.assertEqual(sum(event[2] == "upload" and event[4].endswith(".tar") for event in self.events), 1)
+        self.assertEqual(sum(event[2] == "upload" and event[4].endswith("record.json") for event in self.events), 1)
+        self.assertEqual(sum("--draft=false" in event for event in self.events), 1)
+        self.assertTrue(all(release_id == 101 for release_id, _ in self.lookups[4:]))
+        self.assertTrue(all(0 < timeout <= 20 for _, timeout in self.lookups[1:]))
+        self.assertEqual(json.loads((self.remote / "record.json").read_text()), record)
+        self.assertEqual(self.authorization, [None])
+        self.assertTrue((self.repo / "executed.log").is_file())
+
+    def test_unobservable_creation_stops_within_shared_visibility_budget(self):
+        self.hide_candidate = True
+        with self.assertRaisesRegex(RuntimeError, "Candidate release creation was not observable"):
+            self.publish()
+        self.assertEqual(sum(self.sleeps), 20)
+        self.assertEqual(sum(event[2] == "create" for event in self.events), 1)
+        self.assertFalse(any(event[2] == "upload" for event in self.events))
+
+    def test_record_visibility_uses_remaining_budget_and_withholds_export(self):
+        self.visibility_delays = {"create": 2, "payload": 2, "publish": 2, "record": 100}
+        with self.assertRaisesRegex(RuntimeError, "Durable resource record is not observable"):
+            self.publish()
+        self.assertEqual(sum(self.sleeps), 20)
+        self.assertTrue((self.remote / "record.json").is_file())
+        self.assertTrue((self.repo / "executed.log").is_file())
+        self.assertFalse((self.root / "out/record.json").exists())
+
+    def test_api_failure_after_creation_is_not_retried(self):
+        for error in (subprocess.CalledProcessError(1, ["gh", "api"]), subprocess.TimeoutExpired(["gh", "api"], 20)):
+            with self.subTest(error=type(error)):
+                self.release = None
+                self.events.clear()
+                self.lookups.clear()
+                self.api_failure = error
+                with self.assertRaises(type(error)):
+                    self.publish()
+                self.assertEqual(self.sleeps, [])
+                self.assertEqual(len(self.lookups), 2)
+                self.assertFalse(any(event[2] == "upload" for event in self.events))
+
+    def test_changed_source_or_tag_after_creation_is_not_retried(self):
+        for field, value in (("observed_source", "b" * 40), ("observed_tag", "configuration/other/v1.0.0")):
+            with self.subTest(field=field):
+                self.release = None
+                self.events.clear()
+                self.lookups.clear()
+                self.observed_source = self.observed_tag = None
+                setattr(self, field, value)
+                with self.assertRaisesRegex(RuntimeError, "Observed release source or tag differs"):
+                    self.publish()
+                self.assertEqual(self.sleeps, [])
+                self.assertEqual(len(self.lookups), 2)
+                self.assertFalse(any(event[2] == "upload" for event in self.events))
+
+    def test_direct_release_read_pins_id_and_tag(self):
+        observed = {"id": 101, "tag_name": self.tag}
+        with patch.object(release, "gh", return_value=json.dumps(observed)) as gh, \
+                patch.dict(os.environ, {"GITHUB_REPOSITORY": "xormania/xorder"}):
+            self.assertEqual(release.release_info(self.tag, 101, timeout=3), observed)
+        gh.assert_called_once_with("api", "repos/xormania/xorder/releases/101", timeout=3)
+        for changed in ({"id": 102, "tag_name": self.tag}, {"id": 101, "tag_name": "other"}):
+            with self.subTest(observed=changed), patch.object(release, "gh", return_value=json.dumps(changed)), \
+                    patch.dict(os.environ, {"GITHUB_REPOSITORY": "xormania/xorder"}):
+                with self.assertRaisesRegex(RuntimeError, "Observed release identity differs"):
+                    release.release_info(self.tag, 101)
 
     def test_public_bytes_execute_before_durable_record_and_remain_unaccepted(self):
         record = self.publish()
@@ -202,7 +310,8 @@ class ResourcePublicationTests(unittest.TestCase):
         self.fail_record = True
         with self.assertRaisesRegex(RuntimeError, "record upload interrupted"):
             self.publish()
-        record = json.loads((self.root / "out/record.json").read_text())
+        self.assertFalse((self.root / "out/record.json").exists())
+        record = self.failed_record
         view = {"isDraft": False, "targetCommitish": self.source,
                 "assets": [{"name": asset["name"], "url": asset["browser_download_url"]} for asset in self.release["assets"]]}
         with patch.object(writeback, "output", return_value=json.dumps(view)), \
