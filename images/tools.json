@@ -24,5 +24,6 @@
     "version": "v4.3.3",
     "url": "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64",
     "sha256": "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a"
-  }
+  },
+  "pcov_version": "1.0.12"
 }

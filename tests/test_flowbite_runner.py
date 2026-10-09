@@ -138,7 +138,7 @@ elif "exec" in args:
 statefile.write_text(json.dumps(state))
 ''')
         self.docker.chmod(0o755)
-        self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT")}
+        self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
         self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), MOCK_STATE=str(self.directory / "state.json"), XDG_CACHE_HOME=str(self.directory / "cache"))
 
     def run_profile(self, *arguments, **environment):
@@ -163,6 +163,35 @@ statefile.write_text(json.dumps(state))
         self.assertEqual(self.run_profile("exec", "true", HTTP_PROXY="http://[::1]:3128", PROXY_PASSTHROUGH="1").returncode, 0)
         self.assertEqual(self.calls[-1]["env"]["HTTP_PROXY"], "http://[::1]:3128")
         self.assertEqual(self.run_profile("exec", "true", PROXY_PASSTHROUGH="maybe").returncode, 64)
+
+    def test_php_tests_default_invocation_uses_in_container_profile_defaults(self):
+        self.assertEqual(self.run_profile("php-tests").returncode, 0)
+        command = self.calls[-1]["args"]
+        self.assertEqual(command[-3:], ["php", "bash", "/run/xorder/php-tests.sh"])
+        self.assertNotIn("-e", command)
+        self.assertEqual(command[command.index("-w") + 1], "/app")
+        self.assertEqual(command[command.index("--user") + 1], f"{os.getuid()}:{os.getgid()}")
+
+    def test_php_tests_forwards_only_selected_overrides_to_the_exec_process(self):
+        overrides = {
+            "COVERAGE_DRIVER": "xdebug", "COVERAGE_SOURCE": "/app/custom recipes",
+            "COVERAGE_CLOVER": "/app/demo/var/coverage reports/clover.xml",
+            "PHPUNIT_PROJECT": "/app/custom demo", "PHPUNIT_CONFIGURATION": "config/phpunit tests.xml",
+            "PHPSTAN_PROJECT": "/opt/custom tools", "PHPSTAN_WORKSPACE": "/app/custom workspace",
+            "PHPSTAN_CONFIGURATION": "/app/config/phpstan tests.neon",
+            "PHPSTAN_AUTOLOAD_FILE": "/app/custom demo/vendor/autoload.php",
+            "PHPSTAN_PATHS": '["custom recipes/src", "custom demo/tests"]',
+        }
+        self.assertEqual(self.run_profile("php-tests", "coverage", "--filter", "important behavior",
+                                          **overrides, UNRELATED_SECRET="keep-on-host").returncode, 0)
+        command = self.calls[-1]["args"]
+        forwarded = [command[index + 1] for index, value in enumerate(command) if value == "-e"]
+        self.assertEqual(set(forwarded), {key + "=" + value for key, value in overrides.items()})
+        self.assertEqual(command[-6:], ["php", "bash", "/run/xorder/php-tests.sh", "coverage", "--filter", "important behavior"])
+        self.assertFalse(any("UNRELATED_SECRET" in argument for argument in command))
+        self.commands.unlink()
+        self.assertEqual(self.run_profile("exec", "true", **overrides).returncode, 0)
+        self.assertNotIn("-e", self.calls[-1]["args"], "Test overrides apply only to the test process")
 
     def test_host_cache_is_mounted_outside_home_and_never_created_implicitly(self):
         cache = self.directory / "Composer cache"

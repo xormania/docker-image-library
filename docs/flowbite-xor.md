@@ -42,6 +42,7 @@ bash examples/flowbite-xor/run.sh status
 bash examples/flowbite-xor/run.sh test tests/e2e/lab.calendar.spec.ts
 bash examples/flowbite-xor/run.sh test --shard=2/3
 bash examples/flowbite-xor/run.sh phpunit
+bash examples/flowbite-xor/run.sh php-tests all
 PHPUNIT_XDEBUG_MODE=coverage bash examples/flowbite-xor/run.sh phpunit --coverage-clover var/coverage.xml
 bash examples/flowbite-xor/run.sh exec bash -c 'cd demo && bin/console tailwind:build'
 bash examples/flowbite-xor/run.sh down
@@ -89,6 +90,16 @@ otherwise it exits 1. Starting Docker itself remains a host responsibility.
 
 `down` preserves caches; `down --volumes` deliberately removes
 this profile's disposable Caddy/home/demo-var volumes.
+
+Images with verified `php-testing` and `pcov` capabilities also offer
+`php-tests coverage`, `php-tests phpstan`, and `php-tests all`. The aggregate
+command runs the demo's lock-owned PHPUnit with PCOV, then the kit's PHPStan
+configuration from the repository root. It explicitly selects the isolated,
+image-prepared PHPStan tool lock, supplies the demo autoloader, and finds recipe
+PHP directories from their manifests. Environment overrides described in
+[PHP test tasks](php-tests.md) select other configurations, paths, or drivers.
+Earlier exact image pins retain the `phpunit` command and require a deliberate
+verified image upgrade before using these additional commands.
 
 Xdebug is installed and stays off for the server and ordinary PHPUnit runs.
 `PHPUNIT_XDEBUG_MODE=coverage` enables it only in the PHPUnit exec process,

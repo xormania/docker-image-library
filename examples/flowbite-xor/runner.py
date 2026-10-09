@@ -14,6 +14,13 @@ PROFILE = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROFILE.parent / "shared"))
 from network import sanitize  # noqa: E402
 
+PHP_TEST_ENVIRONMENT = (
+    "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION",
+    "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION",
+    "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS",
+    "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER",
+)
+
 
 def call(arguments, env, capture=False, check=True):
     return subprocess.run(arguments, env=env, check=check, text=True,
@@ -32,8 +39,11 @@ def playwright(workspace):
     return version
 
 
-def php_exec(compose, env, *arguments, cwd="/app", capture=False, check=True):
-    return call([*compose, "exec", "-T", "--user", f'{env["PUID"]}:{env["PGID"]}', "-w", cwd, "php", *arguments], env, capture=capture, check=check)
+def php_exec(compose, env, *arguments, cwd="/app", capture=False, check=True, forwarded=()):
+    overrides = [argument for key in forwarded if key in env
+                 for argument in ("-e", key + "=" + env[key])]
+    return call([*compose, "exec", "-T", "--user", f'{env["PUID"]}:{env["PGID"]}', "-w", cwd,
+                 *overrides, "php", *arguments], env, capture=capture, check=check)
 
 
 def identity(workspace, env, slot):
@@ -144,7 +154,7 @@ def input_fingerprint(workspace, env):
 
 def main(arguments):
     if not arguments:
-        raise ValueError("Usage: run.sh [--slot N] up|status|test|phpunit|exec|logs|down [arguments]")
+        raise ValueError("Usage: run.sh [--slot N] up|status|test|phpunit|php-tests|exec|logs|down [arguments]")
     slot = None
     if arguments[0] == "--slot":
         if len(arguments) < 3 or not arguments[1].isdigit():
@@ -156,7 +166,7 @@ def main(arguments):
         if not extra[1].isdigit():
             raise ValueError("--slot must be a nonnegative integer")
         slot = int(extra[1]); extra = extra[2:]
-    if action not in ("up", "status", "test", "phpunit", "exec", "logs", "down"):
+    if action not in ("up", "status", "test", "phpunit", "php-tests", "exec", "logs", "down"):
         raise ValueError(f"Unknown action: {action}")
     env = dict(os.environ)
     workspace = Path(env["WORKSPACE"]).resolve(strict=True)
@@ -249,6 +259,9 @@ def main(arguments):
             call([*compose, "exec", "-T", "--user", f'{env["PUID"]}:{env["PGID"]}', "-w", "/app/demo",
                   "-e", "XDEBUG_MODE=" + env.get("PHPUNIT_XDEBUG_MODE", "off"), "-e", "APP_ENV=test", "-e", "APP_DEBUG=1",
                   "-e", "CREATE_SNAPSHOTS=false", "php", "php", "bin/phpunit", *extra], env)
+        elif action == "php-tests":
+            php_exec(compose, env, "bash", "/run/xorder/php-tests.sh", *extra,
+                     forwarded=PHP_TEST_ENVIRONMENT)
         elif action == "exec":
             php_exec(compose, env, *extra)
         else:

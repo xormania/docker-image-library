@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "profile/php-tests",
+  "revision": "1.0.0",
+  "purpose": "PHP 8.5 project testing with opt-in PCOV, independent lock-owned PHPUnit/PHPStan tasks, and explicitly selected isolated PHPStan tooling.",
+  "roles": [
+    {
+      "name": "runtime",
+      "alternatives": [
+        {"id": "image/php-dev/8.5-trixie", "version": "1.2.0"}
+      ]
+    }
+  ]
+}

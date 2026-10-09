@@ -42,7 +42,7 @@
     "3.14-trixie": {
       "runtime_line": "3.14",
       "os": "debian-trixie",
-      "revision": "1.1.1",
+      "revision": "1.1.2",
       "platforms": [
         "linux/amd64"
       ],
@@ -51,9 +51,9 @@
         "digest": "sha256:f85c5697265c178cc6887276c55fe16cf3d14ca35c3df6a5eab3b360534a55d2"
       },
       "changes": [
-        "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
+        "Refresh shared source inputs for PHP testing helpers while preserving complete PEM bundle trust."
       ],
-      "migration": "Compatible CA setup fix. Continue using the normal root entrypoint and mount a certificate or PEM bundle read-only through LIBRARY_CA_FILE (CA_CERTIFICATE in wrappers). Existing explicit Composer/Node CA settings and PUID/PGID behavior remain supported. Published pins stay unchanged until deliberately upgraded to a verified release."
+      "migration": "Compatible source refresh. Existing exact pins remain valid; select this revision only after its normal publication and verification."
     }
   }
 }

@@ -22,7 +22,8 @@ def build(line, image, source, parent=None, cache=None):
             "IMAGE_VERSION": d["revision"], "APT_REFRESH": d["revision"]}
     if d["family"] in ("php-dev", "php-frankenphp"):
         args.update(COMPOSER_IMAGE=pinned(tools["composer"]), REDIS_VERSION=tools["redis_version"],
-                    XDEBUG_VERSION=tools["xdebug_version"], SYMFONY_URL=tools["symfony"]["url"], SYMFONY_SHA256=tools["symfony"]["sha256"])
+                    XDEBUG_VERSION=tools["xdebug_version"], PCOV_VERSION=tools["pcov_version"],
+                    SYMFONY_URL=tools["symfony"]["url"], SYMFONY_SHA256=tools["symfony"]["sha256"])
     if d["family"] == "php-frankenphp":
         args["APCU_VERSION"] = tools["apcu_version"]
     if d["family"] == "flowbite-xor-dev":

@@ -52,7 +52,7 @@ bash "$root/examples/flowbite-xor/run.sh" exec git status --porcelain
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cd demo && composer check-platform-reqs'
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c \
   'cd demo && cmp /opt/tailwind/tailwindcss-linux-x64 "var/tailwind/$(cat /opt/tailwind/version)/tailwindcss-linux-x64" && php bin/console tailwind:build'
-PHPUNIT_XDEBUG_MODE=coverage bash "$root/examples/flowbite-xor/run.sh" phpunit --coverage-clover var/phpunit-coverage.xml
+bash "$root/examples/flowbite-xor/run.sh" php-tests all
 bash "$root/examples/flowbite-xor/run.sh" exec php -r \
   '$report=simplexml_load_file("demo/var/phpunit-coverage.xml"); if (!$report || (int)$report->project->metrics["coveredstatements"] < 1) { throw new RuntimeException("PHPUnit must record executed statements"); }'
 bash "$root/examples/flowbite-xor/run.sh" test "${consumer[@]:2}"

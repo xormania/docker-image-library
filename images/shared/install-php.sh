@@ -6,8 +6,8 @@ apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" intl mbstring curl zip bcmath \
       pdo_pgsql pgsql pdo_mysql mysqli pdo_sqlite gd sockets pcntl \
-    && pecl install "redis-${REDIS_VERSION}" "xdebug-${XDEBUG_VERSION}" \
-    && docker-php-ext-enable redis xdebug \
+    && pecl install "redis-${REDIS_VERSION}" "xdebug-${XDEBUG_VERSION}" "pcov-${PCOV_VERSION}" \
+    && docker-php-ext-enable redis xdebug pcov \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
 
 if [ -n "${APCU_VERSION:-}" ]; then

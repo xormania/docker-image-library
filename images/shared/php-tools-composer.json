@@ -1,0 +1,20 @@
+{
+    "name": "xormania/xorder-php-tools",
+    "description": "Isolated opt-in PHPStan tooling",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.4",
+        "phpstan/phpstan": "2.3.0",
+        "phpstan/phpstan-symfony": "2.1.0",
+        "phpstan/phpstan-phpunit": "2.1.1"
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.1"
+        },
+        "sort-packages": true,
+        "allow-plugins": {}
+    },
+    "minimum-stability": "stable"
+}

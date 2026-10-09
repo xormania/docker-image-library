@@ -16,4 +16,5 @@ check($db->query('SELECT value FROM image_checks WHERE id=1')->fetchColumn() ===
 file_put_contents(__DIR__.'/workspace-proof.txt', "written by container\n");
 file_put_contents(getenv('HOME').'/.cache/cache-proof', "cache writable\n");
 check(!in_array('coverage', xdebug_info('mode'), true), 'Xdebug coverage is off by default');
+check(extension_loaded('pcov') && !ini_get('pcov.enabled'), 'PCOV is present and disabled by default');
 echo "PHP extensions, PostgreSQL, Redis and workspace passed\n";

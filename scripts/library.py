@@ -365,8 +365,8 @@ def fingerprint(d, root=ROOT):
     paths = list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
     h = hashlib.sha256(encoded(d).encode())
     tools = read(root / "images" / "tools.json")
-    keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "symfony"),
-            "php-frankenphp": ("composer", "redis_version", "xdebug_version", "symfony", "apcu_version"),
+    keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "pcov_version", "symfony"),
+            "php-frankenphp": ("composer", "redis_version", "xdebug_version", "pcov_version", "symfony", "apcu_version"),
             "flowbite-xor-dev": ("node", "tailwind"),
             "python-dev": ("uv",)}.get(d["family"], ())
     h.update(encoded({key: tools[key] for key in keys}).encode())

@@ -8,14 +8,22 @@ COPY images/shared/install.sh /tmp/install-common
 RUN test -n "$APT_REFRESH" && bash /tmp/install-common && rm /tmp/install-common
 ARG REDIS_VERSION
 ARG XDEBUG_VERSION
+ARG PCOV_VERSION
 COPY images/shared/install-php.sh /tmp/install-php
 RUN bash /tmp/install-php && rm /tmp/install-php
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+COPY images/shared/php-tools-composer.json /opt/xorder/php-tools/composer.json
+COPY images/shared/php-tools-composer.lock /opt/xorder/php-tools/composer.lock
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir=/opt/xorder/php-tools \
+    --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins --no-cache \
+    && composer check-platform-reqs --working-dir=/opt/xorder/php-tools
 ARG SYMFONY_URL
 ARG SYMFONY_SHA256
 COPY images/shared/install-symfony.sh /tmp/install-symfony
 RUN bash /tmp/install-symfony && rm /tmp/install-symfony
 COPY images/shared/development.ini /usr/local/etc/php/conf.d/zz-development.ini
+COPY --chmod=755 images/shared/php-coverage.py /usr/local/bin/library-php-coverage
+COPY --chmod=755 images/shared/php-tests.py /usr/local/bin/library-php-tests
 COPY images/shared/entrypoint.sh /usr/local/bin/library-entrypoint
 ENV HOME=/home/dev COMPOSER_HOME=/home/dev/.composer \
     XDG_CACHE_HOME=/home/dev/.cache XDEBUG_MODE=off

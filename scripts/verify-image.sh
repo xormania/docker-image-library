@@ -24,7 +24,12 @@ start=$SECONDS
 if [[ "$kind" = php || "$kind" = python ]]; then
   "${compose[@]}" run --rm dev bash run.sh
   if [[ "$kind" = php ]]; then
-    "${compose[@]}" run --rm -e XDEBUG_MODE=coverage dev php coverage.php
+    "${compose[@]}" run --rm dev library-php-coverage xdebug coverage.php xdebug
+    "${compose[@]}" run --rm dev library-php-coverage pcov coverage.php pcov
+    "${compose[@]}" run --rm -e PHPSTAN_PROJECT=/opt/xorder/php-tools dev \
+      library-php-tests phpstan --level=max /workspace/coverage-subject.php
+    # Per-process PCOV activation must not rewrite the next app process's ini.
+    "${compose[@]}" run --rm dev php -r 'if (!extension_loaded("xdebug") || ini_get("pcov.enabled")) {exit(1);}'
   fi
   test "$(stat -c %u "$work/workspace-proof.txt")" = "$PUID"
   # Cache persists between invocations, independently of service process lifetime.
