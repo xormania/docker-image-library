@@ -140,6 +140,36 @@ class LedgerChangeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "immutable"):
             list(checks.changed_image_records(self.base, self.root))
 
+    def test_existing_image_record_cannot_be_deleted(self):
+        original_path = f"release-records/{self.original['line_id']}/{self.original['version']}.json"
+        self.git("rm", original_path)
+        self.commit()
+        with self.assertRaisesRegex(RuntimeError, "cannot be deleted or renamed.*" + original_path):
+            list(checks.changed_image_records(self.base, self.root))
+
+    def test_existing_image_record_cannot_be_renamed(self):
+        original_path = f"release-records/{self.original['line_id']}/{self.original['version']}.json"
+        destinations = ("release-records/php-dev/8.4-trixie/renamed.json",
+                        "release-records/artifacts/configuration/moved/1.0.0.json",
+                        "archived-record.json")
+        for destination in destinations:
+            with self.subTest(destination=destination):
+                self.git("reset", "--hard", self.base)
+                (self.root / destination).parent.mkdir(parents=True, exist_ok=True)
+                self.git("mv", original_path, destination)
+                self.commit()
+                self.assertTrue(self.git("diff", "--name-status", "--find-renames", self.base, "HEAD").startswith("R100"))
+                with self.assertRaisesRegex(RuntimeError, "cannot be deleted or renamed.*" + original_path):
+                    list(checks.changed_image_records(self.base, self.root))
+
+    def test_new_revision_does_not_allow_removing_previous_record(self):
+        original_path = f"release-records/{self.original['line_id']}/{self.original['version']}.json"
+        self.git("rm", original_path)
+        self.write(record("php-dev/8.4-trixie", "1.0.1"))
+        self.commit()
+        with self.assertRaisesRegex(RuntimeError, "cannot be deleted or renamed.*" + original_path):
+            list(checks.changed_image_records(self.base, self.root))
+
     def test_identity_must_match_record_path(self):
         self.write(record("php-dev/8.4-trixie", "1.0.1"), "release-records/other/1.0.1.json")
         self.commit()

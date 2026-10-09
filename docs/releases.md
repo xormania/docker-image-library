@@ -78,8 +78,9 @@ For new image ledger records it verifies the public source Release and source
 commit, downloads its durable `record.json` using GitHub's asset checksum, and
 compares the immutable record fields. It then resolves the exact image tag and
 checks the parent and recorded platform digests anonymously. Existing release
-evidence cannot be edited in place; lifecycle, reason, replacement and lifecycle
-date can change without depending on the withdrawn artifact's availability.
+evidence cannot be edited, deleted, or renamed in place; lifecycle, reason,
+replacement and lifecycle date can change without depending on the withdrawn
+artifact's availability.
 Manual dispatch checks all accepted image records against public evidence.
 
 Generated catalog PRs summarize every proposed record on the branch, including

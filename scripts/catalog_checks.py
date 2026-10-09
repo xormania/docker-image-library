@@ -68,7 +68,7 @@ def verify_image_record(record, repository):
 def changed_image_records(base, root=ROOT):
     if base:
         paths = subprocess.check_output(
-            ["git", "diff", "--name-only", "--diff-filter=AM", base, "HEAD", "--", "release-records"],
+            ["git", "diff", "--name-only", "--no-renames", base, "HEAD", "--", "release-records"],
             cwd=root, text=True).splitlines()
     else:
         paths = [str(path.relative_to(root)) for path in (root / "release-records").rglob("*.json")]
@@ -76,6 +76,8 @@ def changed_image_records(base, root=ROOT):
         path = Path(relative)
         if path.parts[1] == "artifacts" or path.suffix != ".json":
             continue
+        if base and not (root / path).is_file():
+            raise RuntimeError(f"Published release evidence cannot be deleted or renamed: {path}; use lifecycle fields to withdraw it")
         record = validate_record(read(root / path))
         expected = Path("release-records") / record["line_id"] / (record["version"] + ".json")
         if path != expected:
