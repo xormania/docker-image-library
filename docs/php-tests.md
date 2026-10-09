@@ -101,6 +101,22 @@ under `/opt/xorder/php-tools`. This tools directory contains no app dependencies
 or global PHPUnit. Select it explicitly if the app has no PHPStan package, or
 keep the project's own PHPStan lock with the default project selection.
 
+Fresh packaging revisions retain only the PHPStan Turbo native binary matching
+the executing container's OS/libc, architecture, PHP minor version and thread
+safety. Windows, macOS and incompatible Linux/PHP variants are removed during
+the same installation layer; the PHAR, extensions, Composer metadata and licenses
+remain intact. PHPStan's analysis target version does not select its native ABI.
+The pinned package has no Linux PHP 8.4/8.5 ZTS binary, so FrankenPHP uses the
+existing upstream fallback. A future matching ZTS binary is retained automatically.
+Unexpectedly missing binaries or changed bundle layouts fail the image build.
+
+`/opt/xorder/php-tools/phpstan-packaging.json` records the observed runtime,
+retained native path/checksum and before/after regular-file byte counts. These
+payload counts are not complete Docker image sizes or compressed download sizes.
+The normal PHP acceptance fixture loads both prepared extensions and checks real
+analysis with automatic Turbo loading (or the expected ZTS fallback). Published
+image sizes continue to come from the verified release ledger.
+
 ```sh
 PHPUNIT_PROJECT=/workspace/demo \
 PHPSTAN_PROJECT=/opt/xorder/php-tools \
