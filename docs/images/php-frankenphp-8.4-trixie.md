@@ -2,13 +2,13 @@
 
 Loaded PHP/Symfony development with FrankenPHP, Caddy and worker-mode HTTP execution.
 
-Available revision: **1.1.0**. Pin:
+Available revision: **1.1.1**. Pin:
 
 ```text
-ghcr.io/xormania/php-frankenphp@sha256:6c5edb921d745e5dbc8fdff454c557360c5a789d5a82aa7b351b6419176050e8
+ghcr.io/xormania/php-frankenphp@sha256:111d101fb9f59aa1284533505070ebf9534cb7c22c909603074a2fa0046339e5
 ```
 
-[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:22.653580Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:10:25.663532Z.
 
 ## Measured inventory — linux/amd64
 
@@ -38,17 +38,17 @@ Extensions: `apcu`, `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,189.4 MiB (1,247,227,779 bytes) |
-| Build, cache export and image load | 178.72s |
-| Public-artifact behavior and inventory verification | 28.29s |
+| Local image size | 963.5 MiB (1,010,350,164 bytes) |
+| Build, cache export and image load | 169.72s |
+| Public-artifact behavior and inventory verification | 28.73s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:22.594975Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:10:25.600617Z.
 
 External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.0.0, `ghcr.io/xormania/php-frankenphp@sha256:9cd194f21ef4600fbba343fa5a471528fff3f6db6a1889ea280fb58d68cf30d2`; 931.8 MiB in the same image store. Change: **+27.6%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37852642503); 2026-10-08T22:22:56.838890Z.
+Size baseline: v1.1.0, `ghcr.io/xormania/php-frankenphp@sha256:6c5edb921d745e5dbc8fdff454c557360c5a789d5a82aa7b351b6419176050e8`; 1,189.4 MiB in the same image store. Change: **-19.0%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:22.594975Z.
 
-[Release notes](../releases/php-frankenphp-8.4-trixie-v1.1.0.md).
+[Release notes](../releases/php-frankenphp-8.4-trixie-v1.1.1.md).
 
 Capabilities: `php`, `composer`, `symfony`, `postgresql-client`, `native-build`, `xdebug`, `frankenphp`, `worker-server`, `pcov`, `php-testing`, `phpstan-isolated`, `mutation-testing`.
 
