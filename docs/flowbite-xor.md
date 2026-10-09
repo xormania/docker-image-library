@@ -47,11 +47,14 @@ bash examples/flowbite-xor/run.sh exec bash -c 'cd demo && bin/console tailwind:
 bash examples/flowbite-xor/run.sh down
 ```
 
-`up` starts the demo and browser, waits for health, syncs recipes, seeds the
-matching cached Tailwind binary and runs npm ci.
-The repository's app entrypoint installs Composer dependencies on the first
-start. Playwright's config builds stale Tailwind CSS before tests. There is no
-host Node dependency. The host needs Docker/Compose and registry/dependency
+`up` syncs recipes before Composer setup, seeds the matching cached Tailwind
+binary, starts the demo and browser, runs npm ci, warms Symfony's test cache and
+checks a worker-served application page. The same application page is used by
+the healthcheck; Caddy metrics alone do not establish app readiness. Set
+`APP_READY_PATH=/your-public-page` if `/` is not the appropriate readiness route.
+The profile preserves the repository's application entrypoint, database wait
+and runtime behavior. Playwright's config builds stale Tailwind CSS before tests. There is no
+host Node dependency. The runner needs Python 3, Docker/Compose and registry/dependency
 access. Default host ports are loopback 8084/8444; override `HTTP_PORT`,
 `HTTPS_PORT` and `HTTP3_PORT` when needed. Use a separate `FLOWBITE_PROJECT` for
 each checkout. `down` preserves caches; `down --volumes` deliberately removes
@@ -107,6 +110,37 @@ It supplies a prebuilt development image instead of rebuilding the demo's PHP
 toolchain. Exact CI artifact parity requires using the same selected library
 digest in project CI; matching a PHP minor alone is insufficient. Keep the
 repository's production image build separate from this development profile.
+
+The profile verifies installed Composer package names, versions, source/dist
+references, package directories, generated runtime metadata and a usable autoloader
+against `demo/composer.lock`, including dev requirements. Composer also validates
+the lock against `composer.json`. A nonempty `vendor/` alone is insufficient.
+An imported matching vendor tree regenerates autoloads and runs the project's
+`post-install-cmd` hooks once; unchanged verified setup can be reused. A changed
+lock or incomplete vendor tree goes through Composer install. Project hooks
+remain authoritative and may still require network access (for example importmap
+assets). This is metadata validation, not a checksum audit of every vendor file.
+
+For a writable existing host Composer cache or source-preferred installations:
+
+```sh
+export COMPOSER_CACHE_DIR='/absolute/path/to/composer-cache'
+export COMPOSER_INSTALL_PREFERENCE=source  # default: dist
+bash examples/flowbite-xor/run.sh up
+```
+
+The cache bind is outside HOME and its ownership is never changed. Ensure it is
+writable by `PUID:PGID`. Without a host cache, Composer uses the persistent named
+home volume. Source preference uses Composer's normal source/dist fallback; it
+requires source-repository access and does not promise success through every
+restricted gateway.
+
+`HTTP_PROXY`, `HTTPS_PROXY`, `http_proxy` and `https_proxy` are forwarded unless
+they point at loopback (`localhost`, 127.0.0.0/8, IPv6 `::1`, including mapped
+IPv4 loopback). Host loopback is not reachable in the container. Set
+`PROXY_PASSTHROUGH=0` to disable all four, or `PROXY_PASSTHROUGH=1` to deliberately
+forward them unchanged. `NO_PROXY`/`no_proxy` remain configurable; readiness
+requests explicitly bypass proxies. Proxy values are not printed in diagnostics.
 
 The app uses your UID/GID by default. `PUID=0 PGID=0` supports a root-owned
 sandbox checkout. Only the named home, Caddy and demo-var cache volumes have

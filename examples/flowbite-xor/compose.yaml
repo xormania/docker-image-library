@@ -2,7 +2,7 @@
 services:
   php:
     image: ${IMAGE:?Choose a verified flowbite-xor-dev digest}
-    entrypoint: [bash, /usr/local/bin/flowbite-entrypoint]
+    entrypoint: [bash, /run/xorder/startup.sh, --entrypoint]
     command: [frankenphp, run, --config, /etc/frankenphp/Caddyfile, --watch]
     environment:
       PUID: ${PUID:-1000}
@@ -11,9 +11,14 @@ services:
       XDEBUG_MODE: ${XDEBUG_MODE:-off}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
+      http_proxy: ${http_proxy:-}
+      https_proxy: ${https_proxy:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,php}
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,php}
       LIBRARY_CA_FILE: ${CONTAINER_CA_FILE:-}
       COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
+      COMPOSER_CACHE_DIR: /home/dev/.cache/composer
+      COMPOSER_INSTALL_PREFERENCE: ${COMPOSER_INSTALL_PREFERENCE:-dist}
       NODE_EXTRA_CA_CERTS: ${CONTAINER_CA_FILE:-}
       DEMO_URL: https://localhost
       PHP_BINARY: php
@@ -21,11 +26,12 @@ services:
       PW_BROWSER_SERVER: /bin/false
     volumes:
       - dev_home:/home/dev
+      - ${FLOWBITE_PROFILE_DIR:?Resolved by run.sh}:/run/xorder:ro
       - demo_var:/app/demo/var
       - ./frankenphp/conf.d/10-app.ini:/usr/local/etc/php/app.conf.d/10-app.ini:ro
       - ${CA_CERTIFICATE:-/dev/null}:/run/library-proxy.pem:ro
     healthcheck:
-      test: [CMD, php, -r, "exit(false === @file_get_contents('http://localhost:2019/metrics') ? 1 : 0);"]
+      test: [CMD, curl, --fail, --silent, --show-error, --insecure, --noproxy, "*", --max-time, "5", "https://localhost${APP_READY_PATH:-/}"]
       start_period: 60s
       interval: 2s
       timeout: 5s
@@ -38,7 +44,10 @@ services:
     environment:
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
+      http_proxy: ${http_proxy:-}
+      https_proxy: ${https_proxy:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,php}
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,php}
       NODE_EXTRA_CA_CERTS: ${CONTAINER_CA_FILE:-}
     volumes:
       - ${CA_CERTIFICATE:-/dev/null}:/run/library-proxy.pem:ro
