@@ -66,10 +66,16 @@ to understand the exact historical artifact. The root README describes accepted
 available images. Image source changes and record-only writeback have distinct
 workflow path filters, preventing a publication loop.
 
-The release/alias workflows share a repository-wide concurrency group and do
-not cancel in-progress promotion. Different line jobs within a release may run
+The release/alias workflows share a repository-wide concurrency group, preserve
+up to 100 pending runs with `queue: max`, and do not cancel in-progress promotion.
+Different line jobs within a release may run
 in parallel. An older queued job reads the current accepted ledger before
 advancing an alias; it cannot overwrite a newer accepted recommendation.
+Promotion resolves all desired exact references before writing any aliases and
+skips aliases already pointing to the accepted digest. Its job summary identifies
+unchanged, updated, failed and still-pending aliases, including failure details
+when preflight rejects an alias or a registry lookup fails. A registry failure during
+writes can still leave a partial update; rerunning resumes by skipping matches.
 
 ## First publication setup
 

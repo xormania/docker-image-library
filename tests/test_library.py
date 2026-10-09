@@ -301,12 +301,110 @@ class PromotionTests(unittest.TestCase):
         withdrawn = record("php-dev/8.4-trixie", "1.0.1", "e")
         withdrawn["lifecycle"] = "withdrawn"
         with patch.object(release, "records", return_value=[old, withdrawn]), \
-                patch.object(release, "resolve", return_value={"digest": old["publication"]["digest"]}), \
+                patch.object(release, "resolve", side_effect=[
+                    {"digest": old["publication"]["digest"]},
+                    {"digest": withdrawn["publication"]["digest"]},
+                    {"digest": old["publication"]["digest"]}]), \
                 patch.object(release, "run") as run:
             release.aliases()
             promotions = [call.args for call in run.call_args_list if call.args[0] == "docker"]
             self.assertEqual(len(promotions), 1)
             self.assertEqual(promotions[0][-1], old["publication"]["repository"] + "@" + old["publication"]["digest"])
+
+    def test_missing_later_exact_tag_prevents_every_alias_write(self):
+        first = record("php-dev/8.4-trixie")
+        second = record("php-dev/8.5-trixie", digest="e")
+        with patch.object(release, "records", return_value=[first, second]), \
+                patch.object(release, "resolve", side_effect=[
+                    {"digest": first["publication"]["digest"]}, None, None]), \
+                patch.object(release, "run") as run:
+            with self.assertRaisesRegex(RuntimeError, "unavailable: ghcr.io/xormania/php-dev:8.5-trixie-v1.0.0"):
+                release.aliases()
+            self.assertFalse(any(call.args[0] == "docker" for call in run.call_args_list))
+
+    def test_preflight_failures_write_complete_job_summary_without_alias_writes(self):
+        for failure in ("blocked", "retired lookup", "missing exact", "changed exact", "exact lookup", "alias lookup"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                first = record("php-dev/8.4-trixie")
+                second = record("php-dev/8.5-trixie", digest="e")
+                third = record("python-dev/3.14-trixie", digest="f")
+                retired = failure in ("blocked", "retired lookup")
+                if retired:
+                    second["lifecycle"] = "withdrawn"
+                aliases = [f"{r['publication']['repository']}:{r['definition']['line']}-v1"
+                           for r in (first, second, third)]
+                second_exact = second["publication"]["repository"] + ":" + second["publication"]["exact_tag"]
+
+                def resolve(reference, authenticated=False):
+                    if reference == second_exact:
+                        if failure == "missing exact":
+                            return None
+                        if failure == "changed exact":
+                            return {"digest": "sha256:" + "0" * 64}
+                        if failure == "exact lookup":
+                            raise RuntimeError("Registry lookup failed | retry\nlater")
+                        return {"digest": second["publication"]["digest"]}
+                    if reference == aliases[1]:
+                        if failure in ("retired lookup", "alias lookup"):
+                            raise RuntimeError("Registry lookup failed | retry\nlater")
+                        return {"digest": second["publication"]["digest"]}
+                    return {"digest": first["publication"]["digest"]}
+
+                summary = Path(tmp) / "summary.md"
+                expected_error = "replacement" if failure == "blocked" else "lookup" if "lookup" in failure else "unavailable"
+                with patch.object(release, "records", return_value=[first, second, third]), \
+                        patch.object(release, "resolve", side_effect=resolve), \
+                        patch.object(release, "run") as run, \
+                        patch.dict(release.os.environ, {"GITHUB_STEP_SUMMARY": str(summary)}):
+                    with self.assertRaisesRegex(RuntimeError, expected_error):
+                        release.aliases()
+                    self.assertFalse(any(call.args[0] == "docker" for call in run.call_args_list))
+                text = summary.read_text()
+                self.assertIn(f"| `{aliases[0]}` | {'pending' if retired else 'unchanged'} |", text)
+                self.assertIn(f"| `{aliases[1]}` | failed |", text)
+                self.assertIn(f"| `{aliases[2]}` | pending |", text)
+                self.assertIn(expected_error, text)
+                if "lookup" in failure:
+                    self.assertIn("Registry lookup failed &#124; retry later", text)
+
+    def test_matching_alias_is_reported_without_a_registry_write(self):
+        item = record("php-dev/8.4-trixie")
+        with patch.object(release, "records", return_value=[item]), \
+                patch.object(release, "resolve", return_value={"digest": item["publication"]["digest"]}), \
+                patch.object(release, "run") as run, patch.object(release, "alias_report") as report:
+            release.aliases()
+            self.assertFalse(any(call.args[0] == "docker" for call in run.call_args_list))
+            self.assertEqual(report.call_args.args[0][0]["status"], "unchanged")
+
+    def test_partial_write_failure_reports_results_and_retry_skips_completed_alias(self):
+        first = record("php-dev/8.4-trixie")
+        second = record("php-dev/8.5-trixie", digest="e")
+        remote = {r["publication"]["repository"] + ":" + r["publication"]["exact_tag"]:
+                  r["publication"]["digest"] for r in (first, second)}
+        attempts = []
+        fail = True
+
+        def resolve(reference, authenticated=False):
+            return {"digest": remote[reference]} if reference in remote else None
+
+        def run(*args):
+            if args[0] != "docker":
+                return
+            attempts.append(args)
+            if fail and len(attempts) == 2:
+                raise RuntimeError("Registry write interrupted")
+            remote[args[-2]] = args[-1].split("@", 1)[1]
+
+        with patch.object(release, "records", return_value=[first, second]), \
+                patch.object(release, "resolve", side_effect=resolve), \
+                patch.object(release, "run", side_effect=run), patch.object(release, "alias_report") as report:
+            with self.assertRaisesRegex(RuntimeError, "interrupted"):
+                release.aliases()
+            self.assertEqual([item["status"] for item in report.call_args.args[0]], ["updated", "failed"])
+            fail = False
+            release.aliases()
+            self.assertEqual([item["status"] for item in report.call_args.args[0]], ["unchanged", "updated"])
+            self.assertEqual(len(attempts), 3)
 
     def test_blocked_major_is_detected_before_other_aliases_change(self):
         available = record("php-dev/8.4-trixie")

@@ -184,34 +184,96 @@ def finalize_release(record):
     run("gh", "release", "edit", record["source_tag"], "--draft=false", "--notes", notes)
 
 
-def aliases():
-    # Workflow concurrency is repository-wide. Fetch the latest accepted ledger at execution time.
-    run("git", "fetch", "origin", "master")
-    run("git", "checkout", "--detach", "origin/master")
-    accepted = records()
+def alias_plan(accepted):
+    """List every alias before preflight so failures retain the full report."""
     groups = {}
+    plan = []
     for r in accepted:
         p = r["publication"]
         alias = f"{p['repository']}:{r['definition']['line']}-v{version(r['version'])[0]}"
         groups.setdefault(alias, []).append(r)
-    # Check every major before changing any aliases. A withdrawal must not leave
-    # a stale recommendation silently successful, or delete a shared exact digest.
-    blocked = [alias for alias, peers in groups.items()
-               if not any(r["lifecycle"] == "available" for r in peers)
-               and resolve(alias, authenticated=True) is not None]
+    for alias, peers in groups.items():
+        candidate = next((r for r in peers if alias_eligible(r, peers)), None)
+        item = {"alias": alias, "digest": None, "status": "pending"}
+        if candidate:
+            p = candidate["publication"]
+            item.update(exact=p["repository"] + ":" + p["exact_tag"],
+                        reference=p["repository"] + "@" + p["digest"], digest=p["digest"])
+        plan.append(item)
+    return plan
+
+
+def alias_preflight(plan):
+    """Resolve all targets without writes, retaining each failed or pending entry."""
+    # A withdrawal must not leave a stale recommendation silently successful,
+    # or delete a shared exact digest. Check these groups before other lookups.
+    blocked = []
+    for item in plan:
+        if "exact" in item:
+            continue
+        try:
+            current = resolve(item["alias"], authenticated=True)
+        except Exception as error:
+            item.update(status="failed", error=str(error))
+            raise
+        if current is not None:
+            item.update(status="failed", error="No available replacement for existing alias")
+            blocked.append(item["alias"])
+        else:
+            item.update(status="unchanged", error="Retired alias is already absent")
     if blocked:
         raise RuntimeError("No available replacement for existing aliases: " + ", ".join(blocked)
                            + ". Restore a verified available release or retire these alias tags while preserving exact artifacts, then rerun.")
-    for r in accepted:
-        if not alias_eligible(r, accepted):
+    for item in plan:
+        if "exact" not in item:
             continue
-        p = r["publication"]
-        if resolve(p["repository"] + ":" + p["exact_tag"])["digest"] != p["digest"]:
-            raise RuntimeError("Accepted exact tag changed or is unavailable")
-        alias = f"{p['repository']}:{r['definition']['line']}-v{version(r['version'])[0]}"
-        run("docker", "buildx", "imagetools", "create", "--prefer-index=false", "--tag", alias, p["repository"] + "@" + p["digest"])
-        if resolve(alias)["digest"] != p["digest"]:
-            raise RuntimeError("Alias promotion verification failed")
+        try:
+            remote = resolve(item["exact"])
+            if not remote or remote["digest"] != item["digest"]:
+                raise RuntimeError(f"Accepted exact tag changed or is unavailable: {item['exact']}")
+            current = resolve(item["alias"])
+            item["status"] = "unchanged" if current and current["digest"] == item["digest"] else "pending"
+        except Exception as error:
+            item.update(status="failed", error=str(error))
+            raise
+
+
+def alias_report(plan):
+    text = "## Alias promotion\n\n| Alias | Result | Target digest | Details |\n| --- | --- | --- | --- |\n"
+    for item in plan:
+        details = " ".join(item.get("error", "").splitlines()).replace("|", "&#124;")
+        text += f"| `{item['alias']}` | {item['status']} | `{item['digest'] or '—'}` | {details} |\n"
+    if not plan:
+        text += "\nNo alias entries were planned.\n"
+    print(text)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+            summary.write(text)
+
+
+def aliases():
+    # Fetch the latest accepted ledger when this queued workflow starts.
+    run("git", "fetch", "origin", "master")
+    run("git", "checkout", "--detach", "origin/master")
+    plan = []
+    try:
+        plan = alias_plan(records())
+        alias_preflight(plan)
+        for item in plan:
+            if item["status"] == "unchanged":
+                continue
+            try:
+                run("docker", "buildx", "imagetools", "create", "--prefer-index=false",
+                    "--tag", item["alias"], item["reference"])
+                remote = resolve(item["alias"])
+                if not remote or remote["digest"] != item["digest"]:
+                    raise RuntimeError(f"Alias promotion verification failed: {item['alias']}")
+                item["status"] = "updated"
+            except Exception as error:
+                item.update(status="failed", error=str(error))
+                raise
+    finally:
+        alias_report(plan)
 
 
 def publish_tree(line, source, parent=None):
