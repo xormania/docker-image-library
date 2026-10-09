@@ -73,7 +73,8 @@ in parallel. An older queued job reads the current accepted ledger before
 advancing an alias; it cannot overwrite a newer accepted recommendation.
 Promotion resolves all desired exact references before writing any aliases and
 skips aliases already pointing to the accepted digest. Its job summary identifies
-unchanged, updated, failed and still-pending aliases. A registry failure during
+unchanged, updated, failed and still-pending aliases, including failure details
+when preflight rejects an alias or a registry lookup fails. A registry failure during
 writes can still leave a partial update; rerunning resumes by skipping matches.
 
 ## First publication setup
