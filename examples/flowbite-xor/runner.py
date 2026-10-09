@@ -54,9 +54,9 @@ def identity(workspace, env, slot):
     selected = int(key[:8], 16) % 5000 if slot is None else slot
     if not 0 <= selected <= 14999:
         raise ValueError("--slot must be between 0 and 14999")
-    http = env.get("HTTP_PORT", str(20000 + 2 * selected))
-    https = env.get("HTTPS_PORT", str(20001 + 2 * selected))
-    udp = env.get("HTTP3_PORT", https)
+    http = env.get("HTTP_PORT") or str(20000 + 2 * selected)
+    https = env.get("HTTPS_PORT") or str(20001 + 2 * selected)
+    udp = env.get("HTTP3_PORT") or https
     for port in (http, https, udp):
         if not port.isdigit() or not 1 <= int(port) <= 65535:
             raise ValueError("HTTP_PORT, HTTPS_PORT and HTTP3_PORT must be integer ports from 1 to 65535")
@@ -103,6 +103,19 @@ def status(project, env):
     return 0 if ready and all(services.get(service, {}).get("State", {}).get("Running") and services[service]["State"].get("Health", {}).get("Status") == "healthy" for service in ("php", "browser")) else 1
 
 
+def local_engine(env):
+    # Docker's explicit context overrides DOCKER_HOST. With neither override,
+    # inspect the selected context instead of assuming the default Unix socket.
+    context = env.get("DOCKER_CONTEXT")
+    endpoint = env.get("DOCKER_HOST") if not context else None
+    if not endpoint:
+        arguments = ["docker", "context", "inspect"]
+        if context:
+            arguments.append(context)
+        endpoint = json.loads(call([*arguments, "--format", "{{json .Endpoints.docker.Host}}"], env, capture=True).stdout)
+    return isinstance(endpoint, str) and endpoint.startswith(("unix://", "npipe://"))
+
+
 def check_ports(project, env):
     owned = set()
     found = containers(project, env)
@@ -113,6 +126,9 @@ def check_ports(project, env):
         legacy_workspace = any(mount.get("Type") == "bind" and mount.get("Destination") == "/app" and Path(mount.get("Source", "")).resolve() == Path(env["WORKSPACE"]) for mount in mounts)
         if label != env["WORKSPACE"] and not (label is None and legacy_workspace):
             raise ValueError("FLOWBITE_PROJECT is already owned by another workspace; choose a different name")
+    if not local_engine(env):
+        # Compose checks binds on the remote engine; client ports are unrelated.
+        return
     for container in found:
         for port, bindings in (container.get("NetworkSettings", {}).get("Ports") or {}).items():
             for binding in bindings or []:
@@ -173,8 +189,8 @@ def main(arguments):
     if not workspace.is_dir():
         raise ValueError("WORKSPACE must be a directory")
     project, http, https, udp, key = identity(workspace, env, slot)
-    env.update(WORKSPACE=str(workspace), FLOWBITE_PROJECT=project, PUID=env.get("PUID", str(os.getuid())),
-               PGID=env.get("PGID", str(os.getgid())), FLOWBITE_PROFILE_DIR=str(PROFILE),
+    env.update(WORKSPACE=str(workspace), FLOWBITE_PROJECT=project, PUID=env.get("PUID") or str(os.getuid()),
+               PGID=env.get("PGID") or str(os.getgid()), FLOWBITE_PROFILE_DIR=str(PROFILE),
                HTTP_PORT=http, HTTPS_PORT=https, HTTP3_PORT=udp, CONTAINER_CA_FILE="")
     if action == "status":
         return status(project, env)
@@ -191,7 +207,7 @@ def main(arguments):
     env["PLAYWRIGHT_VERSION"] = playwright(workspace) if action in ("up", "test") else "0.0.0"
     if action == "up":
         env["XORDER_INPUT_FINGERPRINT"] = input_fingerprint(workspace, env)
-    preference = env.get("COMPOSER_INSTALL_PREFERENCE", "dist")
+    preference = env.get("COMPOSER_INSTALL_PREFERENCE") or "dist"
     if preference not in ("dist", "source"):
         raise ValueError("COMPOSER_INSTALL_PREFERENCE must be dist or source")
     compose = ["docker", "compose", "--project-directory", str(workspace / "demo"), "-p", project,
@@ -202,12 +218,15 @@ def main(arguments):
         host_cache = Path(cache)
         if not host_cache.is_absolute() or not host_cache.is_dir():
             raise ValueError("COMPOSER_CACHE_DIR must be an existing absolute host cache directory")
-        overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(host_cache), "target": "/home/dev/.cache/composer", "bind": {"create_host_path": False}})
-    # The image owns HOME and recursively adjusts its UID. Keep a host bind cache
-    # outside HOME so that shared entrypoint cannot change host cache ownership.
-    if cache:
+        # A project's writable dist archives must never become another project's
+        # dependency inputs. Mount only this canonical workspace's cache.
+        scoped_cache = host_cache / "xorder" / key
+        if scoped_cache.resolve() != host_cache.resolve() / "xorder" / key:
+            raise ValueError("COMPOSER_CACHE_DIR workspace cache must not be redirected by symlinks")
+        scoped_cache.mkdir(parents=True, exist_ok=True)
+        overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(scoped_cache), "target": "/run/composer-cache", "bind": {"create_host_path": False}})
+        # Keep the bind outside HOME so the image cannot change host ownership.
         overlay["services"]["php"]["environment"] = {"COMPOSER_CACHE_DIR": "/run/composer-cache"}
-        overlay["services"]["php"]["volumes"][-1]["target"] = "/run/composer-cache"
     if env.get("WORKTREE_GIT", "0") == "1" and (workspace / ".git").is_file():
         common = call(["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"], env, capture=True).stdout.strip()
         private = call(["git", "-C", str(workspace), "rev-parse", "--absolute-git-dir"], env, capture=True).stdout.strip()

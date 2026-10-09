@@ -76,6 +76,12 @@ build/verification helpers conservatively select all images. Publication also
 checks the accepted ledger before allocating runners, retaining incomplete PHP
 parent/browser pairs and changed-input guards.
 
+After a successful validation of the same PR and unchanged base, image selection
+compares the next update with that successful ancestral head. Failed runs,
+changed bases, unrelated force-pushes, and unavailable history fall back to the
+full PR delta. Metadata tests always run; an unchanged image does not need another
+build merely because a review fix changed another image.
+
 New revisions use version-2 fingerprints of their Dockerfile, its local COPY
 inputs, executable modes, `.dockerignore`, and consumed tool pins. PHP-only
 shared files do not change Rust or Python fingerprints. Derived fingerprints

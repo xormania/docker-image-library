@@ -170,8 +170,10 @@ export COMPOSER_INSTALL_PREFERENCE=source  # default: dist
 bash examples/flowbite-xor/run.sh up
 ```
 
-The cache bind is outside HOME and its ownership is never changed. Ensure it is
-writable by `PUID:PGID`. Without a host cache, Composer uses the persistent named
+The runner creates a separate `xorder/<workspace-hash>` cache under that existing
+directory and mounts only that child. Writable dependency archives are not shared
+between workspaces. The cache bind is outside HOME and its ownership is never
+changed. Ensure the child is writable by `PUID:PGID`. Without a host cache, Composer uses the persistent named
 home volume. Source preference uses Composer's normal source/dist fallback; it
 requires source-repository access and does not promise success through every
 restricted gateway.

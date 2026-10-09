@@ -109,6 +109,9 @@ with open(os.environ["COMMANDS"], "a") as output:
     output.write(json.dumps(record) + "\\n")
 if args[0] == "info":
     sys.exit(1 if os.environ.get("MOCK_DAEMON_FAIL") == "1" else 0)
+if args[:2] == ["context", "inspect"]:
+    print(json.dumps(os.environ.get("MOCK_DOCKER_ENDPOINT", "unix:///var/run/docker.sock")))
+    sys.exit(0)
 if args[0] == "ps":
     project = args[-1].rsplit("=", 1)[1]
     if not state["containers"] and os.environ.get("MOCK_RESERVED_PORTS") == "1":
@@ -144,7 +147,7 @@ elif "exec" in args:
 statefile.write_text(json.dumps(state))
 ''')
         self.docker.chmod(0o755)
-        self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
+        self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "DOCKER_HOST", "DOCKER_CONTEXT", "PUID", "PGID", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
         self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), MOCK_STATE=str(self.directory / "state.json"), XDG_CACHE_HOME=str(self.directory / "cache"))
         # Keep kernel-allocated TCP/UDP sockets reserved for this mocked profile.
         # The Docker mock reports those reservations as project-owned ports, so
@@ -242,17 +245,35 @@ statefile.write_text(json.dumps(state))
         self.assertEqual(self.run_profile("exec", "true", **overrides).returncode, 0)
         self.assertNotIn("-e", self.calls[-1]["args"], "Test overrides apply only to the test process")
 
-    def test_host_cache_is_mounted_outside_home_and_never_created_implicitly(self):
+    def test_host_cache_is_scoped_outside_home_and_requires_existing_root(self):
         cache = self.directory / "Composer cache"
         cache.mkdir()
         self.assertEqual(self.run_profile("up", COMPOSER_CACHE_DIR=str(cache), PUID="0", PGID="0").returncode, 0)
         mount = next(call["overlay"] for call in self.calls if "overlay" in call)["services"]["php"]["volumes"][0]
         self.assertEqual(mount["target"], "/run/composer-cache")
+        self.assertEqual(Path(mount["source"]).parent, cache / "xorder")
+        self.assertTrue(Path(mount["source"]).is_dir())
         self.assertFalse(mount["bind"]["create_host_path"])
         self.assertEqual(self.calls[0]["env"]["PUID"], "0")
         absent = cache / "absent"
         self.assertEqual(self.run_profile("up", COMPOSER_CACHE_DIR=str(absent)).returncode, 64)
         self.assertFalse(absent.exists())
+
+    def test_writable_composer_archives_are_not_shared_between_workspaces(self):
+        cache = self.directory / "composer-cache"
+        cache.mkdir()
+        self.assertEqual(self.run_profile("exec", "true", COMPOSER_CACHE_DIR=str(cache)).returncode, 0)
+        first = Path(self.calls[-1]["overlay"]["services"]["php"]["volumes"][0]["source"])
+        (first / "cached-dist.zip").write_bytes(b"project-owned archive")
+        second_workspace = self.directory / "another-project"
+        (second_workspace / "demo").mkdir(parents=True)
+        self.assertEqual(self.run_profile("exec", "true", WORKSPACE=str(second_workspace), COMPOSER_CACHE_DIR=str(cache)).returncode, 0)
+        second = Path(self.calls[-1]["overlay"]["services"]["php"]["volumes"][0]["source"])
+        self.assertNotEqual(first, second)
+        self.assertFalse((second / "cached-dist.zip").exists())
+        second.rmdir()
+        second.symlink_to(first, target_is_directory=True)
+        self.assertEqual(self.run_profile("exec", "true", WORKSPACE=str(second_workspace), COMPOSER_CACHE_DIR=str(cache)).returncode, 64)
 
     def test_up_prepares_dependencies_then_test_cache_then_served_page(self):
         self.assertEqual(self.run_profile("up").returncode, 0)
@@ -325,6 +346,16 @@ statefile.write_text(json.dumps(state))
         self.assertEqual(int(first["HTTPS_PORT"]), int(first["HTTP_PORT"]) + 1)
         self.assertEqual(first["HTTP3_PORT"], first["HTTPS_PORT"])
 
+    def test_empty_exported_overrides_use_defaults(self):
+        self.assertEqual(self.run_profile("--slot", "2", "exec", "true", PUID="", PGID="", HTTP_PORT="", HTTPS_PORT="", HTTP3_PORT="", COMPOSER_INSTALL_PREFERENCE="").returncode, 0)
+        last = self.calls[-1]
+        self.assertEqual(last["env"]["PUID"], str(os.getuid()))
+        self.assertEqual(last["env"]["PGID"], str(os.getgid()))
+        self.assertEqual(last["env"]["HTTP_PORT"], "20004")
+        self.assertEqual(last["env"]["HTTPS_PORT"], "20005")
+        self.assertEqual(last["env"]["HTTP3_PORT"], "20005")
+        self.assertIn(f"{os.getuid()}:{os.getgid()}", last["args"])
+
     def test_occupied_port_fails_before_compose_up(self):
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
@@ -332,6 +363,21 @@ statefile.write_text(json.dumps(state))
             port = listener.getsockname()[1]
             self.assertEqual(self.run_profile("up", HTTP_PORT=str(port), MOCK_RESERVED_PORTS="0").returncode, 64)
         self.assertFalse(any("up" in call["args"] for call in self.calls))
+
+    def test_remote_engines_ignore_client_port_conflicts(self):
+        # setUp holds the selected local ports open. They do not block a remote
+        # engine, including a selected context overriding a local DOCKER_HOST.
+        cases = (
+            {"DOCKER_HOST": "tcp://remote.example:2376"},
+            {"MOCK_DOCKER_ENDPOINT": "ssh://remote.example"},
+            {"DOCKER_CONTEXT": "remote", "DOCKER_HOST": "unix:///var/run/docker.sock", "MOCK_DOCKER_ENDPOINT": "ssh://remote.example"},
+        )
+        for environment in cases:
+            with self.subTest(environment=environment):
+                (self.directory / "state.json").unlink(missing_ok=True)
+                self.assertEqual(self.run_profile("up", MOCK_RESERVED_PORTS="0", **environment).returncode, 0)
+                self.assertTrue(any("up" in call["args"] for call in self.calls))
+                self.commands.unlink()
 
     def test_status_needs_neither_image_nor_lock_and_starts_no_container(self):
         self.assertEqual(self.run_profile("up").returncode, 0)
@@ -358,6 +404,7 @@ statefile.write_text(json.dumps(state))
         self.commands.unlink()
         result = self.run_profile("up", FLOWBITE_PROJECT="shared")
         self.assertEqual(result.returncode, 64)
+        self.assertEqual(self.run_profile("up", FLOWBITE_PROJECT="shared", DOCKER_HOST="tcp://remote.example:2376").returncode, 64)
         self.assertIn("another workspace", result.stderr)
         self.assertFalse(any("up" in call["args"] for call in self.calls))
 

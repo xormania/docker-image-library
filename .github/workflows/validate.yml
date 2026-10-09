@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: validate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -33,9 +34,16 @@ jobs:
       - run: python -m compileall -q scripts tests
       - name: Shell syntax
         run: find scripts images tests examples -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
-      - id: matrix
+      - id: validation-base
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: echo "sha=$(python scripts/validation_base.py)" >> "$GITHUB_OUTPUT"
+      - id: matrix
+        env:
+          BASE_SHA: ${{ steps.validation-base.outputs.sha }}
         run: |
           if [ -n "$BASE_SHA" ]; then
             matrix=$(python scripts/library.py affected --base "$BASE_SHA")
