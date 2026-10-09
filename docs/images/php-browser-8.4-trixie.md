@@ -2,13 +2,13 @@
 
 PHP and Symfony development plus real Chromium and Panther browser tests.
 
-Available revision: **1.1.0**. Pin:
+Available revision: **1.2.0**. Pin:
 
 ```text
-ghcr.io/xormania/php-browser@sha256:ba7a438a054450fe0e8387e233dee829d0c8ed883be5aa76568175ed1607ae82
+ghcr.io/xormania/php-browser@sha256:f14c53bd6c4c27b54b1415d6913947ec359c28e003d27292ef930d1c9b646464
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:44.384737Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:46:44.138116Z.
 
 ## Measured inventory — linux/amd64
 
@@ -23,31 +23,35 @@ Runtime: 8.4.26; OS: Debian GNU/Linux 13 (trixie).
 | curl | curl 8.14.1 (x86_64-pc-linux-gnu) libcurl/8.14.1 OpenSSL/3.5.7 zlib/1.3.1 brotli/1.1.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.64.0 nghttp3/1.8.0 librtmp/2.3 OpenLDAP/2.6.10 |
 | gh | gh version 2.46.0 (2025-01-13 Debian 2.46.0-3) |
 | git | git version 2.47.3 |
+| infection | Infection - PHP Mutation Testing Framework version 0.35.6 |
 | jq | jq-1.7 |
+| library-php-coverage | xorder PHP coverage runner 1.0.0 |
+| library-php-tests | xorder PHP test runner 1.0.0 |
 | php | PHP 8.4.26 (cli) (built: Oct  6 2026 01:25:39) (NTS) |
+| phpstan-isolated | PHPStan - PHP Static Analysis Tool 2.3.0 |
 | psql | psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1) |
 | rg | ripgrep 14.1.1 |
 | symfony | Symfony CLI version 5.22.0 (c) 2021-2026 Fabien Potencier (2026-10-06T20:55:04Z - stable) |
 
-Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
+Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcov`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
 
 ### Release measurements — linux/amd64
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,576.9 MiB (1,653,461,844 bytes) |
-| Build, cache export and image load | 57.39s |
-| Public-artifact behavior and inventory verification | 13.26s |
+| Local image size | 1,834.5 MiB (1,923,569,287 bytes) |
+| Build, cache export and image load | 58.51s |
+| Public-artifact behavior and inventory verification | 29.13s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:29.592528Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:46:44.078214Z.
 
 External build cache at start: `empty`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.0.0, `ghcr.io/xormania/php-browser@sha256:371dbe808e951915d9c0ed3c41fb6e830f2cabb40ecc76733b9da92d957174ae`; 1,576.9 MiB in the same image store. Change: **+0.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:44.384601Z.
+Size baseline: v1.1.0, `ghcr.io/xormania/php-browser@sha256:ba7a438a054450fe0e8387e233dee829d0c8ed883be5aa76568175ed1607ae82`; 1,576.9 MiB in the same image store. Change: **+16.3%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:29.592528Z.
 
-[Release notes](../releases/php-browser-8.4-trixie-v1.1.0.md).
+[Release notes](../releases/php-browser-8.4-trixie-v1.2.0.md).
 
-Capabilities: `browser`, `composer`, `native-build`, `panther`, `php`, `postgresql-client`, `symfony`, `xdebug`.
+Capabilities: `browser`, `composer`, `mutation-testing`, `native-build`, `panther`, `pcov`, `php`, `php-testing`, `phpstan-isolated`, `postgresql-client`, `symfony`, `xdebug`.
 
 Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.
 
@@ -58,5 +62,6 @@ Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID`
 - Chromium may need --no-sandbox where the host prohibits sandbox namespaces. Use only for trusted development content.
 - No PHP-FPM, web server daemon, or Node toolchain is supplied.
 - Node is not included; request a separate capability when the project requires it.
+- PCOV is disabled by default. library-php-coverage pcov isolates Xdebug for each CLI process; library-php-tests uses project-locked PHPUnit and PHPStan, not global test packages.
 - Project PHP dependencies come from Composer lockfiles.
 - Xdebug is off by default; enable with XDEBUG_MODE=coverage or debug.

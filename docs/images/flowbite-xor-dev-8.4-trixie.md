@@ -2,13 +2,13 @@
 
 FrankenPHP/PHP 8.4 or 8.5 plus Node 22 and a pinned Tailwind CLI for flowbite-xor development and Playwright orchestration.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.1.0**. Pin:
 
 ```text
-ghcr.io/xormania/flowbite-xor-dev@sha256:39d0dfa2cae629a9bc65e09d3cd44b5e1a3b92b54c55fb111286f4c4e2a4b374
+ghcr.io/xormania/flowbite-xor-dev@sha256:68979e1105bdadb6a3a784a8944f86ffe8f54f0e8d475dc2bbea0c18a00b2cca
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37852642503); 2026-10-08T22:27:17.573741Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:49:05.884573Z.
 
 ## Measured inventory — linux/amd64
 
@@ -22,32 +22,38 @@ Runtime: 8.4.26; OS: Debian GNU/Linux 13 (trixie).
 | frankenphp | FrankenPHP v1.13.0 PHP 8.4.26 Caddy v2.11.7 h1:yj0Y4fYZGPkSvibBJ1sTWE33xC0fxztVyXEW5iIdUT4= |
 | gh | gh version 2.46.0 (2025-01-13 Debian 2.46.0-3) |
 | git | git version 2.47.3 |
+| infection | Infection - PHP Mutation Testing Framework version 0.35.6 |
 | jq | jq-1.7 |
+| library-php-coverage | xorder PHP coverage runner 1.0.0 |
+| library-php-tests | xorder PHP test runner 1.0.0 |
 | node | v22.23.3 |
 | npm | 10.9.9 |
 | php | PHP 8.4.26 (cli) (built: Oct  6 2026 01:25:42) (ZTS) |
+| phpstan-isolated | PHPStan - PHP Static Analysis Tool 2.3.0 |
 | psql | psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1) |
 | rg | ripgrep 14.1.1 |
 | symfony | Symfony CLI version 5.22.0 (c) 2021-2026 Fabien Potencier (2026-10-06T20:55:04Z - stable) |
 | tailwindcss | ≈ tailwindcss v4.3.3 |
 
-Extensions: `apcu`, `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
+Extensions: `apcu`, `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcov`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
 
 ### Release measurements — linux/amd64
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,168.4 MiB (1,225,206,317 bytes) |
-| Build, cache export and image load | 27.08s |
-| Public-artifact behavior and inventory verification | 93.03s |
+| Local image size | 1,426.1 MiB (1,495,325,659 bytes) |
+| Build, cache export and image load | 26.95s |
+| Public-artifact behavior and inventory verification | 108.97s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37852642503); 2026-10-08T22:27:17.513207Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:49:05.827746Z.
 
-External build cache at start: `empty`. This does not assert that every layer was a cache hit.
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
-[Release notes](../releases/flowbite-xor-dev-8.4-trixie-v1.0.0.md).
+Size baseline: v1.0.0, `ghcr.io/xormania/flowbite-xor-dev@sha256:39d0dfa2cae629a9bc65e09d3cd44b5e1a3b92b54c55fb111286f4c4e2a4b374`; 1,168.4 MiB in the same image store. Change: **+22.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37852642503); 2026-10-08T22:27:17.513207Z.
 
-Capabilities: `composer`, `frankenphp`, `native-build`, `node`, `npm`, `php`, `playwright-client`, `postgresql-client`, `symfony`, `tailwind-cli`, `worker-server`, `xdebug`.
+[Release notes](../releases/flowbite-xor-dev-8.4-trixie-v1.1.0.md).
+
+Capabilities: `composer`, `frankenphp`, `mutation-testing`, `native-build`, `node`, `npm`, `pcov`, `php`, `php-testing`, `phpstan-isolated`, `playwright-client`, `postgresql-client`, `symfony`, `tailwind-cli`, `worker-server`, `xdebug`.
 
 Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.
 
@@ -56,6 +62,7 @@ Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID`
 ## Limitations
 
 - Node and Playwright browsers are supplied by the flowbite-xor profile and its official companion, respectively.
+- PCOV is disabled by default. library-php-coverage pcov isolates Xdebug for each CLI process; library-php-tests uses project-locked PHPUnit and PHPStan, not global test packages.
 - Playwright and application packages come from project lockfiles; browsers run in the version-matched official Playwright companion.
 - Project dependencies and Caddy/worker configuration belong to the consuming repository.
 - The cached Tailwind binary is seeded only when its version and platform match the consuming project configuration.
