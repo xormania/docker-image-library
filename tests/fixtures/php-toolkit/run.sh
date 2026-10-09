@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../../.." && pwd -P)
-if [[ -n ${IMAGE:-} ]]; then export TOOLKIT_NETWORK=none; fi
+if [[ -n ${IMAGE:-} ]]; then
+  python3 "$root/tests/fixtures/network/check.py" "$IMAGE"
+  export TOOLKIT_NETWORK=none
+fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mapfile -t consumer < <(python3 - "$root/tests/fixtures/php-toolkit/consumer.json" <<'PY'

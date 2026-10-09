@@ -49,6 +49,8 @@ else:
             env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
                        WORKSPACE=str(workspace), IMAGE="fixture:test", WORKTREE_GIT=str(int(enabled)),
                        XDG_CACHE_HOME=str(root / "cache"), COMMANDS=str(commands), PHPUNIT_XDEBUG_MODE="coverage")
+            for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
+                env.pop(key, None)
             subprocess.run(["bash", str(ROOT / "examples/flowbite-xor/run.sh"), *(action or ["exec", "git", "status"])],
                            env=env, check=True, capture_output=True, text=True)
             self.assertEqual(pointer.read_bytes(), original)
@@ -100,7 +102,7 @@ import hashlib, json, os, pathlib, sys
 args = sys.argv[1:]
 statefile = pathlib.Path(os.environ["MOCK_STATE"])
 state = json.loads(statefile.read_text()) if statefile.exists() else {"containers": [], "node": False, "generation": 0}
-keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE"]
+keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "XORDER_HTTP_PROXY", "XORDER_HTTPS_PROXY", "XORDER_http_proxy", "XORDER_https_proxy", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE"]
 record = {"args": args, "env": {key: os.environ.get(key) for key in keys}}
 positions = [i for i, arg in enumerate(args) if arg == "-f"]
 if len(positions) == 4:
@@ -147,7 +149,7 @@ elif "exec" in args:
 statefile.write_text(json.dumps(state))
 ''')
         self.docker.chmod(0o755)
-        self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "DOCKER_HOST", "DOCKER_CONTEXT", "PUID", "PGID", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
+        self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "DOCKER_HOST", "DOCKER_CONTEXT", "PUID", "PGID", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
         self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), MOCK_STATE=str(self.directory / "state.json"), XDG_CACHE_HOME=str(self.directory / "cache"))
         # Keep kernel-allocated TCP/UDP sockets reserved for this mocked profile.
         # The Docker mock reports those reservations as project-owned ports, so
@@ -199,22 +201,24 @@ statefile.write_text(json.dumps(state))
             msg = (msg or "") + "\nProfile stdout:\n" + self.last_result.stdout + "\nProfile stderr:\n" + self.last_result.stderr
         super().assertEqual(first, second, msg)
 
-    def test_filters_all_loopback_proxy_spellings_and_preserves_remote(self):
-        for value in ("http://127.0.0.1:3128", "http://127.9.0.1:3128", "localhost:3128", "http://LOCALHOST.:3128", "http://[::1]:3128", "http://[::ffff:127.0.0.1]:3128"):
-            with self.subTest(value=value):
-                self.assertEqual(self.run_profile("up", HTTP_PROXY=value, https_proxy=value, HTTPS_PROXY="http://proxy.example:8080").returncode, 0)
-                for call in self.calls:
-                    self.assertEqual(call["env"]["HTTP_PROXY"], "")
-                    self.assertEqual(call["env"]["https_proxy"], "")
-                    self.assertEqual(call["env"]["HTTPS_PROXY"], "http://proxy.example:8080")
-                self.commands.unlink()
-
-    def test_proxy_opt_out_and_explicit_passthrough(self):
+    def test_proxy_host_environment_is_preserved_and_opt_out_only_affects_container(self):
         self.assertEqual(self.run_profile("exec", "true", HTTP_PROXY="http://remote:3128", PROXY_PASSTHROUGH="0").returncode, 0)
-        self.assertEqual(self.calls[-1]["env"]["HTTP_PROXY"], "")
+        self.assertEqual(self.calls[-1]["env"]["HTTP_PROXY"], "http://remote:3128")
+        self.assertEqual(self.calls[-1]["env"]["XORDER_HTTP_PROXY"], "")
         self.assertEqual(self.run_profile("exec", "true", HTTP_PROXY="http://[::1]:3128", PROXY_PASSTHROUGH="1").returncode, 0)
-        self.assertEqual(self.calls[-1]["env"]["HTTP_PROXY"], "http://[::1]:3128")
+        self.assertEqual(self.calls[-1]["env"]["XORDER_HTTP_PROXY"], "http://[::1]:3128")
         self.assertEqual(self.run_profile("exec", "true", PROXY_PASSTHROUGH="maybe").returncode, 64)
+
+    def test_remote_engine_loopback_proxy_reports_route_problem(self):
+        result = self.run_profile("exec", "true", HTTPS_PROXY="http://127.0.0.1:3128", DOCKER_HOST="ssh://remote")
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("container-reachable proxy", result.stderr)
+        self.assertFalse(any("exec" in call["args"] for call in self.calls))
+
+    def test_down_does_not_need_a_working_proxy(self):
+        result = self.run_profile("down", HTTPS_PROXY="http://127.0.0.1:1")
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(any("down" in call["args"] for call in self.calls))
 
     def test_php_tests_default_invocation_uses_in_container_profile_defaults(self):
         self.assertEqual(self.run_profile("php-tests").returncode, 0)

@@ -50,7 +50,6 @@ if [[ -n ${IMAGE:-} ]]; then
   network=()
   [[ -z ${TOOLKIT_NETWORK:-} ]] || network=(--network "$TOOLKIT_NETWORK")
   python3 "$root/../shared/network.py" docker run --rm --init \
-    -e HTTP_PROXY -e HTTPS_PROXY -e http_proxy -e https_proxy -e NO_PROXY -e no_proxy \
     -e PUID="${PUID:-$(id -u)}" -e PGID="${PGID:-$(id -g)}" \
     -e TOOLKIT_REQUIRE_PREPARED=1 "${network[@]}" \
     "${trust[@]}" \

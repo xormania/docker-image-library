@@ -25,8 +25,10 @@ only. `PUID` and `PGID` default to the invoking user and support `0`.
 For HTTPS through a custom trust gateway, set `CA_CERTIFICATE` to a readable
 absolute PEM file or bundle. Docker mounts it for the shared image entrypoint;
 native Composer receives `COMPOSER_CAFILE`. Docker proxy handling uses the same
-shared sanitizer as the development profile: loopback HTTP(S) proxies are dropped
-by default, and `PROXY_PASSTHROUGH=0` disables forwarding.
+shared [proxy support](flowbite-xor.md) as the development profile: loopback
+proxies receive a local Docker-bridge relay for the duration of the command;
+`PROXY_PASSTHROUGH=0` disables container proxies. Host settings remain unchanged.
+The relay is cleaned up when the command exits.
 
 The prepared `php-toolkit` image supplies the locked validator dependencies and
 clean Symfony baseline under `/opt/xorder/php-toolkit`. Docker execution requires

@@ -12,7 +12,7 @@ import tempfile
 
 PROFILE = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROFILE.parent / "shared"))
-from network import sanitize  # noqa: E402
+from network import container_environment, local_engine, stop  # noqa: E402
 
 PHP_TEST_ENVIRONMENT = (
     "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION",
@@ -103,19 +103,6 @@ def status(project, env):
     return 0 if ready and all(services.get(service, {}).get("State", {}).get("Running") and services[service]["State"].get("Health", {}).get("Status") == "healthy" for service in ("php", "browser")) else 1
 
 
-def local_engine(env):
-    # Docker's explicit context overrides DOCKER_HOST. With neither override,
-    # inspect the selected context instead of assuming the default Unix socket.
-    context = env.get("DOCKER_CONTEXT")
-    endpoint = env.get("DOCKER_HOST") if not context else None
-    if not endpoint:
-        arguments = ["docker", "context", "inspect"]
-        if context:
-            arguments.append(context)
-        endpoint = json.loads(call([*arguments, "--format", "{{json .Endpoints.docker.Host}}"], env, capture=True).stdout)
-    return isinstance(endpoint, str) and endpoint.startswith(("unix://", "npipe://"))
-
-
 def check_ports(project, env):
     owned = set()
     found = containers(project, env)
@@ -201,10 +188,15 @@ def main(arguments):
         if not Path(ca).is_absolute() or not os.access(ca, os.R_OK):
             raise ValueError("CA_CERTIFICATE must be a readable absolute PEM path")
         env["CONTAINER_CA_FILE"] = "/run/library-proxy.pem"
-    env = sanitize(env)
     # Only starting a new browser requires the lock. Recovery inspection and
     # cleanup work after deleted/moved dependency files as well.
     env["PLAYWRIGHT_VERSION"] = playwright(workspace) if action in ("up", "test") else "0.0.0"
+    proxy_owner = f"flowbite:{workspace}:{project}"
+    if action not in ("down", "logs"):
+        if action == "up":
+            check_ports(project, env)
+        settings = container_environment(env, proxy_owner, reconfigure=action == "up", services=("php", "browser"))
+        env.update({"XORDER_" + key: value for key, value in settings.items()})
     if action == "up":
         env["XORDER_INPUT_FINGERPRINT"] = input_fingerprint(workspace, env)
     preference = env.get("COMPOSER_INSTALL_PREFERENCE") or "dist"
@@ -244,8 +236,13 @@ def main(arguments):
             filename.write_text(json.dumps(overlay))
             compose += ["-f", str(filename)]
         if action == "up":
-            check_ports(project, env)
             configuration = call([*compose, "config", "--format", "json"], env, capture=True).stdout
+            # Include all services supplied by the consuming Compose project.
+            service_names = json.loads(configuration).get("services", {})
+            for key in ("XORDER_NO_PROXY", "XORDER_no_proxy"):
+                env[key] = ",".join(dict.fromkeys([*env[key].split(","), *service_names]))
+            if service_names:
+                configuration = call([*compose, "config", "--format", "json"], env, capture=True).stdout
             configuration_hash = hashlib.sha256(configuration.encode()).hexdigest()
             receipt = Path(env.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "xorder/flowbite" / key / (project + ".json")
             try:
@@ -285,6 +282,8 @@ def main(arguments):
             php_exec(compose, env, *extra)
         else:
             call([*compose, action, *extra], env)
+            if action == "down":
+                stop(proxy_owner)
 
 
 if __name__ == "__main__":

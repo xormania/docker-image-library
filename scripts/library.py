@@ -355,7 +355,7 @@ def affected(changed, defs, previous_tools=None):
             families = {"php-toolkit"}
         elif path.startswith("tests/fixtures/frankenphp/"):
             families = {"php-frankenphp", "flowbite-xor-dev"}
-        elif path == "examples/shared/network.py":
+        elif path.startswith(("examples/shared/", "tests/fixtures/network/")):
             families = {"flowbite-xor-dev", "php-toolkit"}
         elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
             families = {"flowbite-xor-dev"}
