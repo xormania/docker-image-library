@@ -13,6 +13,7 @@ from registry import resolve
 from refresh import refresh as refresh_inputs
 from xorder import model as resource_model
 from xorder.transport import download
+from catalog_summary import catalog_body, proposed_records, source_prs
 import tempfile
 
 
@@ -191,8 +192,16 @@ def main(refresh=False):
         run("git", "commit", "-m", title)
     # An unchanged recovered branch may still need its missing PR created.
     run("git", "push", "origin", branch)
-    body = ("Updates changed upstream inputs and allocates fresh patch revisions only for their consumers and descendants. Debian package-index changes trigger apt refreshes. Image behavior is validated by PR CI before publication."
-            if refresh else "Adds only anonymously verified exact references, measured image inventories, and HTTP resource verification. Regenerates discovery catalogs and documentation. After this PR is merged, the alias workflow promotes the latest accepted compatible image revisions.")
+    if refresh:
+        body = "Updates changed upstream inputs and allocates fresh patch revisions only for their consumers and descendants. Debian package-index changes trigger apt refreshes. Image behavior is validated by PR CI before publication."
+    else:
+        views = []
+        for name, key in (("catalog.json", "images"), ("catalog-v2.json", "resources")):
+            previous = subprocess.run(["git", "show", f"origin/master:{name}"], cwd=ROOT, capture_output=True, text=True)
+            views.append(json.loads(previous.stdout)[key] if previous.returncode == 0 else [])
+        repository = os.environ["GITHUB_REPOSITORY"]
+        proposed = proposed_records(ROOT)
+        body = catalog_body(proposed, *views, repository, source_prs(proposed, repository))
     body += "\n\nMerge through the repository's permitted merge method. Writeback does not enable automatic merge. If this PR was created with GITHUB_TOKEN, select Approve workflows to run in the PR's merge box. LIBRARY_BOT_TOKEN lets PR validation start automatically."
     upsert_pr(branch, title, body)
 
