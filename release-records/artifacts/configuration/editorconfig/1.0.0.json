@@ -1,0 +1,71 @@
+{
+  "created_at": "2026-10-09T00:10:15.721436Z",
+  "definition": {
+    "capabilities": [
+      "configuration:editorconfig"
+    ],
+    "details": {
+      "files": [
+        {
+          "destination": ".editorconfig",
+          "source": "editorconfig"
+        }
+      ],
+      "scope": "project",
+      "target_application": "EditorConfig-compatible editors"
+    },
+    "documentation": "docs/resources/configuration-editorconfig.md",
+    "id": "configuration/editorconfig",
+    "kind": "configuration",
+    "name": "editorconfig",
+    "prerequisites": {
+      "commands": [],
+      "requirements": [
+        "An editor with EditorConfig support is needed to apply the formatting settings."
+      ]
+    },
+    "purpose": "Small project-local EditorConfig starting point for PHP and common repository files.",
+    "revision": "1.0.0",
+    "schema_version": 2,
+    "targets": [
+      "any"
+    ],
+    "verification": {
+      "command": [
+        "python3",
+        "scripts/xorder/verify-bundles.py",
+        "configuration/editorconfig"
+      ]
+    }
+  },
+  "id": "configuration/editorconfig",
+  "input_fingerprint": "4b6602469038386bbdaa93402516703f3c301fd6d9b622115c5626baed01e84f",
+  "lifecycle": "available",
+  "publication": {
+    "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
+    "filename": "editorconfig-1.0.0.tar",
+    "format": "tar",
+    "public_download_verified_at": "2026-10-09T00:10:15.721436Z",
+    "sha256": "5aa2360af22e47bb84708bd2262268527f7359e94f224f04213c0fc929dbddea",
+    "size_bytes": 10240,
+    "url": "https://github.com/xormania/xorder/releases/download/configuration/editorconfig/v1.0.0/editorconfig-1.0.0.tar"
+  },
+  "schema_version": 2,
+  "source_commit": "e2c8db2439b20ee51079063e4595c7f0f0e7d6e5",
+  "source_tag": "configuration/editorconfig/v1.0.0",
+  "verification": {
+    "commands": [
+      [
+        "python3",
+        "scripts/xorder/verify-bundles.py",
+        "configuration/editorconfig",
+        "$ARTIFACT_ROOT"
+      ]
+    ],
+    "completed_at": "2026-10-09T00:10:15.721436Z",
+    "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
+    "status": "passed",
+    "surface": "github-actions-linux-amd64"
+  },
+  "version": "1.0.0"
+}
