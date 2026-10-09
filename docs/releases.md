@@ -71,6 +71,24 @@ not cancel in-progress promotion. Different line jobs within a release may run
 in parallel. An older queued job reads the current accepted ledger before
 advancing an alias; it cannot overwrite a newer accepted recommendation.
 
+## Catalog review checks
+
+`Verify image release evidence` runs separately from image build validation.
+For new image ledger records it verifies the public source Release and source
+commit, downloads its durable `record.json` using GitHub's asset checksum, and
+compares the immutable record fields. It then resolves the exact image tag and
+checks the parent and recorded platform digests anonymously. Existing release
+evidence cannot be edited in place; lifecycle, reason, replacement and lifecycle
+date can change without depending on the withdrawn artifact's availability.
+Manual dispatch checks all accepted image records against public evidence.
+
+Generated catalog PRs summarize every proposed record on the branch, including
+records retained during recovery. The table shows previous and proposed
+revisions, new families, measured image sizes and baseline changes, and the
+compatible alias target after acceptance. Source commits, associated merged
+PRs when GitHub's lookup is available, public Releases and verification runs
+provide links to the evidence. HTTP resource sizes appear as payload bytes.
+
 ## First publication setup
 
 The repository uses GitHub-hosted runners. Master has an active PR ruleset,
