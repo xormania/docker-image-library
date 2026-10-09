@@ -12,7 +12,7 @@ import tempfile
 
 PROFILE = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROFILE.parent / "shared"))
-from network import container_environment, local_engine, stop  # noqa: E402
+from network import container_environment, local_engine, owner_label, stop  # noqa: E402
 
 PHP_TEST_ENVIRONMENT = (
     "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION",
@@ -192,6 +192,7 @@ def main(arguments):
     # cleanup work after deleted/moved dependency files as well.
     env["PLAYWRIGHT_VERSION"] = playwright(workspace) if action in ("up", "test") else "0.0.0"
     proxy_owner = f"flowbite:{workspace}:{project}"
+    env["XORDER_PROXY_OWNER"] = owner_label(proxy_owner)
     if action not in ("down", "logs"):
         if action == "up":
             check_ports(project, env)

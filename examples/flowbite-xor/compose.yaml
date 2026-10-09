@@ -4,6 +4,7 @@ services:
     image: ${IMAGE:?Choose a verified flowbite-xor-dev digest}
     labels:
       dev.xorder.workspace: ${WORKSPACE:?Resolved by run.sh}
+      dev.xorder.proxy-owner: ${XORDER_PROXY_OWNER:?Resolved by run.sh}
     entrypoint: [bash, /run/xorder/startup.sh, --entrypoint]
     command: [frankenphp, run, --config, /etc/frankenphp/Caddyfile, --watch]
     environment:

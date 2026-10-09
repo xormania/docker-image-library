@@ -29,6 +29,9 @@ shared [proxy support](flowbite-xor.md) as the development profile: loopback
 proxies receive a local Docker-bridge relay for the duration of the command;
 `PROXY_PASSTHROUGH=0` disables container proxies. Host settings remain unchanged.
 The relay is cleaned up when the command exits.
+Its source-address check only admits the running container labeled for that
+command; other containers cannot use the relay. Docker lookup failures deny
+access, and host networking is unsupported.
 
 The prepared `php-toolkit` image supplies the locked validator dependencies and
 clean Symfony baseline under `/opt/xorder/php-toolkit`. Docker execution requires

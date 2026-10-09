@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real HTTPS CONNECT through a loopback proxy, with an explicit deny result."""
 import http.server
+import json
 import os
 from pathlib import Path
 import socket
@@ -16,7 +17,37 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "examples/shared"))
 import network
-from proxy_relay import pipe, stop
+from proxy_relay import OWNER_LABEL, owner_label, pipe, stop
+
+
+def peer(owner, address):
+    """Docker inspection evidence for native tests without a Docker daemon."""
+    return {"Config": {"Labels": {OWNER_LABEL: owner_label(owner)}},
+            "State": {"Running": True}, "HostConfig": {"NetworkMode": "bridge"},
+            "NetworkSettings": {"Networks": {"bridge": {"IPAddress": address}}}}
+
+
+def mock_docker(path, peers):
+    # Only the Docker CLI is stubbed; native tests still exercise real detached
+    # relays, source sockets, TLS and the upstream policy proxy.
+    (path / "peers.json").write_text(json.dumps(peers))
+    docker = path / "docker"
+    docker.write_text('''#!/usr/bin/env python3
+import json, os, sys
+peers = json.load(open(os.environ["XORDER_TEST_DOCKER_PEERS"]))
+args = sys.argv[1:]
+if args[:3] == ["ps", "-q", "--filter"]:
+    key, value = args[3].removeprefix("label=").split("=", 1)
+    print("\\n".join(str(i) for i, p in enumerate(peers)
+                    if p["Config"]["Labels"].get(key) == value and p["State"]["Running"]))
+elif args[:3] == ["inspect", "--type", "container"]:
+    print(json.dumps([peers[int(i)] for i in args[3:]]))
+else:
+    sys.exit(1)
+''')
+    docker.chmod(0o755)
+    return {"PATH": str(path) + os.pathsep + os.environ["PATH"],
+            "XORDER_TEST_DOCKER_PEERS": str(path / "peers.json")}
 
 
 class Origin(http.server.BaseHTTPRequestHandler):
@@ -78,10 +109,12 @@ def verify(image=None):
                 if image:
                     settings = network.container_environment(env, owner)
                 else:
+                    env.update(mock_docker(path, [peer(owner, "127.0.0.1")]))
                     with patch.object(network, "bridge_address", return_value="127.0.0.2"):
                         settings = network.container_environment(env, owner)
                 if image:
                     command = ["docker", "run", "--rm", "--dns", "192.0.2.1",
+                               "--label", OWNER_LABEL + "=" + owner_label(owner),
                                "--mount", f"type=bind,src={path / 'ca.pem'},dst=/proxy-ca.pem,readonly"]
                     command += [part for key, value in settings.items() for part in ("-e", key + "=" + value)]
                     command += [image, "curl", "--cacert", "/proxy-ca.pem"]
@@ -95,9 +128,24 @@ def verify(image=None):
                         assert "allowed through original proxy" in result.stdout
                     else:
                         assert result.returncode != 0 and "403" in result.stderr, result.stderr
+                if image:
+                    # Same reachable bridge/relay and destination, but no owner
+                    # label, while an owned container is still running. It must
+                    # fail before the upstream sees a request.
+                    unrelated = command.copy()
+                    label = unrelated.index("--label")
+                    del unrelated[label:label + 2]
+                    retained = command[:2] + ["-d"] + command[2:-3] + ["sleep", "60"]
+                    container = subprocess.check_output(retained, env=env, text=True).strip()
+                    try:
+                        result = subprocess.run([*unrelated, "--fail", "--silent", "--show-error", "--max-time", "15",
+                                                 "https://allowed.test/"], env=env, capture_output=True, text=True)
+                        assert result.returncode != 0, "Unrelated container used the relay"
+                    finally:
+                        subprocess.run(["docker", "rm", "-f", container], env=env, check=True, stdout=subprocess.DEVNULL)
                 assert b"CONNECT denied.test:443 HTTP/1.1" in proxy.requests
                 assert proxy.requests.count(b"CONNECT allowed.test:443 HTTP/1.1") == 2
-                print("HTTPS trusted; upstream allow/deny preserved; repeated connection passed")
+                print("HTTPS trusted; upstream allow/deny preserved; unrelated clients rejected")
             finally:
                 stop(owner)
                 origin.shutdown()

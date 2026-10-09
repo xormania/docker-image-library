@@ -102,7 +102,7 @@ import hashlib, json, os, pathlib, sys
 args = sys.argv[1:]
 statefile = pathlib.Path(os.environ["MOCK_STATE"])
 state = json.loads(statefile.read_text()) if statefile.exists() else {"containers": [], "node": False, "generation": 0}
-keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "XORDER_HTTP_PROXY", "XORDER_HTTPS_PROXY", "XORDER_http_proxy", "XORDER_https_proxy", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE"]
+keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "XORDER_HTTP_PROXY", "XORDER_HTTPS_PROXY", "XORDER_http_proxy", "XORDER_https_proxy", "XORDER_PROXY_OWNER", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE"]
 record = {"args": args, "env": {key: os.environ.get(key) for key in keys}}
 positions = [i for i, arg in enumerate(args) if arg == "-f"]
 if len(positions) == 4:
@@ -214,6 +214,15 @@ statefile.write_text(json.dumps(state))
         self.assertEqual(result.returncode, 64)
         self.assertIn("container-reachable proxy", result.stderr)
         self.assertFalse(any("exec" in call["args"] for call in self.calls))
+
+    def test_proxy_ownership_is_stable_and_scoped_to_the_compose_project(self):
+        self.assertEqual(self.run_profile("exec", "true").returncode, 0)
+        owner = self.calls[-1]["env"]["XORDER_PROXY_OWNER"]
+        self.assertTrue(owner)
+        self.assertEqual(self.run_profile("down").returncode, 0)
+        self.assertEqual(owner, self.calls[-1]["env"]["XORDER_PROXY_OWNER"])
+        self.assertEqual(self.run_profile("exec", "true", FLOWBITE_PROJECT="another-project").returncode, 0)
+        self.assertNotEqual(owner, self.calls[-1]["env"]["XORDER_PROXY_OWNER"])
 
     def test_down_does_not_need_a_working_proxy(self):
         result = self.run_profile("down", HTTPS_PROXY="http://127.0.0.1:1")

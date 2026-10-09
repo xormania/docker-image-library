@@ -9,7 +9,7 @@ import sys
 import uuid
 from urllib.parse import urlsplit, urlunsplit
 
-from proxy_relay import ensure, stop
+from proxy_relay import OWNER_LABEL, ensure, owner_label, stop
 
 PROXIES = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy")
 
@@ -67,7 +67,7 @@ def container_environment(env, owner, *, reconfigure=False, services=()):
     if pending:
         bind = bridge_address(env)
         targets = sorted({(host, port) for _, host, port in pending.values()})
-        ports = ensure(owner, bind, targets, reconfigure=reconfigure)
+        ports = ensure(owner, bind, targets, reconfigure=reconfigure, env=env)
         for key, (parsed, host, port) in pending.items():
             credentials = parsed.netloc.rsplit("@", 1)[0] + "@" if "@" in parsed.netloc else ""
             # A numeric bridge address also works when container DNS is unavailable.
@@ -88,7 +88,8 @@ def main(arguments):
     try:
         env = dict(os.environ)
         container = container_environment(env, owner)
-        flags = [part for key, value in container.items() for part in ("-e", key + "=" + value)]
+        flags = ["--label", OWNER_LABEL + "=" + owner_label(owner)]
+        flags += [part for key, value in container.items() for part in ("-e", key + "=" + value)]
         command = arguments[:2] + flags + arguments[2:]
         return subprocess.call(command, env=env)
     finally:

@@ -195,6 +195,16 @@ host temporary directory contains endpoints/ports and an authenticated local
 control token, never proxy credentials. Keep the checkout available while using
 the runner. After host reboot, run `up` again before using retained containers.
 
+Before opening an upstream connection, the relay checks the client's source IP
+against Docker's live container addresses and the runner's
+`dev.xorder.proxy-owner` label. Only this workspace/project's PHP container
+(including the browser sharing its network namespace) can use its relay.
+Unrelated containers and failed Docker lookups are rejected. Addresses are
+checked on every connection so a removed container's IP is not kept authorized.
+This requires continued host-side Docker access; host networking is unsupported.
+Docker daemon administrators remain trusted, as they can create labeled
+containers or join another container's network namespace.
+
 Automatic forwarding requires a Docker bridge address bindable from the sandbox
 where the upstream proxy listens. A remote daemon, Docker Desktop VM, rootless
 engine, or isolated Docker socket may need a separately configured reachable

@@ -1,10 +1,12 @@
 import concurrent.futures
 import importlib.util
+import json
 import os
 from pathlib import Path
 import socket
 import socketserver
 import sys
+import tempfile
 import threading
 import unittest
 import uuid
@@ -15,17 +17,30 @@ sys.path.insert(0, str(ROOT / "examples/shared"))
 import network
 import proxy_relay
 
+spec = importlib.util.spec_from_file_location("proxy_fixture", ROOT / "tests/fixtures/network/check.py")
+fixture = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(fixture)
+
 
 class Echo(socketserver.BaseRequestHandler):
     def handle(self):
         while data := self.request.recv(65536):
+            self.server.received.append(data)
             self.request.sendall(data)
 
 
 class ProxyNetworkTests(unittest.TestCase):
     def setUp(self):
         self.owner = "test:" + uuid.uuid4().hex
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.docker_path = Path(temporary.name)
+        self.docker_env = fixture.mock_docker(self.docker_path, [fixture.peer(self.owner, "127.0.0.1")])
+        environment = patch.dict(os.environ, self.docker_env)
+        environment.start()
+        self.addCleanup(environment.stop)
         self.server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Echo)
+        self.server.received = []
         self.server.daemon_threads = True
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
@@ -33,8 +48,8 @@ class ProxyNetworkTests(unittest.TestCase):
         self.addCleanup(proxy_relay.stop, self.owner)
         self.target = self.server.server_address
 
-    def roundtrip(self, port):
-        with socket.create_connection(("127.0.0.2", port), timeout=2) as stream:
+    def roundtrip(self, port, source="127.0.0.1"):
+        with socket.create_connection(("127.0.0.2", port), timeout=2, source_address=(source, 0)) as stream:
             payload = b"CONNECT permitted.example:443 HTTP/1.1\r\n\r\n"
             stream.sendall(payload)
             stream.shutdown(socket.SHUT_WR)
@@ -53,14 +68,16 @@ class ProxyNetworkTests(unittest.TestCase):
         self.roundtrip(ports[0])
         other = self.owner + ":other"
         self.addCleanup(proxy_relay.stop, other)
+        (self.docker_path / "peers.json").write_text(json.dumps([
+            fixture.peer(self.owner, "127.0.0.1"), fixture.peer(other, "127.0.0.3")]))
         second = proxy_relay.ensure(other, "127.0.0.2", [self.target])[0]
         proxy_relay.stop(self.owner)
-        self.roundtrip(second)
+        self.roundtrip(second, source="127.0.0.3")
         with self.assertRaises(OSError):
             socket.create_connection(("127.0.0.2", ports[0]), timeout=1)
 
     def test_mapping_preserves_credentials_host_environment_and_no_proxy(self):
-        env = {"HTTPS_PROXY": f"http://name:p%40ss@127.0.0.1:{self.target[1]}", "NO_PROXY": "internal.example", "HTTP_PROXY": "http://remote:80"}
+        env = dict(self.docker_env, HTTPS_PROXY=f"http://name:p%40ss@127.0.0.1:{self.target[1]}", NO_PROXY="internal.example", HTTP_PROXY="http://remote:80")
         original = dict(env)
         with patch.object(network, "bridge_address", return_value="127.0.0.2"):
             result = network.container_environment(env, self.owner, services=("php", "redis"))
@@ -94,12 +111,17 @@ class ProxyNetworkTests(unittest.TestCase):
         ports = []
         def command(arguments, env):
             self.assertEqual(env["HTTPS_PROXY"], upstream)
+            label = arguments[arguments.index("--label") + 1]
+            self.assertTrue(label.startswith(proxy_relay.OWNER_LABEL + "="))
+            container = fixture.peer(self.owner, "127.0.0.1")
+            container["Config"]["Labels"][proxy_relay.OWNER_LABEL] = label.split("=", 1)[1]
+            (self.docker_path / "peers.json").write_text(json.dumps([container]))
             forwarded = next(value for value in arguments if value.startswith("HTTPS_PROXY=http://127.0.0.2:"))
             ports.append(int(forwarded.rsplit(":", 1)[1]))
             self.roundtrip(ports[0])
             self.assertEqual(arguments[-3:], ["application", "-e", "HTTPS_PROXY"])
             return 7
-        with patch.dict(os.environ, {"HTTPS_PROXY": upstream}, clear=True), \
+        with patch.dict(os.environ, dict(self.docker_env, HTTPS_PROXY=upstream), clear=True), \
              patch.object(network, "bridge_address", return_value="127.0.0.2"), \
              patch.object(network.subprocess, "call", side_effect=command):
             self.assertEqual(network.main(["docker", "run", "fixture", "application", "-e", "HTTPS_PROXY"]), 7)
@@ -107,7 +129,49 @@ class ProxyNetworkTests(unittest.TestCase):
             socket.create_connection(("127.0.0.2", ports[0]), timeout=1)
 
     def test_real_tls_and_policy_rejection(self):
-        spec = importlib.util.spec_from_file_location("proxy_fixture", ROOT / "tests/fixtures/network/check.py")
-        fixture = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(fixture)
         fixture.verify()
+
+    def rejected(self, port, source):
+        before = list(self.server.received)
+        with socket.create_connection(("127.0.0.2", port), timeout=2, source_address=(source, 0)) as stream:
+            stream.sendall(b"CONNECT forbidden.example:443 HTTP/1.1\r\n\r\n")
+            try:
+                self.assertEqual(stream.recv(1024), b"")
+            except ConnectionResetError:
+                pass
+        self.assertEqual(self.server.received, before, "Rejected bytes reached the upstream proxy")
+
+    def test_connections_require_current_container_ownership(self):
+        port = proxy_relay.ensure(self.owner, "127.0.0.2", [self.target])[0]
+        self.roundtrip(port)
+        # A different owner and an unlabeled source are denied.
+        (self.docker_path / "peers.json").write_text(json.dumps([
+            fixture.peer(self.owner, "127.0.0.1"), fixture.peer("other", "127.0.0.3")]))
+        self.rejected(port, "127.0.0.3")
+        self.rejected(port, "127.0.0.4")
+        # Container replacement must admit the new address and immediately
+        # stop admitting the old one, even if another container reuses it.
+        (self.docker_path / "peers.json").write_text(json.dumps([
+            fixture.peer("other", "127.0.0.1"), fixture.peer(self.owner, "127.0.0.3")]))
+        self.rejected(port, "127.0.0.1")
+        self.roundtrip(port, source="127.0.0.3")
+        # Missing Docker evidence must fail closed, never restore open access.
+        (self.docker_path / "peers.json").unlink()
+        self.rejected(port, "127.0.0.3")
+
+    def test_stopped_host_network_and_malformed_inspection_are_denied(self):
+        container = fixture.peer(self.owner, "127.0.0.1")
+        label = proxy_relay.owner_label(self.owner)
+        def allowed(evidence):
+            with patch.object(proxy_relay.subprocess, "check_output", side_effect=["id", json.dumps(evidence)]):
+                return proxy_relay.source_allowed("127.0.0.1", label)
+        self.assertTrue(allowed([container]))
+        container["State"]["Running"] = False
+        self.assertFalse(allowed([container]))
+        container["State"]["Running"] = True
+        container["HostConfig"]["NetworkMode"] = "host"
+        self.assertFalse(allowed([container]))
+        container["HostConfig"]["NetworkMode"] = "bridge"
+        container["Config"]["Labels"] = {}
+        self.assertFalse(allowed([container]))
+        self.assertFalse(allowed([{}]))

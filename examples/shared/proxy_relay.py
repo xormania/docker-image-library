@@ -18,6 +18,35 @@ import threading
 import time
 
 _CHILDREN = {}
+OWNER_LABEL = "dev.xorder.proxy-owner"
+
+
+def owner_label(owner):
+    return hashlib.sha256(owner.encode()).hexdigest()
+
+
+def source_allowed(address, owner):
+    """Authorize each new connection from current Docker state, never cached IPs."""
+    try:
+        ids = subprocess.check_output(
+            ["docker", "ps", "-q", "--filter", f"label={OWNER_LABEL}={owner}"],
+            text=True, stderr=subprocess.DEVNULL, timeout=5).split()
+        if not ids:
+            return False
+        containers = json.loads(subprocess.check_output(
+            ["docker", "inspect", "--type", "container", *ids],
+            text=True, stderr=subprocess.DEVNULL, timeout=5))
+        for container in containers:
+            if (container["Config"]["Labels"].get(OWNER_LABEL) != owner
+                    or not container["State"]["Running"]
+                    or container["HostConfig"]["NetworkMode"] == "host"):
+                continue
+            for network in container["NetworkSettings"]["Networks"].values():
+                if network.get("IPAddress") == address:
+                    return True
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return False
 
 
 def directory(owner):
@@ -70,9 +99,10 @@ def stop(owner):
             child.wait(timeout=5)
 
 
-def ensure(owner, bind, targets, *, reconfigure=False):
+def ensure(owner, bind, targets, *, reconfigure=False, env=None):
     path = directory(owner)
     config = {"bind": bind, "targets": [list(target) for target in targets],
+              "owner": owner_label(owner),
               "implementation": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
     with (path / "lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
@@ -98,7 +128,7 @@ def ensure(owner, bind, targets, *, reconfigure=False):
                 raise ValueError("Host loopback proxy is unreachable; check the sandbox proxy") from error
         process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), str(path)],
                                    stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL, start_new_session=True)
+                                   stderr=subprocess.DEVNULL, start_new_session=True, env=env)
         _CHILDREN[owner] = process
         process.stdin.write(json.dumps({"config": config, "ports": ports}).encode())
         process.stdin.close()
@@ -139,6 +169,10 @@ class Relay(socketserver.ThreadingTCPServer):
 
 class Forward(socketserver.BaseRequestHandler):
     def handle(self):
+        # Check before even opening the trusted loopback upstream. Docker's
+        # labels and live addresses are the authority, not a client-supplied ID.
+        if not source_allowed(self.client_address[0], self.server.owner):
+            return
         try:
             with socket.create_connection(self.server.target, timeout=10) as upstream:
                 upstream.settimeout(None)
@@ -170,6 +204,7 @@ def serve(path):
         for index, target in enumerate(state["config"]["targets"]):
             server = stack.enter_context(Relay((state["config"]["bind"], state["ports"][index]), Forward))
             server.target = tuple(target)
+            server.owner = state["config"]["owner"]
             state["ports"][index] = server.server_address[1]
             threading.Thread(target=server.serve_forever, daemon=True).start()
         server = stack.enter_context(socketserver.TCPServer(("127.0.0.1", 0), Control))
