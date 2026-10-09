@@ -14,9 +14,12 @@ RUN bash /tmp/install-php && rm /tmp/install-php
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 COPY images/shared/php-tools-composer.json /opt/xorder/php-tools/composer.json
 COPY images/shared/php-tools-composer.lock /opt/xorder/php-tools/composer.lock
+COPY images/shared/package-phpstan.py /tmp/package-phpstan.py
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir=/opt/xorder/php-tools \
     --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins --no-cache \
-    && composer check-platform-reqs --working-dir=/opt/xorder/php-tools
+    && composer check-platform-reqs --working-dir=/opt/xorder/php-tools \
+    && python3 /tmp/package-phpstan.py /opt/xorder/php-tools \
+    && rm /tmp/package-phpstan.py
 ARG SYMFONY_URL
 ARG SYMFONY_SHA256
 COPY images/shared/install-symfony.sh /tmp/install-symfony

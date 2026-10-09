@@ -1,0 +1,7 @@
+includes:
+    - /opt/xorder/php-tools/vendor/phpstan/phpstan-symfony/extension.neon
+    - /opt/xorder/php-tools/vendor/phpstan/phpstan-phpunit/extension.neon
+
+parameters:
+    bootstrapFiles:
+        - phpstan-packaging-check.php
