@@ -337,7 +337,7 @@ def affected(changed, defs):
             families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev"}
         elif path.startswith("tests/fixtures/frankenphp/"):
             families = {"php-frankenphp", "flowbite-xor-dev"}
-        elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
+        elif path == "examples/shared/network.py" or path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
             families = {"flowbite-xor-dev"}
         elif path.startswith("tests/fixtures/trust/"):
             result.update(defs)

@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import socket
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,20 +96,50 @@ class ProfileOrchestrationTests(unittest.TestCase):
         self.commands = self.directory / "commands.jsonl"
         self.docker = self.directory / "docker"
         self.docker.write_text('''#!/usr/bin/env python3
-import json, os, pathlib, sys
+import hashlib, json, os, pathlib, sys
 args = sys.argv[1:]
-record = {"args": args, "env": {key: os.environ.get(key) for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT"]}}
+statefile = pathlib.Path(os.environ["MOCK_STATE"])
+state = json.loads(statefile.read_text()) if statefile.exists() else {"containers": [], "node": False, "generation": 0}
+keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE"]
+record = {"args": args, "env": {key: os.environ.get(key) for key in keys}}
 positions = [i for i, arg in enumerate(args) if arg == "-f"]
 if len(positions) == 4:
     record["overlay"] = json.loads(pathlib.Path(args[positions[-1] + 1]).read_text())
 with open(os.environ["COMMANDS"], "a") as output:
     output.write(json.dumps(record) + "\\n")
-if "up" in args and os.environ.get("MOCK_UP_FAIL") == "1":
-    sys.exit(1)
+if args[0] == "info":
+    sys.exit(1 if os.environ.get("MOCK_DAEMON_FAIL") == "1" else 0)
+if args[0] == "ps":
+    project = args[-1].rsplit("=", 1)[1]
+    print("\\n".join(c["Id"] for c in state["containers"] if c["Config"]["Labels"]["com.docker.compose.project"] == project))
+elif args[0] == "inspect":
+    print(json.dumps([c for c in state["containers"] if c["Id"] in args[1:]]))
+elif args[0] == "exec":
+    sys.exit(22 if os.environ.get("MOCK_APP_FAIL") == "1" else 0)
+elif "config" in args:
+    print(json.dumps(record["env"], sort_keys=True))
+elif "up" in args:
+    if os.environ.get("MOCK_UP_FAIL") == "1": sys.exit(1)
+    if state.get("inputs") != os.environ.get("XORDER_INPUT_FINGERPRINT") or not state["containers"]:
+        state["generation"] += 1
+    state["inputs"] = os.environ.get("XORDER_INPUT_FINGERPRINT")
+    state["containers"] = [{"Id": service + str(state["generation"]), "Config": {"Labels": {"com.docker.compose.project": os.environ["FLOWBITE_PROJECT"], "com.docker.compose.service": service, "dev.xorder.workspace": os.environ["WORKSPACE"]}}, "State": {"Running": True, "Status": "running", "Health": {"Status": "healthy"}}, "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": os.environ["HTTP_PORT"]}], "443/tcp": [{"HostPort": os.environ["HTTPS_PORT"]}], "443/udp": [{"HostPort": os.environ["HTTP3_PORT"]}]}}} for service in ("php", "browser")]
+elif "exec" in args:
+    if args[-1] == "verify":
+        if not state["node"]: sys.exit(1)
+        print("node-ready")
+    elif args[-1] == "record":
+        state["node"] = True
+        print("node-ready")
+    elif args[-1] == "var/xorder/composer-ready":
+        print("composer-ready")
+    elif "curl" in args:
+        if os.environ.get("MOCK_APP_FAIL") == "1": sys.exit(22)
+statefile.write_text(json.dumps(state))
 ''')
         self.docker.chmod(0o755)
         self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT")}
-        self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), XDG_CACHE_HOME=str(self.directory / "cache"))
+        self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), MOCK_STATE=str(self.directory / "state.json"), XDG_CACHE_HOME=str(self.directory / "cache"))
 
     def run_profile(self, *arguments, **environment):
         result = subprocess.run(["bash", str(ROOT / "examples/flowbite-xor/run.sh"), *arguments],
@@ -137,7 +168,7 @@ if "up" in args and os.environ.get("MOCK_UP_FAIL") == "1":
         cache = self.directory / "Composer cache"
         cache.mkdir()
         self.assertEqual(self.run_profile("up", COMPOSER_CACHE_DIR=str(cache), PUID="0", PGID="0").returncode, 0)
-        mount = self.calls[0]["overlay"]["services"]["php"]["volumes"][0]
+        mount = next(call["overlay"] for call in self.calls if "overlay" in call)["services"]["php"]["volumes"][0]
         self.assertEqual(mount["target"], "/run/composer-cache")
         self.assertFalse(mount["bind"]["create_host_path"])
         self.assertEqual(self.calls[0]["env"]["PUID"], "0")
@@ -147,23 +178,108 @@ if "up" in args and os.environ.get("MOCK_UP_FAIL") == "1":
 
     def test_up_prepares_dependencies_then_test_cache_then_served_page(self):
         self.assertEqual(self.run_profile("up").returncode, 0)
-        args = [call["args"] for call in self.calls]
-        self.assertIn("--wait", args[0])
-        self.assertIn("--prepare", args[1])
-        self.assertEqual(args[2][-3:], ["php", "npm", "ci"])
-        self.assertEqual(args[3][-3:], ["bin/console", "cache:warmup", "--env=test"])
-        self.assertEqual(args[4][-1], "https://localhost/")
+        args = [call["args"] for call in self.calls if call["args"][0] == "compose"]
+        start = next(i for i, arguments in enumerate(args) if "up" in arguments)
+        self.assertIn("--wait", args[start])
+        self.assertIn("--prepare", args[start + 1])
+        npm = next(i for i, arguments in enumerate(args) if arguments[-3:] == ["php", "npm", "ci"])
+        warmup = next(i for i, arguments in enumerate(args) if "cache:warmup" in arguments)
+        page = next(i for i, arguments in enumerate(args) if "curl" in arguments)
+        self.assertLess(start, npm)
+        self.assertLess(npm, warmup)
+        self.assertLess(warmup, page)
+        self.assertEqual(args[page][-1], "https://localhost/")
         self.assertTrue(all(call["env"]["PLAYWRIGHT_VERSION"] == "1.58.2" for call in self.calls))
-        self.assertFalse(any("run" == args[0] for args in args))
+        self.assertFalse(any(arguments[0] == "run" for arguments in args))
 
     def test_failed_start_stops_setup_and_does_not_run_npm(self):
         self.assertEqual(self.run_profile("up", MOCK_UP_FAIL="1").returncode, 1)
-        self.assertEqual(len(self.calls), 1)
+        self.assertFalse(any("exec" in call["args"] for call in self.calls))
 
     def test_inexact_browser_pin_is_rejected_before_docker(self):
         (self.workspace / "package.json").write_text(json.dumps({"devDependencies": {"@playwright/test": "^1.58.2"}}))
         self.assertEqual(self.run_profile("up").returncode, 64)
         self.assertEqual(self.calls, [])
+
+    def test_repeated_up_reconciles_compose_and_reuses_verified_setup(self):
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        self.commands.unlink()
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        self.assertTrue(any("up" in call["args"] for call in self.calls))
+        self.assertTrue(any("--prepare" in call["args"] for call in self.calls))
+        self.assertTrue(any("verify" == call["args"][-1] for call in self.calls))
+        self.assertFalse(any(call["args"][-2:] == ["npm", "ci"] or "cache:warmup" in call["args"] for call in self.calls))
+        self.assertTrue(any("curl" in call["args"] for call in self.calls))
+
+    def test_source_or_configuration_change_invalidates_setup_receipt(self):
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        (self.workspace / "demo/config.yaml").write_text("changed: true\n")
+        self.commands.unlink()
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        self.assertTrue(any("cache:warmup" in call["args"] for call in self.calls))
+        self.commands.unlink()
+        self.assertEqual(self.run_profile("up", HTTPS_PROXY="http://remote-proxy:3128").returncode, 0)
+        self.assertTrue(any("cache:warmup" in call["args"] for call in self.calls))
+
+    def test_stable_names_slot_ports_and_explicit_overrides(self):
+        self.assertEqual(self.run_profile("--slot", "2", "exec", "true").returncode, 0)
+        first = self.calls[-1]
+        self.assertEqual(first["env"]["HTTP_PORT"], "20004")
+        self.assertEqual(first["env"]["HTTPS_PORT"], "20005")
+        self.assertEqual(first["env"]["HTTP3_PORT"], "20005")
+        project = first["env"]["FLOWBITE_PROJECT"]
+        self.assertEqual(self.run_profile("exec", "--slot", "3", "true", HTTP_PORT="28001", HTTPS_PORT="28002").returncode, 0)
+        self.assertEqual(self.calls[-1]["env"]["FLOWBITE_PROJECT"], project)
+        self.assertEqual(self.calls[-1]["env"]["HTTP_PORT"], "28001")
+        self.assertEqual(self.calls[-1]["env"]["HTTP3_PORT"], "28002")
+        self.assertEqual(self.run_profile("exec", "true", FLOWBITE_PROJECT="explicit-project").returncode, 0)
+        self.assertEqual(self.calls[-1]["env"]["FLOWBITE_PROJECT"], "explicit-project")
+
+    def test_occupied_port_fails_before_compose_up(self):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen()
+            port = listener.getsockname()[1]
+            self.assertEqual(self.run_profile("up", HTTP_PORT=str(port)).returncode, 64)
+        self.assertFalse(any("up" in call["args"] for call in self.calls))
+
+    def test_status_needs_neither_image_nor_lock_and_starts_no_container(self):
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        self.commands.unlink()
+        (self.workspace / "package-lock.json").unlink()
+        result = self.run_profile("status", IMAGE="")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("application: ready", result.stdout)
+        self.assertFalse(any(call["args"][0] in ("compose", "run") for call in self.calls))
+        result = self.run_profile("status", IMAGE="", MOCK_DAEMON_FAIL="1")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("daemon: unavailable", result.stdout)
+        result = self.run_profile("status", IMAGE="", MOCK_APP_FAIL="1")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("application: not ready", result.stdout)
+
+    def test_absent_status_and_existing_project_owner_conflict(self):
+        self.assertEqual(self.run_profile("status", IMAGE="").returncode, 1)
+        self.assertEqual(self.run_profile("up", FLOWBITE_PROJECT="shared").returncode, 0)
+        statepath = self.directory / "state.json"
+        state = json.loads(statepath.read_text())
+        state["containers"][0]["Config"]["Labels"]["dev.xorder.workspace"] = "/another/worktree"
+        statepath.write_text(json.dumps(state))
+        self.commands.unlink()
+        result = self.run_profile("up", FLOWBITE_PROJECT="shared")
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("another workspace", result.stderr)
+        self.assertFalse(any("up" in call["args"] for call in self.calls))
+
+    def test_running_unhealthy_browser_is_not_ready(self):
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        statepath = self.directory / "state.json"
+        state = json.loads(statepath.read_text())
+        state["containers"][1]["State"]["Health"]["Status"] = "unhealthy"
+        statepath.write_text(json.dumps(state))
+        result = self.run_profile("status")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("browser: running, health=unhealthy", result.stdout)
 
 
 class StartupBootstrapTests(unittest.TestCase):

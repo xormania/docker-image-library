@@ -37,8 +37,8 @@ From a clone of this library, with an existing flowbite-xor checkout:
 ```sh
 export IMAGE='<verified flowbite-xor-dev digest_reference>'
 export WORKSPACE='/absolute/path/to/flowbite-xor'
-export FLOWBITE_PROJECT='my-flowbite-xor'
 bash examples/flowbite-xor/run.sh up
+bash examples/flowbite-xor/run.sh status
 bash examples/flowbite-xor/run.sh test tests/e2e/lab.calendar.spec.ts
 bash examples/flowbite-xor/run.sh test --shard=2/3
 bash examples/flowbite-xor/run.sh phpunit
@@ -56,9 +56,38 @@ the healthcheck; Caddy metrics alone do not establish app readiness. Set
 The profile preserves the repository's application entrypoint, database wait
 and runtime behavior. Playwright's config builds stale Tailwind CSS before tests. There is no
 host Node dependency. The runner needs Python 3, Docker/Compose and registry/dependency
-access. Default host ports are loopback 8084/8444; override `HTTP_PORT`,
-`HTTPS_PORT` and `HTTP3_PORT` when needed. Use a separate `FLOWBITE_PROJECT` for
-each checkout. `down` preserves caches; `down --volumes` deliberately removes
+access. Project names default to the workspace basename plus a stable path hash.
+Each workspace also gets stable loopback HTTP/HTTPS ports in 20000–49999
+(the HTTPS port is reused for HTTP3/UDP). A hash collision or occupied host port
+is reported before startup; select an explicit slot to resolve it.
+
+```sh
+bash examples/flowbite-xor/run.sh --slot 2 up      # HTTP 20004, HTTPS/HTTP3 20005
+bash examples/flowbite-xor/run.sh --slot 2 status
+bash examples/flowbite-xor/run.sh --slot 2 down
+```
+
+Use the same slot for every command. `FLOWBITE_PROJECT`, `HTTP_PORT`,
+`HTTPS_PORT` and `HTTP3_PORT` override derived values individually. The default
+HTTP3 port follows the selected HTTPS port. Port probes apply to a local Docker
+engine; Compose reports final binding conflicts, including races and remote
+engine conflicts. An explicit project already attached to another checkout is
+rejected. Existing unlabeled profiles are recognized by their `/app` workspace
+bind mount. To retain the previous runner's fixed defaults, explicitly set
+`FLOWBITE_PROJECT=flowbite-xor-library HTTP_PORT=8084 HTTPS_PORT=8444 HTTP3_PORT=8444`. `up` always asks Compose to reconcile configuration and bring stopped services
+back. It verifies retained Composer/npm metadata, then reuses expensive setup
+only when source inputs, effective Compose configuration, installed dependency
+state and container identities match a previous successful run. Source hashing
+uses the checkout's Git ignore rules, so generated recipes/assets do not trigger
+a recreation loop. Changes to source/configuration, CA bytes, image, mounts or
+proxies cause setup to be reconsidered. Readiness is checked again each time.
+The setup receipt is a local cache, not an authority over changed inputs.
+`status` checks Docker, service state/health and a live application request without
+starting containers, reading package locks or requiring `IMAGE`. It exits 0 only
+when both app/browser services are running and healthy and the page responds;
+otherwise it exits 1. Starting Docker itself remains a host responsibility.
+
+`down` preserves caches; `down --volumes` deliberately removes
 this profile's disposable Caddy/home/demo-var volumes.
 
 Xdebug is installed and stays off for the server and ordinary PHPUnit runs.
@@ -82,7 +111,6 @@ For a linked Git worktree, export `WORKTREE_GIT=1` before all runner commands:
 ```sh
 export WORKSPACE='/absolute/path/to/flowbite-worktree'
 export WORKTREE_GIT=1
-export FLOWBITE_PROJECT='my-flowbite-worktree'
 bash examples/flowbite-xor/run.sh up
 bash examples/flowbite-xor/run.sh exec git status
 ```
@@ -90,7 +118,7 @@ bash examples/flowbite-xor/run.sh exec git status
 This option requires host Git and mounts the common repository metadata,
 including the selected worktree's private metadata, read-only at its host path.
 It overlays `/app/.git` with an absolute pointer stored in the host user's
-`$XDG_CACHE_HOME/docker-image-library/worktrees` (default `$HOME/.cache`).
+`$XDG_CACHE_HOME/xorder/worktrees` (default `$HOME/.cache`).
 The checkout's `.git` file is unchanged, including relative pointers. The
 cached pointer survives container restarts. Git reads work inside the container;
 run Git writes such as add/commit on the host. Ordinary checkouts need no option.
@@ -136,10 +164,11 @@ home volume. Source preference uses Composer's normal source/dist fallback; it
 requires source-repository access and does not promise success through every
 restricted gateway.
 
-`HTTP_PROXY`, `HTTPS_PROXY`, `http_proxy` and `https_proxy` are forwarded unless
+`HTTP_PROXY`, `HTTPS_PROXY`, their lowercase forms and `ALL_PROXY`/`all_proxy`
+are forwarded unless
 they point at loopback (`localhost`, 127.0.0.0/8, IPv6 `::1`, including mapped
 IPv4 loopback). Host loopback is not reachable in the container. Set
-`PROXY_PASSTHROUGH=0` to disable all four, or `PROXY_PASSTHROUGH=1` to deliberately
+`PROXY_PASSTHROUGH=0` to disable these proxies, or `PROXY_PASSTHROUGH=1` to deliberately
 forward them unchanged. `NO_PROXY`/`no_proxy` remain configurable; readiness
 requests explicitly bypass proxies. Proxy values are not printed in diagnostics.
 

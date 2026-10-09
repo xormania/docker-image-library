@@ -77,6 +77,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
         self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
         self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie"])
+        self.assertEqual(affected(["examples/shared/network.py", "examples/flowbite-xor/runner.py"], defs), ["php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 6)
         self.assertEqual(len(affected([".github/workflows/new-image-check.yml"], defs)), 6)
 
