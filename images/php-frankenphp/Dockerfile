@@ -22,6 +22,11 @@ ARG SYMFONY_URL
 ARG SYMFONY_SHA256
 COPY images/shared/install-symfony.sh /tmp/install-symfony
 RUN bash /tmp/install-symfony && rm /tmp/install-symfony
+ARG INFECTION_URL
+ARG INFECTION_SHA256
+COPY images/shared/install-infection.sh /tmp/install-infection
+RUN bash /tmp/install-infection && rm /tmp/install-infection
+COPY --chmod=755 images/shared/infection.sh /usr/local/bin/infection
 RUN mkdir -p /data /config && chown -R dev:dev /data /config
 COPY images/shared/development.ini /usr/local/etc/php/conf.d/zz-development.ini
 COPY --chmod=755 images/shared/php-coverage.py /usr/local/bin/library-php-coverage

@@ -74,5 +74,6 @@
       ],
       "migration": "Compatible additive update. Select a verified new digest before using library-php-tests; PHPUnit/PHPStan versions and configuration continue to come from the consuming project. Set COVERAGE_DRIVER=xdebug for Xdebug coverage. LIBRARY_CA_FILE accepts either a single certificate or a complete validated PEM bundle."
     }
-  }
+  },
+  "input_fingerprint_version": 2
 }

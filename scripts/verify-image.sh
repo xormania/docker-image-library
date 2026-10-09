@@ -24,6 +24,8 @@ start=$SECONDS
 if [[ "$kind" = php || "$kind" = python ]]; then
   "${compose[@]}" run --rm dev bash run.sh
   if [[ "$kind" = php ]]; then
+    cp -a "$root/tests/fixtures/mutation" "$work/mutation"
+    "${compose[@]}" run --rm -w /workspace/mutation dev bash run.sh
     "${compose[@]}" run --rm dev library-php-coverage xdebug coverage.php xdebug
     "${compose[@]}" run --rm dev library-php-coverage pcov coverage.php pcov
     "${compose[@]}" run --rm -e PHPSTAN_PROJECT=/opt/xorder/php-tools dev \

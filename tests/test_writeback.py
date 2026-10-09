@@ -53,6 +53,12 @@ class RefreshRecoveryTests(unittest.TestCase):
     def upstream(url, **kwargs):
         if url.endswith("stable.txt"):
             return io.BytesIO(b"1.0.0")
+        if url.endswith("/Release"):
+            return io.BytesIO((" " + "c" * 64 + " 123 main/binary-amd64/Packages.xz\n").encode())
+        if "/infection/" in url:
+            return io.BytesIO(json.dumps({"tag_name": "0.35.6", "assets": [{
+                "name": "infection.phar", "digest": "sha256:" + "b" * 64,
+                "browser_download_url": "https://example.test/infection.phar"}]}).encode())
         return io.BytesIO(json.dumps({"tag_name": "v9.9.9", "assets": [{
             "name": "symfony-cli_linux_amd64.tar.gz", "digest": "sha256:" + "a" * 64,
             "browser_download_url": "https://example.test/symfony.tar.gz"}]}).encode())
@@ -135,6 +141,40 @@ class RefreshRecoveryTests(unittest.TestCase):
         self.assertEqual(endpoint, "repos/xormania/docker-image-library/pulls/5")
         self.assertEqual(set(payload), {"title", "body"})
         self.assertIn("\n\n", payload["body"])
+
+    def test_refresh_with_identical_pins_has_no_changes_and_uv_refresh_is_scoped(self):
+        tools = read(self.worker / "images/tools.json")
+        digests = {tools[name]["tag"]: tools[name]["digest"] for name in ("composer", "uv", "node")}
+        for path in (self.worker / "images").glob("*/definition.json"):
+            for line in read(path)["lines"].values():
+                if "tag" in line["base"]:
+                    digests[line["base"]["tag"]] = line["base"]["digest"]
+
+        def unchanged(url, **kwargs):
+            if url.endswith("stable.txt"):
+                name = url.split("/r/")[1].split("/")[0]
+                return io.BytesIO(tools[name + "_version"].encode())
+            name = "infection" if "/infection/" in url else "symfony"
+            pin = tools[name]
+            return io.BytesIO(json.dumps({"tag_name": pin["version"], "assets": [{
+                "name": "infection.phar" if name == "infection" else "symfony-cli_linux_amd64.tar.gz",
+                "digest": "sha256:" + pin["sha256"], "browser_download_url": pin["url"]}]}).encode())
+
+        paths = list((self.worker / "images").glob("*/definition.json")) + [self.worker / "images/tools.json"]
+        before = {path: path.read_bytes() for path in paths}
+        with patch.object(refresh, "ROOT", self.worker), \
+                patch.object(refresh, "resolve", side_effect=lambda tag: {"digest": digests[tag]}), \
+                patch.object(refresh.urllib.request, "urlopen", side_effect=unchanged), \
+                patch.object(refresh, "apt_indexes", return_value=tools["apt_indexes"]):
+            refresh.refresh()
+            self.assertEqual({path: path.read_bytes() for path in paths}, before)
+            digests[tools["uv"]["tag"]] = "sha256:" + "f" * 64
+            refresh.refresh()
+        for path in paths:
+            if path.name == "definition.json" and path.parent.name != "python-dev":
+                self.assertEqual(path.read_bytes(), before[path])
+        python = read(self.worker / "images/python-dev/definition.json")
+        self.assertEqual(python["lines"]["3.14-trixie"]["revision"], "1.0.1")
 
     def test_missing_pr_posts_to_repository_with_explicit_base_and_head(self):
         self.interrupt_after_push()

@@ -57,6 +57,41 @@ coverage; use Xdebug and the project's PHPUnit options when path coverage is
 needed. Extra CLI arguments belong to the individual task; `all` accepts its
 configuration through the environment.
 
+## Prepared mutation testing
+
+The PHP images also supply [Infection 0.35.6](https://github.com/infection/infection/releases/tag/0.35.6).
+Publication downloads its independent PHAR and checks the upstream SHA-256
+recorded in `images/tools.json`. Consumers need no GitHub download to invoke
+`infection`. Its launcher enables Xdebug coverage only for that invocation and
+its child test processes; PCOV stays disabled, and existing workers keep their
+configuration. Mutation testing is an explicit task, independent of the `all`
+coverage/PHPStan aggregate.
+
+The consuming project owns its Infection configuration, source directories,
+PHPUnit installation and score policy. For a kit with PHPUnit under `demo/`, an
+`infection.json` in the kit root can explicitly select both kit and recipe PHP:
+
+```json
+{
+  "source": {"directories": ["src", "recipes"]},
+  "phpUnit": {"configDir": "demo", "customPath": "demo/vendor/bin/phpunit"},
+  "bootstrap": "demo/vendor/autoload.php",
+  "logs": {"summaryJson": "demo/var/mutation-summary.json"}
+}
+```
+
+```sh
+infection --configuration=infection.json --threads=2 --no-progress --no-interaction
+```
+
+Source paths and exclusions follow [Infection's configuration contract](https://infection.github.io/guide/usage.html).
+The PHPUnit coverage filter must include those recipe paths too. Supply score
+thresholds explicitly when establishing a gate; a report can first show which
+mutants escape. The image fixture uses its own pinned PHPUnit 13.4.1 dependency
+closure and proves that a boundary assertion kills a comparison mutant while a
+type-only assertion lets it escape. It runs the installed PHAR, checks its JSON
+results and preserves the fixture lock.
+
 ## Optional prepared PHPStan
 
 The image also prepares PHPStan 2.3.0, its Symfony extension 2.1.0 and its PHPUnit

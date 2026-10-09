@@ -48,4 +48,5 @@ Withdrawal changes recommendations; it does not itself remove registry artifacts
 New language minor/OS lines have separate names and independent revisions.
 A php-dev artifact change must allocate a new revision for its derived browser
 line. Unrelated Rust/Python lines need not change. Shared installed-tool changes
-affect all profiles; weekly refreshes intentionally allocate fresh patch builds.
+affect their actual consumers; weekly refreshes allocate fresh patches only when
+resolved tool/base inputs or tracked Debian package-index contents change.

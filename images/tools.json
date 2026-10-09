@@ -25,5 +25,15 @@
     "url": "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64",
     "sha256": "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a"
   },
-  "pcov_version": "1.0.12"
+  "pcov_version": "1.0.12",
+  "infection": {
+    "version": "0.35.6",
+    "url": "https://github.com/infection/infection/releases/download/0.35.6/infection.phar",
+    "sha256": "3fd4216875260b8e47c48ec1a92473f500d88bd36d8ffec21cc0d24e18d7f0ea"
+  },
+  "apt_indexes": {
+    "https://deb.debian.org/debian/dists/trixie/Release": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+    "https://deb.debian.org/debian/dists/trixie-updates/Release": "10012cb384dc2613586d7b3d391d92a5637c9faa36017239739f2a6109a0d45f",
+    "https://security.debian.org/debian-security/dists/trixie-security/Release": "5cf72f9c534b27dd9fb350b7d4c31b05a82dea2abcfed19a08097bf8d7e8f847"
+  }
 }

@@ -56,5 +56,6 @@
       ],
       "migration": "Compatible source refresh. Existing exact pins remain valid; select this revision only after its normal publication and verification."
     }
-  }
+  },
+  "input_fingerprint_version": 2
 }

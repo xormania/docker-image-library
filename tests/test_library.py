@@ -82,7 +82,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(affected(["tests/fixtures/php/composer.lock"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(affected(["tests/fixtures/python/uv.lock"], defs), ["python-dev/3.14-trixie"])
         self.assertEqual(affected(["tests/fixtures/rust/Cargo.lock"], defs), ["rust-dev/1.99-trixie"])
-        self.assertEqual(affected(["images/tools.json"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie", "python-dev/3.14-trixie"])
+        self.assertEqual(len(affected(["images/tools.json"], defs)), 6)
         self.assertEqual(affected(["examples/flowbite-xor/runner.py"], defs), ["php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(affected(["examples/shared/network.py"], defs), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
         self.assertEqual(len(affected(["scripts/new-build-helper.py"], defs)), 6)
@@ -103,6 +103,40 @@ class DiscoveryTests(unittest.TestCase):
             self.assertNotEqual(before["python-dev/3.14-trixie"], after["python-dev/3.14-trixie"])
             for line in ("php-dev/8.4-trixie", "php-browser/8.4-trixie", "rust-dev/1.99-trixie"):
                 self.assertEqual(before[line], after[line])
+
+    def test_shared_php_inputs_leave_other_images_and_their_caches_unchanged(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shutil.copytree(ROOT / "images", root / "images")
+            defs = definitions(root)
+            before = {line: fingerprint(d, root) for line, d in defs.items()}
+            for name in ("php-tests.py", "install-infection.sh"):
+                path = root / "images/shared" / name
+                path.write_text(path.read_text() + "\n# PHP-only update\n")
+            changed = {line for line, d in defs.items() if fingerprint(d, root) != before[line]}
+            self.assertEqual(changed, {"php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"})
+            self.assertEqual(affected(["images/shared/php-tests.py"], definitions()), sorted(changed))
+
+    def test_tool_refresh_selects_only_changed_pins_consumers(self):
+        current = json.loads((ROOT / "images/tools.json").read_text())
+        previous = copy.deepcopy(current)
+        self.assertEqual(affected(["images/tools.json"], definitions(), previous), [])
+        previous["uv"]["digest"] = "sha256:" + "0" * 64
+        self.assertEqual(affected(["images/tools.json"], definitions(), previous), ["python-dev/3.14-trixie"])
+        previous = copy.deepcopy(current)
+        previous["infection"]["sha256"] = "0" * 64
+        self.assertEqual(affected(["images/tools.json"], definitions(), previous), ["php-dev/8.4-trixie", "php-dev/8.5-trixie", "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie"])
+
+    def test_accepted_unchanged_artifact_reuses_its_digest_and_rejects_stale_input(self):
+        import build
+        d = definitions()["php-dev/8.4-trixie"]
+        accepted = record(d["line_id"], d["revision"])
+        accepted["input_fingerprint"] = fingerprint(d)
+        with patch.object(build, "records", return_value=[accepted]):
+            self.assertEqual(build.reusable_artifact(d["line_id"]), accepted["publication"]["repository"] + "@" + accepted["publication"]["digest"])
+            accepted["input_fingerprint"] = "0" * 64
+            self.assertIsNone(build.reusable_artifact(d["line_id"]))
 
     def test_toolkit_selection_requires_prepared_dependencies_and_verified_release(self):
         requirements = {"runtime_line": "8.5", "capabilities": ["ux-toolkit-validation", "symfony-toolkit-baseline"]}

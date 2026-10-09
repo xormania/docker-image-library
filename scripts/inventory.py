@@ -28,6 +28,7 @@ if family.startswith("php") or family == "flowbite-xor-dev":
     commands.update({"library-php-coverage": ["library-php-coverage", "--version"],
                      "library-php-tests": ["library-php-tests", "--version"],
                      "phpstan-isolated": ["php", "/opt/xorder/php-tools/vendor/bin/phpstan", "--version"]})
+    commands["infection"] = ["infection", "--version"]
     if family == "php-browser":
         commands.update({"chromium": ["chromium", "--version"], "chromedriver": ["chromedriver", "--version"]})
     if family in ("php-frankenphp", "flowbite-xor-dev"):

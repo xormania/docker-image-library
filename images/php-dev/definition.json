@@ -9,7 +9,8 @@
     "xdebug",
     "pcov",
     "php-testing",
-    "phpstan-isolated"
+    "phpstan-isolated",
+    "mutation-testing"
   ],
   "extensions": [
     "intl",
@@ -48,7 +49,8 @@
     "rg",
     "psql",
     "library-php-coverage",
-    "library-php-tests"
+    "library-php-tests",
+    "infection"
   ],
   "execution": {
     "workspace": "/workspace",
@@ -78,6 +80,7 @@
         "digest": "sha256:1d2cf2b7d715b5b3aa959f0150ccbcc7b71e0181b637e443abf40a7fb56bf79a"
       },
       "changes": [
+        "Add checksum-pinned Infection 0.35.6 with per-process Xdebug and project-owned PHPUnit/configuration.",
         "Add opt-in PCOV coverage and reusable lock-owned PHPUnit/PHPStan tasks while retaining Xdebug coverage and default-disabled coverage hooks.",
         "Prepare an explicitly selected isolated PHPStan 2.3.0 with Symfony/PHPUnit extensions from a separate Composer lock.",
         "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
@@ -96,11 +99,13 @@
         "digest": "sha256:01a109229f4465bc9ef042d9198f09a4d9da7775a825dbd8572dcdbd8756c4d3"
       },
       "changes": [
+        "Add checksum-pinned Infection 0.35.6 with per-process Xdebug and project-owned PHPUnit/configuration.",
         "Add opt-in PCOV coverage and reusable lock-owned PHPUnit/PHPStan tasks while retaining Xdebug coverage and default-disabled coverage hooks.",
         "Prepare an explicitly selected isolated PHPStan 2.3.0 with Symfony/PHPUnit extensions from a separate Composer lock.",
         "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
       ],
       "migration": "Compatible additive update. Select a verified new digest before using library-php-tests; PHPUnit/PHPStan versions and configuration continue to come from the consuming project. Set COVERAGE_DRIVER=xdebug for Xdebug coverage. LIBRARY_CA_FILE accepts either a single certificate or a complete validated PEM bundle."
     }
-  }
+  },
+  "input_fingerprint_version": 2
 }
