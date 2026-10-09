@@ -130,6 +130,13 @@ allocate the proposed revision from current master, preserving a pending
 refresh's revision instead of incrementing it again, and use ordinary pushes.
 `python3 scripts/writeback.py --refresh` performs that complete refresh flow.
 
+If another catalog PR has landed since an automation branch was created,
+writeback merges the authored inputs and release ledger first, then regenerates
+conflicting catalog/documentation outputs. README prose is merged with its two
+generated tables removed, and those tables are rebuilt from the combined ledger.
+Conflicting release identities, authored files or README prose stop for manual
+recovery. The branch keeps its existing history and uses an ordinary push.
+
 The candidate tag includes full source SHA and revision. A different-input retry
 of a persisted revision fails, requiring a new revision. An exact tag without
 its durable record is ambiguous and requires recovery, not a silent rebuild.

@@ -11,7 +11,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from library import ROOT, read
+from library import ROOT, read, encoded, generated
+from test_library import record
 import refresh
 import writeback
 
@@ -185,6 +186,77 @@ class RefreshRecoveryTests(unittest.TestCase):
         self.assertEqual(payload["base"], "master")
         self.assertEqual(payload["head"], self.branch)
         self.assertIn("Approve workflows to run", payload["body"])
+
+    def add_catalog_record(self, line, digest):
+        item = record(line, "9.0.0", digest)
+        if line.startswith("rust-dev/"):
+            item["platforms"][0]["inventory"]["rust_targets"] = ["wasm32-unknown-unknown"]
+        path = self.seed / "release-records" / line / "9.0.0.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(encoded(item))
+        for path, content in generated(self.seed).items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+
+    def prepare_catalog_conflict(self, authored=None):
+        self.branch = "automation/catalog-42"
+        self.git(self.seed, "checkout", "-b", self.branch)
+        self.add_catalog_record("python-dev/3.14-trixie", "d")
+        if authored:
+            path, content = authored
+            (self.seed / path).write_text(content + " from automation\n")
+        self.git(self.seed, "add", ".")
+        self.git(self.seed, "commit", "-m", "Pending Python catalog")
+        original = self.git(self.seed, "rev-parse", "HEAD")
+        self.git(self.seed, "push", "origin", self.branch)
+        self.git(self.seed, "checkout", "master")
+        self.add_catalog_record("rust-dev/1.99-trixie", "e")
+        if authored:
+            path, content = authored
+            (self.seed / path).write_text(content + " from master\n")
+        else:
+            readme = self.seed / "README.md"
+            readme.write_text(readme.read_text() + "\nAuthored master prose is preserved.\n")
+        self.git(self.seed, "add", ".")
+        self.git(self.seed, "commit", "-m", "Accepted Rust catalog")
+        self.git(self.seed, "push", "origin", "master")
+        self.git(self.worker, "config", "user.name", "Fixture")
+        self.git(self.worker, "config", "user.email", "fixture@example.test")
+        return original
+
+    def recover_catalog_branch(self):
+        def run(*args, **kwargs):
+            return subprocess.run(args, cwd=self.worker, check=True, capture_output=True, **kwargs)
+        with patch.object(writeback, "ROOT", self.worker), patch.object(writeback, "run", side_effect=run):
+            writeback.prepare_branch(self.branch)
+
+    def test_catalog_conflicts_regenerate_both_releases_and_preserve_authored_prose(self):
+        original = self.prepare_catalog_conflict()
+        self.recover_catalog_branch()
+        self.assertEqual(self.git(self.worker, "diff", "--name-only", "--diff-filter=U"), "")
+        self.git(self.worker, "merge-base", "--is-ancestor", original, "HEAD")
+        self.assertIn("Authored master prose is preserved.", (self.worker / "README.md").read_text())
+        for path, content in generated(self.worker).items():
+            self.assertEqual(path.read_text(), content)
+        current = read(self.worker / "catalog.json")
+        proposed = {(item["line_id"], item["version"]) for item in current["images"]}
+        self.assertIn(("python-dev/3.14-trixie", "9.0.0"), proposed)
+        self.assertIn(("rust-dev/1.99-trixie", "9.0.0"), proposed)
+        self.git(self.worker, "push", "origin", self.branch)
+
+    def test_authored_file_conflict_is_left_for_manual_recovery(self):
+        self.prepare_catalog_conflict(("docs/usage.md", "Conflicting authored usage"))
+        with self.assertRaisesRegex(RuntimeError, "Authored files.*docs/usage.md"):
+            self.recover_catalog_branch()
+        self.assertIn("docs/usage.md", self.git(self.worker, "diff", "--name-only", "--diff-filter=U"))
+
+    def test_authored_readme_conflict_is_not_hidden_by_table_regeneration(self):
+        # Keep valid generator markers while changing the same prose line.
+        original = (self.seed / "README.md").read_text()
+        self.prepare_catalog_conflict(("README.md", original.replace("# xorder", "# Conflicting heading", 1)))
+        with self.assertRaisesRegex(RuntimeError, "Authored README prose"):
+            self.recover_catalog_branch()
+        self.assertIn("README.md", self.git(self.worker, "diff", "--name-only", "--diff-filter=U"))
 
 
 if __name__ == "__main__":

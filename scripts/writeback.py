@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 from urllib.error import URLError
 from pathlib import Path
@@ -23,13 +24,59 @@ def output(*args):
     return subprocess.check_output(args, cwd=ROOT, text=True)
 
 
+def authored_readme(text):
+    """Remove only the two generator-owned tables before merging prose."""
+    for section in ("catalog", "resources"):
+        pattern = rf"(?s)(<!-- {section}:start -->\n).*?(\n<!-- {section}:end -->)"
+        text, count = re.subn(pattern, lambda match: match[1] + match[2], text)
+        if count != 1:
+            raise RuntimeError(f"README needs manual recovery: expected one {section} section")
+    return text
+
+
+def recover_generated_conflicts():
+    conflicts = output("git", "diff", "--name-only", "--diff-filter=U").splitlines()
+    if not conflicts:
+        raise RuntimeError("Master merge failed without generated-file conflicts; inspect the Git failure")
+    try:
+        owned = {str(path.relative_to(ROOT)) for path in generated(ROOT)}
+    except (ValueError, AssertionError) as error:
+        raise RuntimeError("Release inputs need manual conflict recovery: " + ", ".join(conflicts)) from error
+    authored = sorted(set(conflicts) - owned)
+    if authored:
+        raise RuntimeError("Authored files need manual conflict recovery: " + ", ".join(authored))
+    if "README.md" in conflicts:
+        with tempfile.TemporaryDirectory(prefix="xorder-readme-merge-") as temporary:
+            versions = []
+            for stage in (2, 1, 3):  # automation branch, merge base, current master
+                path = Path(temporary) / str(stage)
+                path.write_text(authored_readme(output("git", "show", f":{stage}:README.md")))
+                versions.append(str(path))
+            merged = subprocess.run(["git", "merge-file", "-p", *versions], cwd=ROOT,
+                                    capture_output=True, text=True)
+            if merged.returncode:
+                raise RuntimeError("Authored README prose needs manual conflict recovery")
+            (ROOT / "README.md").write_text(merged.stdout)
+    # The ledger and authored inputs have merged cleanly. Regenerate their views,
+    # including the README tables, rather than selecting either stale snapshot.
+    outputs = generated(ROOT)
+    for path, content in outputs.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+    run("git", "add", "--", *(str(path.relative_to(ROOT)) for path in outputs))
+    run("git", "commit", "--no-edit")
+
+
 def prepare_branch(branch):
     run("git", "fetch", "origin", "master")
     exists = output("git", "ls-remote", "--heads", "origin", branch).strip()
     if exists:
         run("git", "fetch", "origin", branch)
         run("git", "checkout", "-B", branch, "FETCH_HEAD")
-        run("git", "merge", "origin/master", "--no-edit")
+        try:
+            run("git", "merge", "origin/master", "--no-edit")
+        except subprocess.CalledProcessError:
+            recover_generated_conflicts()
     else:
         run("git", "checkout", "-b", branch, "origin/master")
 
