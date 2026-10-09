@@ -2,6 +2,8 @@
 set -euo pipefail
 image=${1:?Supply flowbite-xor-dev image}
 root=$(cd "$(dirname "$0")/../../.." && pwd)
+docker run --rm --mount "type=bind,src=$root,dst=/xorder,readonly" "$image" \
+  bash /xorder/tests/fixtures/flowbite-xor/verify-composer-reuse.sh
 work=$(mktemp -d)
 export IMAGE="$image" WORKSPACE="$work/repo" FLOWBITE_PROJECT="flowbite-check-${RANDOM}-${RANDOM}"
 export HTTP_PORT=18084 HTTPS_PORT=18444 HTTP3_PORT=18444

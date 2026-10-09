@@ -20,6 +20,9 @@ preference=${COMPOSER_INSTALL_PREFERENCE:-dist}
 # A development profile always installs dev requirements and regenerates normal
 # autoloads. Do not silently inherit install flags from a production shell.
 unset COMPOSER_NO_DEV COMPOSER_NO_SCRIPTS
+if [[ $(id -u) = 0 ]]; then
+  export COMPOSER_ALLOW_SUPERUSER=1
+fi
 php /app/tools/sync-demo
 composer validate --no-check-publish --no-interaction
 mkdir -p var/xorder
@@ -32,7 +35,9 @@ if php "$profile/verify-composer.php" verify; then
   if [[ ! -f "$marker" || $(cat "$marker") != "$before" ]]; then
     composer dump-autoload --no-interaction
     # Imported vendor bytes still need the application's own setup hooks.
-    composer run-script --if-defined post-install-cmd --no-interaction
+    if php "$profile/verify-composer.php" has-hook; then
+      composer run-script --no-interaction post-install-cmd
+    fi
   else
     echo 'Reusing verified Composer dependencies and setup'
   fi

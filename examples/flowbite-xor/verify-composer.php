@@ -5,6 +5,9 @@ function readJson(string $path): array {
     return json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
 }
 try {
+    if (($argv[1] ?? '') === 'has-hook') {
+        exit(isset(readJson('composer.json')['scripts']['post-install-cmd']) ? 0 : 1);
+    }
     if (($argv[1] ?? '') === 'fingerprint') {
         $files = ['composer.json', 'composer.lock', 'vendor/autoload.php', 'vendor/autoload_runtime.php'];
         foreach (glob('vendor/composer/*') ?: [] as $file) {
@@ -41,7 +44,8 @@ try {
             throw new RuntimeException("Package directory missing for $name");
         }
         $record = $runtime['versions'][$name] ?? null;
-        $reference = $package['source']['reference'] ?? $package['dist']['reference'] ?? null;
+        $method = $found['installation-source'] ?? 'dist';
+        $reference = $package[$method]['reference'] ?? $package['source']['reference'] ?? $package['dist']['reference'] ?? null;
         if (!is_array($record) || ($record['pretty_version'] ?? null) !== $package['version'] || ($record['reference'] ?? null) !== $reference) {
             throw new RuntimeException("Runtime package metadata differs for $name");
         }

@@ -43,7 +43,7 @@
     "1.99-trixie": {
       "runtime_line": "1.99",
       "os": "debian-trixie",
-      "revision": "1.1.0",
+      "revision": "1.1.1",
       "platforms": [
         "linux/amd64"
       ],
@@ -52,9 +52,9 @@
         "digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273"
       },
       "changes": [
-        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
+        "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
       ],
-      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
+      "migration": "Compatible CA setup fix. Continue using the normal root entrypoint and mount a certificate or PEM bundle read-only through LIBRARY_CA_FILE (CA_CERTIFICATE in wrappers). Existing explicit Composer/Node CA settings and PUID/PGID behavior remain supported. Published pins stay unchanged until deliberately upgraded to a verified release."
     }
   }
 }
