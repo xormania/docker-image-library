@@ -2,13 +2,13 @@
 
 Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.
 
-Available revision: **1.2.0**. Pin:
+Available revision: **1.2.1**. Pin:
 
 ```text
-ghcr.io/xormania/php-dev@sha256:766e2d2ffe1b043160a0fb9d67825982a87948a4b4e13b41a84298014b34f49d
+ghcr.io/xormania/php-dev@sha256:cd670b7c7b9624ce7dc7ee6b7b2a4d5b19ce36d6226f077a417667ae8505e000
 ```
 
-[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:48.646676Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:10:02.569352Z.
 
 ## Measured inventory — linux/amd64
 
@@ -37,17 +37,17 @@ Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filte
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,161.1 MiB (1,217,539,725 bytes) |
-| Build, cache export and image load | 200.90s |
-| Public-artifact behavior and inventory verification | 29.35s |
+| Local image size | 942.2 MiB (987,946,950 bytes) |
+| Build, cache export and image load | 150.05s |
+| Public-artifact behavior and inventory verification | 23.82s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:48.585089Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:10:02.526451Z.
 
-External build cache at start: `empty`. This does not assert that every layer was a cache hit.
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.1.0, `ghcr.io/xormania/php-dev@sha256:53a1728c55ad8059184ef2ccc0bfb5c62e1b97c3cda87f14ae0897e46cf1317d`; 903.5 MiB in the same image store. Change: **+28.5%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:34.043560Z.
+Size baseline: v1.2.0, `ghcr.io/xormania/php-dev@sha256:766e2d2ffe1b043160a0fb9d67825982a87948a4b4e13b41a84298014b34f49d`; 1,161.1 MiB in the same image store. Change: **-18.9%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:48.585089Z.
 
-[Release notes](../releases/php-dev-8.5-trixie-v1.2.0.md).
+[Release notes](../releases/php-dev-8.5-trixie-v1.2.1.md).
 
 Capabilities: `php`, `composer`, `symfony`, `postgresql-client`, `native-build`, `xdebug`, `pcov`, `php-testing`, `phpstan-isolated`, `mutation-testing`.
 
