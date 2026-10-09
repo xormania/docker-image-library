@@ -2,13 +2,13 @@
 
 PHP and Symfony development plus real Chromium and Panther browser tests.
 
-Available revision: **1.2.0**. Pin:
+Available revision: **1.2.1**. Pin:
 
 ```text
-ghcr.io/xormania/php-browser@sha256:f14c53bd6c4c27b54b1415d6913947ec359c28e003d27292ef930d1c9b646464
+ghcr.io/xormania/php-browser@sha256:730e67ff5d712550b7cce91387e9891e13092af05f70ae719f55f4c12f0a7f05
 ```
 
-[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:46:44.138116Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:13:05.960516Z.
 
 ## Measured inventory — linux/amd64
 
@@ -39,17 +39,17 @@ Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filte
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,834.5 MiB (1,923,569,287 bytes) |
-| Build, cache export and image load | 58.51s |
-| Public-artifact behavior and inventory verification | 29.13s |
+| Local image size | 1,615.5 MiB (1,693,972,416 bytes) |
+| Build, cache export and image load | 56.74s |
+| Public-artifact behavior and inventory verification | 28.84s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:46:44.078214Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:13:05.903283Z.
 
-External build cache at start: `empty`. This does not assert that every layer was a cache hit.
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.1.0, `ghcr.io/xormania/php-browser@sha256:ba7a438a054450fe0e8387e233dee829d0c8ed883be5aa76568175ed1607ae82`; 1,576.9 MiB in the same image store. Change: **+16.3%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:20:29.592528Z.
+Size baseline: v1.2.0, `ghcr.io/xormania/php-browser@sha256:f14c53bd6c4c27b54b1415d6913947ec359c28e003d27292ef930d1c9b646464`; 1,834.5 MiB in the same image store. Change: **-11.9%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:46:44.078214Z.
 
-[Release notes](../releases/php-browser-8.4-trixie-v1.2.0.md).
+[Release notes](../releases/php-browser-8.4-trixie-v1.2.1.md).
 
 Capabilities: `browser`, `composer`, `mutation-testing`, `native-build`, `panther`, `pcov`, `php`, `php-testing`, `phpstan-isolated`, `postgresql-client`, `symfony`, `xdebug`.
 
