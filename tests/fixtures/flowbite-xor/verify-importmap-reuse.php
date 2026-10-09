@@ -17,12 +17,15 @@ function check(bool $condition, string $message): void {
     if (!$condition) { throw new RuntimeException($message); }
 }
 function helper(string $mode, int $expected = 0): void {
-    global $helper;
-    $process = proc_open([PHP_BINARY, $helper, $mode], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+    global $helper, $directory;
+    // ZTS chdir() changes PHP's virtual cwd, not the cwd inherited by children.
+    $process = proc_open([PHP_BINARY, $helper, $mode], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $directory);
+    check(is_resource($process), "Could not start the $mode helper");
     fclose($pipes[0]);
     $output = stream_get_contents($pipes[1]).stream_get_contents($pipes[2]);
     fclose($pipes[1]); fclose($pipes[2]);
-    check(proc_close($process) === $expected, "$mode returned the wrong status: $output");
+    $status = proc_close($process);
+    check($status === $expected, "$mode returned status $status, expected $expected: $output");
 }
 $resolver = new class implements PackageResolverInterface {
     public int $requests = 0;

@@ -366,6 +366,7 @@ class ResourcePublicationTests(unittest.TestCase):
                 patch.object(writeback, "run", side_effect=lambda *args: subprocess.run(args, cwd=self.repo, check=True, capture_output=True)), \
                 patch.object(writeback, "download", side_effect=self.transfer), \
                 patch.object(writeback, "upsert_pr") as pr, \
+                patch.object(writeback, "source_prs", return_value={}), \
                 patch.dict(os.environ, {"GITHUB_REPOSITORY": "xormania/xorder", "GITHUB_RUN_ID": "43"}), \
                 patch("sys.stdout", diagnostics):
             writeback.main()

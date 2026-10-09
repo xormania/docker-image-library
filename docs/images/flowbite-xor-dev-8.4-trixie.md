@@ -2,13 +2,13 @@
 
 FrankenPHP/PHP 8.4 or 8.5 plus Node 22 and a pinned Tailwind CLI for flowbite-xor development and Playwright orchestration.
 
-Available revision: **1.1.0**. Pin:
+Available revision: **1.1.1**. Pin:
 
 ```text
-ghcr.io/xormania/flowbite-xor-dev@sha256:68979e1105bdadb6a3a784a8944f86ffe8f54f0e8d475dc2bbea0c18a00b2cca
+ghcr.io/xormania/flowbite-xor-dev@sha256:19a3edd4ddaefcc024106d593121b3d86d6910cae9ea7ae8c555a8d35f5cfa39
 ```
 
-[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:49:05.884573Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:15:06.534072Z.
 
 ## Measured inventory — linux/amd64
 
@@ -41,17 +41,17 @@ Extensions: `apcu`, `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,426.1 MiB (1,495,325,659 bytes) |
-| Build, cache export and image load | 26.95s |
-| Public-artifact behavior and inventory verification | 108.97s |
+| Local image size | 1,200.1 MiB (1,258,448,044 bytes) |
+| Build, cache export and image load | 26.11s |
+| Public-artifact behavior and inventory verification | 108.55s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:49:05.827746Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:15:06.477167Z.
 
 External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.0.0, `ghcr.io/xormania/flowbite-xor-dev@sha256:39d0dfa2cae629a9bc65e09d3cd44b5e1a3b92b54c55fb111286f4c4e2a4b374`; 1,168.4 MiB in the same image store. Change: **+22.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37852642503); 2026-10-08T22:27:17.513207Z.
+Size baseline: v1.1.0, `ghcr.io/xormania/flowbite-xor-dev@sha256:68979e1105bdadb6a3a784a8944f86ffe8f54f0e8d475dc2bbea0c18a00b2cca`; 1,426.1 MiB in the same image store. Change: **-15.8%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:49:05.827746Z.
 
-[Release notes](../releases/flowbite-xor-dev-8.4-trixie-v1.1.0.md).
+[Release notes](../releases/flowbite-xor-dev-8.4-trixie-v1.1.1.md).
 
 Capabilities: `composer`, `frankenphp`, `mutation-testing`, `native-build`, `node`, `npm`, `pcov`, `php`, `php-testing`, `phpstan-isolated`, `playwright-client`, `postgresql-client`, `symfony`, `tailwind-cli`, `worker-server`, `xdebug`.
 

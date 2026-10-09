@@ -4,6 +4,7 @@ services:
     image: ${IMAGE:?Choose a verified flowbite-xor-dev digest}
     labels:
       dev.xorder.workspace: ${WORKSPACE:?Resolved by run.sh}
+      dev.xorder.proxy-owner: ${XORDER_PROXY_OWNER:?Resolved by run.sh}
     entrypoint: [bash, /run/xorder/startup.sh, --entrypoint]
     command: [frankenphp, run, --config, /etc/frankenphp/Caddyfile, --watch]
     environment:
@@ -12,14 +13,14 @@ services:
       PGID: ${PGID:-1000}
       PHP_INI_SCAN_DIR: ":/usr/local/etc/php/app.conf.d"
       XDEBUG_MODE: ${XDEBUG_MODE:-off}
-      HTTP_PROXY: ${HTTP_PROXY:-}
-      HTTPS_PROXY: ${HTTPS_PROXY:-}
-      http_proxy: ${http_proxy:-}
-      https_proxy: ${https_proxy:-}
-      ALL_PROXY: ${ALL_PROXY:-}
-      all_proxy: ${all_proxy:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,php}
-      no_proxy: ${no_proxy:-localhost,127.0.0.1,php}
+      HTTP_PROXY: ${XORDER_HTTP_PROXY:-}
+      HTTPS_PROXY: ${XORDER_HTTPS_PROXY:-}
+      http_proxy: ${XORDER_http_proxy:-}
+      https_proxy: ${XORDER_https_proxy:-}
+      ALL_PROXY: ${XORDER_ALL_PROXY:-}
+      all_proxy: ${XORDER_all_proxy:-}
+      NO_PROXY: ${XORDER_NO_PROXY:-localhost,127.0.0.1,php}
+      no_proxy: ${XORDER_no_proxy:-localhost,127.0.0.1,php}
       LIBRARY_CA_FILE: ${CONTAINER_CA_FILE:-}
       COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
       COMPOSER_CACHE_DIR: /home/dev/.cache/composer
@@ -49,14 +50,14 @@ services:
     init: true
     shm_size: 1gb
     environment:
-      HTTP_PROXY: ${HTTP_PROXY:-}
-      HTTPS_PROXY: ${HTTPS_PROXY:-}
-      http_proxy: ${http_proxy:-}
-      https_proxy: ${https_proxy:-}
-      ALL_PROXY: ${ALL_PROXY:-}
-      all_proxy: ${all_proxy:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,php}
-      no_proxy: ${no_proxy:-localhost,127.0.0.1,php}
+      HTTP_PROXY: ${XORDER_HTTP_PROXY:-}
+      HTTPS_PROXY: ${XORDER_HTTPS_PROXY:-}
+      http_proxy: ${XORDER_http_proxy:-}
+      https_proxy: ${XORDER_https_proxy:-}
+      ALL_PROXY: ${XORDER_ALL_PROXY:-}
+      all_proxy: ${XORDER_all_proxy:-}
+      NO_PROXY: ${XORDER_NO_PROXY:-localhost,127.0.0.1,php}
+      no_proxy: ${XORDER_no_proxy:-localhost,127.0.0.1,php}
       NODE_EXTRA_CA_CERTS: ${CONTAINER_CA_FILE:-}
     volumes:
       - ${CA_CERTIFICATE:-/dev/null}:/run/library-proxy.pem:ro

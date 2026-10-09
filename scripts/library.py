@@ -332,8 +332,8 @@ def generated(root=ROOT):
 
 def affected(changed, defs, previous_tools=None):
     result = set()
-    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py", "scripts/xorder_cli.py", "scripts/validation_base.py"}
-    metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml"}
+    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py", "scripts/xorder_cli.py", "scripts/validation_base.py", "scripts/catalog_checks.py", "scripts/catalog_summary.py"}
+    metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml", ".github/workflows/catalog.yml"}
     for path in changed:
         families = set()
         if path.startswith(("scripts/xorder/", "artifacts/", "profiles/", "tests/fixtures/devenv/", "tests/fixtures/artifacts/", "examples/resources/", "examples/devenv/")) or path in {
@@ -355,7 +355,7 @@ def affected(changed, defs, previous_tools=None):
             families = {"php-toolkit"}
         elif path.startswith("tests/fixtures/frankenphp/"):
             families = {"php-frankenphp", "flowbite-xor-dev"}
-        elif path == "examples/shared/network.py":
+        elif path.startswith(("examples/shared/", "tests/fixtures/network/")):
             families = {"flowbite-xor-dev", "php-toolkit"}
         elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
             families = {"flowbite-xor-dev"}
