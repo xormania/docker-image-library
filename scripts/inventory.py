@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run inside the tested container; collect facts, not declared capabilities."""
 import json
+import hashlib
 import platform
 import re
 import shlex
@@ -24,6 +25,10 @@ if family.startswith("php") or family == "flowbite-xor-dev":
     runtime = run("php", "-r", "echo PHP_VERSION;")
     extensions = json.loads(run("php", "-r", '$out=[]; foreach(get_loaded_extensions() as $e) {$out[strtolower($e)]=phpversion($e) ?: "bundled";} echo json_encode($out);'))
     commands.update({"php": ["php", "--version"], "composer": ["composer", "--version"], "symfony": ["symfony", "version"]})
+    commands.update({"library-php-coverage": ["library-php-coverage", "--version"],
+                     "library-php-tests": ["library-php-tests", "--version"],
+                     "phpstan-isolated": ["php", "/opt/xorder/php-tools/vendor/bin/phpstan", "--version"]})
+    commands["infection"] = ["infection", "--version"]
     if family == "php-browser":
         commands.update({"chromium": ["chromium", "--version"], "chromedriver": ["chromedriver", "--version"]})
     if family in ("php-frankenphp", "flowbite-xor-dev"):
@@ -51,4 +56,13 @@ result = {"platform": "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}[platfor
           "os": os_release, "packages": run("dpkg-query", "-W", "-f=${Package}=${Version}\\n").splitlines()}
 if family == "rust-dev":
     result["rust_targets"] = run("rustup", "target", "list", "--installed").splitlines()
+if family == "php-toolkit":
+    result["prepared_projects"] = {}
+    for name in ("validator", "symfony-7.4"):
+        project = Path("/opt/xorder/php-toolkit") / name
+        installed = json.loads((project / "vendor/composer/installed.json").read_text())
+        result["prepared_projects"][name] = {
+            "composer_lock_sha256": hashlib.sha256((project / "composer.lock").read_bytes()).hexdigest(),
+            "packages": {package["name"]: package["version"] for package in installed["packages"]},
+        }
 print(json.dumps(result, indent=2, sort_keys=True))

@@ -45,7 +45,7 @@
     "8.4-trixie": {
       "runtime_line": "8.4",
       "os": "debian-trixie",
-      "revision": "1.1.0",
+      "revision": "1.2.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -53,14 +53,15 @@
         "parent": "php-dev/8.4-trixie"
       },
       "changes": [
-        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
+        "Add opt-in PCOV coverage and reusable lock-owned PHPUnit/PHPStan tasks while retaining Xdebug coverage and default-disabled coverage hooks.",
+        "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
       ],
-      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
+      "migration": "Compatible additive update. Select a verified new digest before using library-php-tests; PHPUnit/PHPStan versions and configuration continue to come from the consuming project. Set COVERAGE_DRIVER=xdebug for Xdebug coverage. LIBRARY_CA_FILE accepts either a single certificate or a complete validated PEM bundle."
     },
     "8.5-trixie": {
       "runtime_line": "8.5",
       "os": "debian-trixie",
-      "revision": "1.1.0",
+      "revision": "1.2.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -68,9 +69,11 @@
         "parent": "php-dev/8.5-trixie"
       },
       "changes": [
-        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
+        "Add opt-in PCOV coverage and reusable lock-owned PHPUnit/PHPStan tasks while retaining Xdebug coverage and default-disabled coverage hooks.",
+        "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
       ],
-      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
+      "migration": "Compatible additive update. Select a verified new digest before using library-php-tests; PHPUnit/PHPStan versions and configuration continue to come from the consuming project. Set COVERAGE_DRIVER=xdebug for Xdebug coverage. LIBRARY_CA_FILE accepts either a single certificate or a complete validated PEM bundle."
     }
-  }
+  },
+  "input_fingerprint_version": 2
 }

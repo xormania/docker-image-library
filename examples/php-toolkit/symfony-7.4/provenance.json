@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "upstream_skeleton": {
+    "repository": "https://github.com/symfony/skeleton",
+    "version": "v7.4.99",
+    "commit": "bf1abda299403468285fd4fa0514d916991c9120"
+  },
+  "generated_with": {
+    "php": "8.5.8",
+    "composer": "2.10.3"
+  },
+  "toolkit": "3.5.1",
+  "framework_bundles": "7.4.* locked in composer.lock",
+  "recipes": "Exact upstream recipe references retained in symfony.lock",
+  "scope": "Source-only baseline; no vendor, generated kit recipes, application controllers, or cache"
+}

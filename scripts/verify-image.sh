@@ -6,7 +6,7 @@ image=${2:?Supply image reference}
 root=$(cd "$(dirname "$0")/.." && pwd)
 family=${line%%/*}
 kind=${family%-dev}
-case "$family" in php-browser|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
+case "$family" in php-browser|php-toolkit|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
 work=$(mktemp -d)
 project="image-check-${RANDOM}-${RANDOM}"
 cp -a "$root/tests/fixtures/$kind/." "$work/"
@@ -24,7 +24,14 @@ start=$SECONDS
 if [[ "$kind" = php || "$kind" = python ]]; then
   "${compose[@]}" run --rm dev bash run.sh
   if [[ "$kind" = php ]]; then
-    "${compose[@]}" run --rm -e XDEBUG_MODE=coverage dev php coverage.php
+    cp -a "$root/tests/fixtures/mutation" "$work/mutation"
+    "${compose[@]}" run --rm -w /workspace/mutation dev bash run.sh
+    "${compose[@]}" run --rm dev library-php-coverage xdebug coverage.php xdebug
+    "${compose[@]}" run --rm dev library-php-coverage pcov coverage.php pcov
+    "${compose[@]}" run --rm -e PHPSTAN_PROJECT=/opt/xorder/php-tools dev \
+      library-php-tests phpstan --level=max /workspace/coverage-subject.php
+    # Per-process PCOV activation must not rewrite the next app process's ini.
+    "${compose[@]}" run --rm dev php -r 'if (!extension_loaded("xdebug") || ini_get("pcov.enabled")) {exit(1);}'
   fi
   test "$(stat -c %u "$work/workspace-proof.txt")" = "$PUID"
   # Cache persists between invocations, independently of service process lifetime.
@@ -40,5 +47,8 @@ WORKSPACE="$work" CACHE_VOLUME="$project-cache" bash "$root/scripts/run-image.sh
 bash "$root/tests/fixtures/trust/run.sh" "$image"
 if [[ "$family" = flowbite-xor-dev ]]; then
   bash "$root/tests/fixtures/flowbite-xor/run.sh" "$image"
+fi
+if [[ "$family" = php-toolkit ]]; then
+  IMAGE="$image" TOOLKIT_LOCAL_IMAGE=1 TOOLKIT_REQUIRE_PREPARED=1 bash "$root/tests/fixtures/php-toolkit/run.sh"
 fi
 printf 'Behavioral recipe completed in %ss for %s\n' "$((SECONDS-start))" "$line"

@@ -165,9 +165,15 @@ host. Include service names, localhost and 127.0.0.1 in NO_PROXY for local HTTP
 connections. Host networking policy is not automatically inherited by a Docker
 container. Run the readiness recipe to verify downloads inside the selected image.
 
-For a proxy that signs HTTPS with a private CA, mount **one PEM CA certificate**
-read-only and set `LIBRARY_CA_FILE` to its absolute container path. The root
-entrypoint adds it to Debian's certificate bundle before dropping privileges.
+For a proxy that signs HTTPS with private CAs, mount **a PEM CA certificate or
+multi-certificate PEM bundle** read-only and set `LIBRARY_CA_FILE` to its absolute
+container path. `CA_CERTIFICATE` accepts either format in the wrappers. The root
+entrypoint validates every certificate, splits the bundle into one certificate
+per `.crt` file for Debian's trust updater, and updates system trust before
+dropping privileges. Blank lines and `#` comments between certificates are
+accepted. Empty files, incomplete blocks, unrelated text and invalid certificates
+fail startup before existing trust changes. The private staging directory is
+removed on success or failure.
 Composer, curl and git use the trusted bundle; Node gets `NODE_EXTRA_CA_CERTS`.
 Explicit existing Composer/Node CA settings take precedence.
 
@@ -185,6 +191,11 @@ entrypoint; with an explicit non-root `--user`, use a pre-trusted derivative or
 mount a CA bundle and set the tool's CA option (`COMPOSER_CAFILE`, `CURL_CA_BUNDLE`,
 `GIT_SSL_CAINFO`, `NODE_EXTRA_CA_CERTS`) directly. Keep public roots in that bundle
 when the tool replaces its default trust store. Never disable TLS verification.
+Repeated setup replaces this option's files in
+`/usr/local/share/ca-certificates/library-proxy/`, removes the older
+`library-proxy.crt` layout, and preserves other installed roots. Removing
+certificates from a replacement bundle removes their managed trust on the next
+setup; a startup with no `LIBRARY_CA_FILE` leaves already installed trust alone.
 The Docker host/daemon must separately trust the proxy to pull images: a
 container entrypoint cannot fix a pull that happens before it starts.
 No Docker socket is mounted by these recipes.

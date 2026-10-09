@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "family": "php-toolkit",
+  "purpose": "Isolated Symfony UX Toolkit kit validation and clean locked Symfony 7.4 recipe-install applications, prepared for restricted consumer networks.",
+  "capabilities": [
+    "ux-toolkit-validation",
+    "symfony-toolkit-baseline",
+    "prepared-composer-dependencies"
+  ],
+  "extensions": [],
+  "tools": [],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [],
+  "limitations": [
+    "Prepared validator and baseline dependencies belong to their committed xorder lockfiles, not the consuming application's lockfile.",
+    "The clean baseline is Symfony 7.4 with Symfony UX Toolkit 3.5.1; a different baseline requires an explicitly updated lock and image revision.",
+    "Prepared projects do not select PHPUnit or PHPStan versions for the consuming project. Fresh baselines contain no generated kit recipes or application cache."
+  ],
+  "lines": {
+    "8.4-trixie": {
+      "runtime_line": "8.4",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "parent": "php-dev/8.4-trixie"
+      },
+      "changes": [
+        "Prepare independently locked UX Toolkit validation dependencies and a clean Symfony 7.4 application for recipe-install testing without consumer dependency downloads."
+      ],
+      "migration": "New optional family. Select an accepted catalog digest and use examples/php-toolkit/run.sh; keep each fresh recipe-install application in a new directory."
+    },
+    "8.5-trixie": {
+      "runtime_line": "8.5",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "parent": "php-dev/8.5-trixie"
+      },
+      "changes": [
+        "Prepare independently locked UX Toolkit validation dependencies and a clean Symfony 7.4 application for recipe-install testing without consumer dependency downloads."
+      ],
+      "migration": "New optional family. Select an accepted catalog digest and use examples/php-toolkit/run.sh; keep each fresh recipe-install application in a new directory."
+    }
+  },
+  "input_fingerprint_version": 2
+}

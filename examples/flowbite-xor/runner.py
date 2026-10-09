@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""Local Compose orchestration; dependencies and application hooks stay project-owned."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import subprocess
+import sys
+import tempfile
+
+PROFILE = Path(__file__).resolve().parent
+sys.path.insert(0, str(PROFILE.parent / "shared"))
+from network import sanitize  # noqa: E402
+
+PHP_TEST_ENVIRONMENT = (
+    "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION",
+    "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION",
+    "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS",
+    "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER",
+)
+
+
+def call(arguments, env, capture=False, check=True):
+    return subprocess.run(arguments, env=env, check=check, text=True,
+                          stdout=subprocess.PIPE if capture else None,
+                          stderr=subprocess.PIPE if capture else None)
+
+
+
+
+def playwright(workspace):
+    package = json.loads((workspace / "package.json").read_text())
+    lock = json.loads((workspace / "package-lock.json").read_text())
+    version = lock["packages"]["node_modules/@playwright/test"]["version"]
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version) or package.get("devDependencies", {}).get("@playwright/test") != version:
+        raise ValueError("Pin @playwright/test to the same exact version in package.json and package-lock.json")
+    return version
+
+
+def php_exec(compose, env, *arguments, cwd="/app", capture=False, check=True, forwarded=()):
+    overrides = [argument for key in forwarded if key in env
+                 for argument in ("-e", key + "=" + env[key])]
+    return call([*compose, "exec", "-T", "--user", f'{env["PUID"]}:{env["PGID"]}', "-w", cwd,
+                 *overrides, "php", *arguments], env, capture=capture, check=check)
+
+
+def identity(workspace, env, slot):
+    key = hashlib.sha256(str(workspace).encode()).hexdigest()
+    project = env.get("FLOWBITE_PROJECT") or "flowbite-" + re.sub(r"[^a-z0-9_-]", "-", workspace.name.lower())[:32] + "-" + key[:10]
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", project):
+        raise ValueError("FLOWBITE_PROJECT must start with a lowercase letter/digit and contain lowercase letters, digits, _ or -")
+    selected = int(key[:8], 16) % 5000 if slot is None else slot
+    if not 0 <= selected <= 14999:
+        raise ValueError("--slot must be between 0 and 14999")
+    http = env.get("HTTP_PORT") or str(20000 + 2 * selected)
+    https = env.get("HTTPS_PORT") or str(20001 + 2 * selected)
+    udp = env.get("HTTP3_PORT") or https
+    for port in (http, https, udp):
+        if not port.isdigit() or not 1 <= int(port) <= 65535:
+            raise ValueError("HTTP_PORT, HTTPS_PORT and HTTP3_PORT must be integer ports from 1 to 65535")
+    if http == https:
+        raise ValueError("HTTP_PORT and HTTPS_PORT must differ")
+    return project, http, https, udp, key
+
+
+def containers(project, env):
+    ids = call(["docker", "ps", "-aq", "--filter", "label=com.docker.compose.project=" + project], env, capture=True).stdout.split()
+    return json.loads(call(["docker", "inspect", *ids], env, capture=True).stdout) if ids else []
+
+
+def readiness(container, env):
+    if not container or not container.get("State", {}).get("Running"):
+        return False
+    result = call(["docker", "exec", container["Id"], "curl", "--fail", "--silent", "--show-error", "--insecure", "--noproxy", "*", "--max-time", "5", "https://localhost" + env.get("APP_READY_PATH", "/")], env, capture=True, check=False)
+    return result.returncode == 0
+
+
+def status(project, env):
+    daemon = call(["docker", "info", "--format", "{{json .ServerVersion}}"], env, capture=True, check=False)
+    print("project: " + project)
+    if daemon.returncode:
+        print("daemon: unavailable (start Docker, then run up)")
+        return 1
+    print("daemon: reachable")
+    found = containers(project, env)
+    php = None
+    services = {}
+    for container in found:
+        service = container.get("Config", {}).get("Labels", {}).get("com.docker.compose.service")
+        services[service] = container
+        state = container.get("State", {})
+        if service == "php":
+            php = container
+        health = state.get("Health", {}).get("Status", "unreported")
+        print(f"{service}: {state.get('Status', 'unknown')}, health={health}")
+    for service in ("php", "browser"):
+        if service not in services:
+            print(service + ": absent")
+    ready = readiness(php, env)
+    print("application: " + ("ready" if ready else "not ready"))
+    return 0 if ready and all(services.get(service, {}).get("State", {}).get("Running") and services[service]["State"].get("Health", {}).get("Status") == "healthy" for service in ("php", "browser")) else 1
+
+
+def local_engine(env):
+    # Docker's explicit context overrides DOCKER_HOST. With neither override,
+    # inspect the selected context instead of assuming the default Unix socket.
+    context = env.get("DOCKER_CONTEXT")
+    endpoint = env.get("DOCKER_HOST") if not context else None
+    if not endpoint:
+        arguments = ["docker", "context", "inspect"]
+        if context:
+            arguments.append(context)
+        endpoint = json.loads(call([*arguments, "--format", "{{json .Endpoints.docker.Host}}"], env, capture=True).stdout)
+    return isinstance(endpoint, str) and endpoint.startswith(("unix://", "npipe://"))
+
+
+def check_ports(project, env):
+    owned = set()
+    found = containers(project, env)
+    php = next((container for container in found if container.get("Config", {}).get("Labels", {}).get("com.docker.compose.service") == "php"), None)
+    if found:
+        label = (php or {}).get("Config", {}).get("Labels", {}).get("dev.xorder.workspace")
+        mounts = (php or {}).get("Mounts", [])
+        legacy_workspace = any(mount.get("Type") == "bind" and mount.get("Destination") == "/app" and Path(mount.get("Source", "")).resolve() == Path(env["WORKSPACE"]) for mount in mounts)
+        if label != env["WORKSPACE"] and not (label is None and legacy_workspace):
+            raise ValueError("FLOWBITE_PROJECT is already owned by another workspace; choose a different name")
+    if not local_engine(env):
+        # Compose checks binds on the remote engine; client ports are unrelated.
+        return
+    for container in found:
+        for port, bindings in (container.get("NetworkSettings", {}).get("Ports") or {}).items():
+            for binding in bindings or []:
+                owned.add((port.rsplit("/", 1)[1], int(binding["HostPort"])))
+    for protocol, value in (("tcp", env["HTTP_PORT"]), ("tcp", env["HTTPS_PORT"]), ("udp", env["HTTP3_PORT"])):
+        port = int(value)
+        if (protocol, port) in owned:
+            continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM if protocol == "tcp" else socket.SOCK_DGRAM) as probe:
+            try:
+                probe.bind(("127.0.0.1", port))
+            except OSError as error:
+                raise ValueError(f"Port {port}/{protocol} is occupied; choose another --slot or explicit HTTP_PORT/HTTPS_PORT/HTTP3_PORT") from error
+
+
+def input_fingerprint(workspace, env):
+    value = hashlib.sha256()
+    extensions = {".php", ".twig", ".json", ".yaml", ".yml", ".js", ".mjs", ".cjs", ".css", ".xml", ".ini", ".lock", ".sh", ".neon", ".py"}
+    for base in (workspace, PROFILE):
+        value.update(str(base).encode() + b"\0")
+        if base == workspace and (workspace / ".git").exists():
+            # Ignore generated recipes/assets exactly as the project does. Hash
+            # current working bytes, including nonignored uncommitted source.
+            names = call(["git", "-C", str(workspace), "ls-files", "-z", "--cached", "--others", "--exclude-standard"], env, capture=True).stdout.split("\0")
+            files = sorted(base / name for name in names if name)
+        else:
+            files = []
+            for directory, subdirectories, filenames in os.walk(base):
+                subdirectories[:] = sorted(name for name in subdirectories if name not in (".git", "node_modules", "vendor", "var", ".cache", "__pycache__"))
+                files.extend(Path(directory) / name for name in sorted(filenames))
+        for file in files:
+            if not file.is_file() or file.is_symlink() or (file.suffix not in extensions and not file.name.startswith(".env")):
+                continue
+            value.update(str(file.relative_to(base)).encode() + b"\0" + file.read_bytes() + b"\0")
+    if env.get("CA_CERTIFICATE"):
+        value.update(Path(env["CA_CERTIFICATE"]).read_bytes())
+    return value.hexdigest()
+
+
+def main(arguments):
+    if not arguments:
+        raise ValueError("Usage: run.sh [--slot N] up|status|test|phpunit|php-tests|exec|logs|down [arguments]")
+    slot = None
+    if arguments[0] == "--slot":
+        if len(arguments) < 3 or not arguments[1].isdigit():
+            raise ValueError("Usage: run.sh --slot N action [arguments]")
+        slot = int(arguments[1])
+        arguments = arguments[2:]
+    action, *extra = arguments
+    if len(extra) >= 2 and extra[0] == "--slot":
+        if not extra[1].isdigit():
+            raise ValueError("--slot must be a nonnegative integer")
+        slot = int(extra[1]); extra = extra[2:]
+    if action not in ("up", "status", "test", "phpunit", "php-tests", "exec", "logs", "down"):
+        raise ValueError(f"Unknown action: {action}")
+    env = dict(os.environ)
+    workspace = Path(env["WORKSPACE"]).resolve(strict=True)
+    if not workspace.is_dir():
+        raise ValueError("WORKSPACE must be a directory")
+    project, http, https, udp, key = identity(workspace, env, slot)
+    env.update(WORKSPACE=str(workspace), FLOWBITE_PROJECT=project, PUID=env.get("PUID") or str(os.getuid()),
+               PGID=env.get("PGID") or str(os.getgid()), FLOWBITE_PROFILE_DIR=str(PROFILE),
+               HTTP_PORT=http, HTTPS_PORT=https, HTTP3_PORT=udp, CONTAINER_CA_FILE="")
+    if action == "status":
+        return status(project, env)
+    if not env.get("IMAGE"):
+        raise ValueError("Select IMAGE from the verified flowbite-xor-dev catalog")
+    ca = env.get("CA_CERTIFICATE")
+    if ca:
+        if not Path(ca).is_absolute() or not os.access(ca, os.R_OK):
+            raise ValueError("CA_CERTIFICATE must be a readable absolute PEM path")
+        env["CONTAINER_CA_FILE"] = "/run/library-proxy.pem"
+    env = sanitize(env)
+    # Only starting a new browser requires the lock. Recovery inspection and
+    # cleanup work after deleted/moved dependency files as well.
+    env["PLAYWRIGHT_VERSION"] = playwright(workspace) if action in ("up", "test") else "0.0.0"
+    if action == "up":
+        env["XORDER_INPUT_FINGERPRINT"] = input_fingerprint(workspace, env)
+    preference = env.get("COMPOSER_INSTALL_PREFERENCE") or "dist"
+    if preference not in ("dist", "source"):
+        raise ValueError("COMPOSER_INSTALL_PREFERENCE must be dist or source")
+    compose = ["docker", "compose", "--project-directory", str(workspace / "demo"), "-p", project,
+               "-f", str(workspace / "demo/compose.yaml"), "-f", str(workspace / "demo/compose.override.yaml"), "-f", str(PROFILE / "compose.yaml")]
+    overlay = {"services": {"php": {"volumes": []}}}
+    cache = env.get("COMPOSER_CACHE_DIR")
+    if cache:
+        host_cache = Path(cache)
+        if not host_cache.is_absolute() or not host_cache.is_dir():
+            raise ValueError("COMPOSER_CACHE_DIR must be an existing absolute host cache directory")
+        # A project's writable dist archives must never become another project's
+        # dependency inputs. Mount only this canonical workspace's cache.
+        scoped_cache = host_cache / "xorder" / key
+        if scoped_cache.resolve() != host_cache.resolve() / "xorder" / key:
+            raise ValueError("COMPOSER_CACHE_DIR workspace cache must not be redirected by symlinks")
+        scoped_cache.mkdir(parents=True, exist_ok=True)
+        overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(scoped_cache), "target": "/run/composer-cache", "bind": {"create_host_path": False}})
+        # Keep the bind outside HOME so the image cannot change host ownership.
+        overlay["services"]["php"]["environment"] = {"COMPOSER_CACHE_DIR": "/run/composer-cache"}
+    if env.get("WORKTREE_GIT", "0") == "1" and (workspace / ".git").is_file():
+        common = call(["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"], env, capture=True).stdout.strip()
+        private = call(["git", "-C", str(workspace), "rev-parse", "--absolute-git-dir"], env, capture=True).stdout.strip()
+        key = hashlib.sha256(str(workspace).encode()).hexdigest()
+        pointer = Path(env.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "xorder/worktrees" / key / "git-pointer"
+        pointer.parent.mkdir(parents=True, exist_ok=True)
+        pointer.write_text(f"gitdir: {private}\n")
+        pointer.chmod(0o644)
+        overlay["services"]["php"].setdefault("environment", {})["GIT_OPTIONAL_LOCKS"] = "0"
+        for source, target in ((common, common), (str(pointer), "/app/.git")):
+            overlay["services"]["php"]["volumes"].append({"type": "bind", "source": source, "target": target, "read_only": True, "bind": {"create_host_path": False}})
+    with tempfile.TemporaryDirectory(prefix="xorder-compose-") as directory:
+        if overlay["services"]["php"]["volumes"]:
+            filename = Path(directory) / "overlay.json"
+            filename.write_text(json.dumps(overlay))
+            compose += ["-f", str(filename)]
+        if action == "up":
+            check_ports(project, env)
+            configuration = call([*compose, "config", "--format", "json"], env, capture=True).stdout
+            configuration_hash = hashlib.sha256(configuration.encode()).hexdigest()
+            receipt = Path(env.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "xorder/flowbite" / key / (project + ".json")
+            try:
+                previous = json.loads(receipt.read_text())
+            except (OSError, ValueError):
+                previous = {}
+            call([*compose, "up", "--wait", "--wait-timeout", "600", "--no-build"], env)
+            # Recheck lockfiles even when Compose retained an existing container.
+            php_exec(compose, env, "bash", "/run/xorder/startup.sh", "--prepare", cwd="/app/demo")
+            npm = php_exec(compose, env, "node", "/run/xorder/node-state.cjs", "verify", capture=True, check=False)
+            if npm.returncode:
+                php_exec(compose, env, "npm", "ci")
+                npm = php_exec(compose, env, "node", "/run/xorder/node-state.cjs", "record", capture=True)
+            composer_state = php_exec(compose, env, "cat", "var/xorder/composer-ready", cwd="/app/demo", capture=True).stdout.strip()
+            current = {"configuration": configuration_hash, "inputs": env["XORDER_INPUT_FINGERPRINT"],
+                       "containers": sorted(container["Id"] for container in containers(project, env)),
+                       "composer": composer_state, "npm": npm.stdout.strip()}
+            if previous != current:
+                # Only a previously successful exact setup can reuse its test cache.
+                php_exec(compose, env, "php", "bin/console", "cache:warmup", "--env=test", cwd="/app/demo")
+            php_exec(compose, env, "curl", "--fail", "--silent", "--show-error", "--insecure", "--noproxy", "*", "--max-time", "15", "https://localhost" + env.get("APP_READY_PATH", "/"))
+            receipt.parent.mkdir(parents=True, exist_ok=True)
+            temporary_receipt = receipt.with_suffix(".tmp")
+            temporary_receipt.write_text(json.dumps(current))
+            temporary_receipt.replace(receipt)
+            print(f"Ready: {project} http://localhost:{http} https://localhost:{https}")
+        elif action == "test":
+            php_exec(compose, env, "npx", "playwright", "test", *extra)
+        elif action == "phpunit":
+            call([*compose, "exec", "-T", "--user", f'{env["PUID"]}:{env["PGID"]}', "-w", "/app/demo",
+                  "-e", "XDEBUG_MODE=" + env.get("PHPUNIT_XDEBUG_MODE", "off"), "-e", "APP_ENV=test", "-e", "APP_DEBUG=1",
+                  "-e", "CREATE_SNAPSHOTS=false", "php", "php", "bin/phpunit", *extra], env)
+        elif action == "php-tests":
+            php_exec(compose, env, "bash", "/run/xorder/php-tests.sh", *extra,
+                     forwarded=PHP_TEST_ENVIRONMENT)
+        elif action == "exec":
+            php_exec(compose, env, *extra)
+        else:
+            call([*compose, action, *extra], env)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]) or 0)
+    except (ValueError, KeyError, OSError, json.JSONDecodeError) as error:
+        print(f"xorder flowbite: {error}", file=sys.stderr)
+        sys.exit(64)
+    except subprocess.CalledProcessError as error:
+        if error.stderr:
+            print(error.stderr, file=sys.stderr, end="")
+        sys.exit(error.returncode)

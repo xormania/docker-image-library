@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "id": "profile/php-toolkit",
+  "revision": "1.0.0",
+  "purpose": "Independent locked UX Toolkit kit validation and fresh Symfony 7.4 recipe-install testing.",
+  "roles": [
+    {
+      "name": "toolkit-testing",
+      "alternatives": [{"id": "image/php-toolkit/8.5-trixie", "version": "1.0.0"}]
+    }
+  ]
+}

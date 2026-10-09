@@ -117,6 +117,8 @@ and direct usage pages remains sufficient.
 - [Selection and requirement gaps](docs/selection.md)
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [FrankenPHP and flowbite-xor development/testing](docs/flowbite-xor.md)
+- [Reusable PHP test tasks and per-process coverage](docs/php-tests.md)
+- [Isolated Toolkit validation and fresh Symfony applications](docs/php-toolkit.md)
 - [Cloud prerequisites and verification evidence](docs/compatibility.md)
 - [Versions, pins, upgrades, and rollback](docs/versioning.md)
 - [Verified release measurements](docs/metrics.md)

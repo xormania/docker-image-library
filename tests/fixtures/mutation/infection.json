@@ -1,0 +1,6 @@
+{
+  "source": {"directories": ["src"]},
+  "phpUnit": {"customPath": "vendor/bin/phpunit"},
+  "mutators": {"GreaterThan": true},
+  "logs": {"summaryJson": "var/mutation-summary.json"}
+}

@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/xormania/flowbite-xor.git",
+  "commit": "cc5634057dbc69b5d5682531d6f40b3b87a19498",
+  "toolkit": "3.5.1",
+  "recipe": "button",
+  "installed_file": "templates/components/Button.html.twig"
+}

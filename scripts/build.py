@@ -8,7 +8,20 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from library import ROOT, children, definitions, read, validate_inventory
+from library import ROOT, children, definitions, fingerprint, read, records, validate_inventory
+
+
+def reusable_artifact(line, parent=None):
+    """Reuse an accepted exact artifact only when all current inputs match."""
+    import hashlib
+    d = definitions()[line]
+    fp = fingerprint(d)
+    if parent:
+        fp = hashlib.sha256((fp + parent).encode()).hexdigest()
+    for record in records():
+        if (record["line_id"], record["version"], record["input_fingerprint"]) == (line, d["revision"], fp):
+            return record["publication"]["repository"] + "@" + record["publication"]["digest"]
+    return None
 
 
 def pinned(base):
@@ -22,7 +35,9 @@ def build(line, image, source, parent=None, cache=None):
             "IMAGE_VERSION": d["revision"], "APT_REFRESH": d["revision"]}
     if d["family"] in ("php-dev", "php-frankenphp"):
         args.update(COMPOSER_IMAGE=pinned(tools["composer"]), REDIS_VERSION=tools["redis_version"],
-                    XDEBUG_VERSION=tools["xdebug_version"], SYMFONY_URL=tools["symfony"]["url"], SYMFONY_SHA256=tools["symfony"]["sha256"])
+                    XDEBUG_VERSION=tools["xdebug_version"], PCOV_VERSION=tools["pcov_version"],
+                    SYMFONY_URL=tools["symfony"]["url"], SYMFONY_SHA256=tools["symfony"]["sha256"])
+        args.update(INFECTION_URL=tools["infection"]["url"], INFECTION_SHA256=tools["infection"]["sha256"])
     if d["family"] == "php-frankenphp":
         args["APCU_VERSION"] = tools["apcu_version"]
     if d["family"] == "flowbite-xor-dev":
@@ -111,25 +126,32 @@ if __name__ == "__main__":
     p.add_argument("--source", default="local"); p.add_argument("--parent"); p.add_argument("--cache")
     p.add_argument("--inventory", default="out/inventory.json")
     p.add_argument("--cache-probe", action="store_true")
+    p.add_argument("--reuse-accepted", action="store_true", help="Pull unchanged accepted artifacts and run behavior without rebuilding")
     p.add_argument("--children", action="store_true", help="Build and verify immediate derived profiles with this exact local parent")
     a = p.parse_args()
     cache = cache_source(a.cache)
+    reused = reusable_artifact(a.line, a.parent) if a.reuse_accepted else None
     start = time.monotonic()
-    build(a.line, a.image, a.source, a.parent, a.cache)
+    if reused:
+        subprocess.run(["docker", "pull", "--platform", "linux/amd64", reused], check=True)
+        a.image = reused
+    else:
+        build(a.line, a.image, a.source, a.parent, a.cache)
     built = time.monotonic()
     verify(a.line, a.image, a.inventory)
     verified = time.monotonic()
     metrics = {"line": a.line, **image_measurements(a.image), "cache_source": cache,
-               "build_seconds": round(built-start, 2), "verify_seconds": round(verified-built, 2)}
-    if a.cache_probe:
+               "artifact_reused": bool(reused), "verify_seconds": round(verified-built, 2)}
+    metrics["pull_seconds" if reused else "build_seconds"] = round(built-start, 2)
+    if a.cache_probe and not reused:
         metrics["source_label_rebuild_seconds"] = cache_probe(a.line, a.image, a.source, a.parent)
     Path(a.inventory).with_suffix(".metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     print(json.dumps(metrics))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
             summary.write(f"\n### {a.line}\n\nImage: {metrics['image_size_bytes']/1024**2:.1f} MiB; "
-                          f"build: {metrics['build_seconds']}s; behavior/inventory: {metrics['verify_seconds']}s.\n")
-            if a.cache_probe:
+                          f"{'pull (accepted artifact reused)' if reused else 'build'}: {round(built-start, 2)}s; behavior/inventory: {metrics['verify_seconds']}s.\n")
+            if a.cache_probe and not reused:
                 summary.write(f"Source-label-only rebuild: {metrics['source_label_rebuild_seconds']}s; filesystem layers unchanged.\n")
     if a.children:
         for child in children(a.line, definitions()):
@@ -141,4 +163,6 @@ if __name__ == "__main__":
                 command += ["--cache", child.replace("/", "-")]
             if a.cache_probe:
                 command += ["--cache-probe"]
+            if a.reuse_accepted:
+                command += ["--reuse-accepted"]
             subprocess.run(command, check=True)

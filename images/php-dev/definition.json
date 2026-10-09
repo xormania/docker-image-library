@@ -6,7 +6,11 @@
     "symfony",
     "postgresql-client",
     "native-build",
-    "xdebug"
+    "xdebug",
+    "pcov",
+    "php-testing",
+    "phpstan-isolated",
+    "mutation-testing"
   ],
   "extensions": [
     "intl",
@@ -25,12 +29,14 @@
     "redis",
     "sockets",
     "pcntl",
-    "xdebug"
+    "xdebug",
+    "pcov"
   ],
   "limitations": [
     "Project PHP dependencies come from Composer lockfiles.",
     "Xdebug is off by default; enable with XDEBUG_MODE=coverage or debug.",
-    "No PHP-FPM, web server daemon, or Node toolchain is supplied."
+    "No PHP-FPM, web server daemon, or Node toolchain is supplied.",
+    "PCOV is disabled by default. library-php-coverage pcov isolates Xdebug for each CLI process; library-php-tests uses project-locked PHPUnit and PHPStan, not global test packages."
   ],
   "schema_version": 1,
   "family": "php-dev",
@@ -41,7 +47,10 @@
     "curl",
     "jq",
     "rg",
-    "psql"
+    "psql",
+    "library-php-coverage",
+    "library-php-tests",
+    "infection"
   ],
   "execution": {
     "workspace": "/workspace",
@@ -62,7 +71,7 @@
     "8.4-trixie": {
       "runtime_line": "8.4",
       "os": "debian-trixie",
-      "revision": "1.1.0",
+      "revision": "1.2.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -71,14 +80,17 @@
         "digest": "sha256:1d2cf2b7d715b5b3aa959f0150ccbcc7b71e0181b637e443abf40a7fb56bf79a"
       },
       "changes": [
-        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
+        "Add checksum-pinned Infection 0.35.6 with per-process Xdebug and project-owned PHPUnit/configuration.",
+        "Add opt-in PCOV coverage and reusable lock-owned PHPUnit/PHPStan tasks while retaining Xdebug coverage and default-disabled coverage hooks.",
+        "Prepare an explicitly selected isolated PHPStan 2.3.0 with Symfony/PHPUnit extensions from a separate Composer lock.",
+        "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
       ],
-      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
+      "migration": "Compatible additive update. Select a verified new digest before using library-php-tests; PHPUnit/PHPStan versions and configuration continue to come from the consuming project. Set COVERAGE_DRIVER=xdebug for Xdebug coverage. LIBRARY_CA_FILE accepts either a single certificate or a complete validated PEM bundle."
     },
     "8.5-trixie": {
       "runtime_line": "8.5",
       "os": "debian-trixie",
-      "revision": "1.1.0",
+      "revision": "1.2.0",
       "platforms": [
         "linux/amd64"
       ],
@@ -87,9 +99,13 @@
         "digest": "sha256:01a109229f4465bc9ef042d9198f09a4d9da7775a825dbd8572dcdbd8756c4d3"
       },
       "changes": [
-        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
+        "Add checksum-pinned Infection 0.35.6 with per-process Xdebug and project-owned PHPUnit/configuration.",
+        "Add opt-in PCOV coverage and reusable lock-owned PHPUnit/PHPStan tasks while retaining Xdebug coverage and default-disabled coverage hooks.",
+        "Prepare an explicitly selected isolated PHPStan 2.3.0 with Symfony/PHPUnit extensions from a separate Composer lock.",
+        "Accept a mounted multi-certificate PEM CA bundle; validate all certificates before replacing managed trust and retain single-certificate and root/user behavior."
       ],
-      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
+      "migration": "Compatible additive update. Select a verified new digest before using library-php-tests; PHPUnit/PHPStan versions and configuration continue to come from the consuming project. Set COVERAGE_DRIVER=xdebug for Xdebug coverage. LIBRARY_CA_FILE accepts either a single certificate or a complete validated PEM bundle."
     }
-  }
+  },
+  "input_fingerprint_version": 2
 }

@@ -76,6 +76,22 @@ build/verification helpers conservatively select all images. Publication also
 checks the accepted ledger before allocating runners, retaining incomplete PHP
 parent/browser pairs and changed-input guards.
 
+After a successful validation of the same PR and unchanged base, image selection
+compares the next update with that successful ancestral head. Failed runs,
+changed bases, unrelated force-pushes, and unavailable history fall back to the
+full PR delta. Metadata tests always run; an unchanged image does not need another
+build merely because a review fix changed another image.
+
+New revisions use version-2 fingerprints of their Dockerfile, its local COPY
+inputs, executable modes, `.dockerignore`, and consumed tool pins. PHP-only
+shared files do not change Rust or Python fingerprints. Derived fingerprints
+also bind the exact accepted parent digest. Historical release records retain
+their original algorithm and evidence; migration belongs to fresh revisions.
+Tool-file changes select only consumers of the keys that actually changed.
+Validation pulls an unchanged accepted digest and runs behavior without building
+it. Missing or changed artifacts still build and verify normally. The optional
+`--cache-probe` checks source-label layer reuse when explicitly requested.
+
 Build caches use family-specific input fingerprints rather than commit SHAs.
 Source labels are applied after install layers. Each image revision is passed
 as `APT_REFRESH`, intentionally invalidating Debian package installs during a
@@ -110,9 +126,14 @@ Rebuild timings depend on cache state and runner/network conditions; compare
 equivalent inputs rather than treating one run as a guaranteed duration.
 
 `Refresh build inputs` runs weekly and manually. It resolves upstream digests,
-PECL versions and the Symfony artifact checksum, then stages fresh patch
-revisions in a PR. It allocates a rebuild even if pins are unchanged so Debian
-packages can refresh. Review upstream compatibility/security changes and adjust
+PECL versions and the Symfony/Infection artifact checksums, then stages fresh
+patch revisions only for changed consumers and their descendants. It tracks
+Debian main amd64 package-index checksums for Trixie, updates and security;
+changed package feeds trigger the apt consumers. Release dates and signatures
+alone do not allocate rebuilds. Identical resolved inputs create no refresh PR.
+These checksums observe repository changes; Debian packages remain measured
+from the resulting artifact rather than claimed to come from a frozen snapshot.
+Review upstream compatibility/security changes and adjust
 the revision when a patch refresh would break the contract. Never reuse an exact
 release for a fresh build. Dependabot proposes Actions/validation dependency
 updates separately.

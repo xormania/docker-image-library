@@ -43,7 +43,7 @@
     "1.99-trixie": {
       "runtime_line": "1.99",
       "os": "debian-trixie",
-      "revision": "1.1.0",
+      "revision": "1.1.2",
       "platforms": [
         "linux/amd64"
       ],
@@ -52,9 +52,10 @@
         "digest": "sha256:24e632c09342c20abf8312cf4f61430a911c01ed3a5e4c02b87292b1c39c5273"
       },
       "changes": [
-        "Add opt-in trust for a mounted proxy CA before dropping privileges; preserve workspace ownership."
+        "Refresh shared source inputs for PHP testing helpers while preserving complete PEM bundle trust."
       ],
-      "migration": "Compatible additive update. Mount one PEM certificate read-only and set LIBRARY_CA_FILE to its container path when needed. Root-owned workspaces can use PUID=0 and PGID=0 without bypassing the entrypoint."
+      "migration": "Compatible source refresh. Existing exact pins remain valid; select this revision only after its normal publication and verification."
     }
-  }
+  },
+  "input_fingerprint_version": 2
 }

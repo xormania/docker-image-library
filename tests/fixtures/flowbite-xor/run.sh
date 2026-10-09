@@ -2,6 +2,8 @@
 set -euo pipefail
 image=${1:?Supply flowbite-xor-dev image}
 root=$(cd "$(dirname "$0")/../../.." && pwd)
+docker run --rm --mount "type=bind,src=$root,dst=/xorder,readonly" "$image" \
+  bash /xorder/tests/fixtures/flowbite-xor/verify-composer-reuse.sh
 work=$(mktemp -d)
 export IMAGE="$image" WORKSPACE="$work/repo" FLOWBITE_PROJECT="flowbite-check-${RANDOM}-${RANDOM}"
 export HTTP_PORT=18084 HTTPS_PORT=18444 HTTP3_PORT=18444
@@ -37,12 +39,20 @@ printf 'Applying xorder-owned test synchronization overlay to pinned flowbite-xo
 git -C "$WORKSPACE" apply --check "$fixture_patch"
 git -C "$WORKSPACE" apply --whitespace=error "$fixture_patch"
 bash "$root/examples/flowbite-xor/run.sh" up
+bash "$root/examples/flowbite-xor/run.sh" status
+bash "$root/examples/flowbite-xor/run.sh" exec test -s demo/var/tailwind/app.built.css
+before_setup=$(bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cat demo/var/xorder/composer-ready demo/var/xorder/node-ready')
+bash "$root/examples/flowbite-xor/run.sh" up
+bash "$root/examples/flowbite-xor/run.sh" status
+# Matching setup avoids package reinstalls; the recorded content stays stable.
+after_setup=$(bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cat demo/var/xorder/composer-ready demo/var/xorder/node-ready')
+test "$before_setup" = "$after_setup"
 test "$(bash "$root/examples/flowbite-xor/run.sh" exec git rev-parse HEAD)" = "${consumer[1]}"
 bash "$root/examples/flowbite-xor/run.sh" exec git status --porcelain
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cd demo && composer check-platform-reqs'
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c \
   'cd demo && cmp /opt/tailwind/tailwindcss-linux-x64 "var/tailwind/$(cat /opt/tailwind/version)/tailwindcss-linux-x64" && php bin/console tailwind:build'
-PHPUNIT_XDEBUG_MODE=coverage bash "$root/examples/flowbite-xor/run.sh" phpunit --coverage-clover var/phpunit-coverage.xml
+bash "$root/examples/flowbite-xor/run.sh" php-tests all
 bash "$root/examples/flowbite-xor/run.sh" exec php -r \
   '$report=simplexml_load_file("demo/var/phpunit-coverage.xml"); if (!$report || (int)$report->project->metrics["coveredstatements"] < 1) { throw new RuntimeException("PHPUnit must record executed statements"); }'
 bash "$root/examples/flowbite-xor/run.sh" test "${consumer[@]:2}"

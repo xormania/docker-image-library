@@ -9,6 +9,7 @@ import re
 import subprocess
 from pathlib import Path
 from datetime import datetime
+from image_inputs import TOOL_KEYS, consumes, files as input_files
 
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^sha256:[a-f0-9]{64}$")
@@ -98,6 +99,13 @@ def validate_inventory(definition, inventory):
         browser = re.search(r"\d+", inventory["tools"]["chromium"])[0]
         driver = re.search(r"\d+", inventory["tools"]["chromedriver"])[0]
         assert browser == driver, "Chromium and driver major versions differ"
+    if definition["family"] == "php-toolkit":
+        projects = inventory["prepared_projects"]
+        assert set(projects) == {"validator", "symfony-7.4"}
+        for project in projects.values():
+            assert project["packages"]["symfony/ux-toolkit"] == "v3.5.1"
+            assert re.fullmatch(r"[a-f0-9]{64}", project["composer_lock_sha256"])
+        assert projects["symfony-7.4"]["packages"]["symfony/framework-bundle"].startswith("v7.4.")
     if "node" in definition["capabilities"]:
         assert inventory["tools"]["node"].startswith("v22."), "The flowbite-xor Node line must match CI"
     if "wasm32-unknown-unknown" in definition["capabilities"]:
@@ -299,6 +307,8 @@ def generated(root=ROOT):
             text += "**Not available:** no verified public release. The following capabilities describe the intended profile.\n\n"
         text += "Capabilities: " + ", ".join(f"`{c}`" for c in d["capabilities"]) + ".\n\n"
         text += "Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.\n\n"
+        if d["family"] == "php-toolkit":
+            text += "[Toolkit validation and fresh-app recipe](../php-toolkit.md) · "
         text += "[Usage](../usage.md) · [Selection](../selection.md) · [Compatibility evidence](../compatibility.md)\n\n"
         text += "## Limitations\n\n" + "\n".join(f"- {x}" for x in d["limitations"]) + "\n"
         outputs[root / "docs" / "images" / (line.replace("/", "-") + ".md")] = text
@@ -320,9 +330,9 @@ def generated(root=ROOT):
     return outputs
 
 
-def affected(changed, defs):
+def affected(changed, defs, previous_tools=None):
     result = set()
-    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py", "scripts/xorder_cli.py"}
+    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py", "scripts/xorder_cli.py", "scripts/validation_base.py"}
     metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml"}
     for path in changed:
         families = set()
@@ -332,18 +342,28 @@ def affected(changed, defs):
         }:
             continue
         elif path == "images/tools.json":
-            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
-        elif path.startswith("tests/fixtures/php/"):
-            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev"}
+            current = read(ROOT / path)
+            keys = set(current) | set(previous_tools or {})
+            if previous_tools is not None:
+                keys = {key for key in keys if current.get(key) != previous_tools.get(key)}
+            families = {family for family, used in TOOL_KEYS.items() if keys.intersection(used)}
+        elif path.startswith("images/shared/") or path == ".dockerignore":
+            families = {d["family"] for d in defs.values() if consumes(d["family"], path, ROOT)}
+        elif path.startswith(("tests/fixtures/php/", "tests/fixtures/mutation/")):
+            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev"}
+        elif path.startswith(("examples/php-toolkit/", "tests/fixtures/php-toolkit/")):
+            families = {"php-toolkit"}
         elif path.startswith("tests/fixtures/frankenphp/"):
             families = {"php-frankenphp", "flowbite-xor-dev"}
+        elif path == "examples/shared/network.py":
+            families = {"flowbite-xor-dev", "php-toolkit"}
         elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
             families = {"flowbite-xor-dev"}
         elif path.startswith("tests/fixtures/trust/"):
             result.update(defs)
             continue
         elif path.startswith("examples/php/"):
-            families = {"php-dev", "php-browser", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
+            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
         elif path.startswith("tests/fixtures/python/"):
             families = {"python-dev"}
         elif path.startswith("tests/fixtures/rust/"):
@@ -362,17 +382,23 @@ def affected(changed, defs):
 
 
 def fingerprint(d, root=ROOT):
-    paths = list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
+    modern = d.get("input_fingerprint_version", 1) == 2
+    paths = input_files(d["family"], root) if modern else list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
+    if d["family"] == "php-toolkit" and not modern:
+        paths += [root / "examples/php-toolkit/validator" / name for name in ("composer.json", "composer.lock")]
+        paths += list((root / "examples/php-toolkit/symfony-7.4").rglob("*"))
     h = hashlib.sha256(encoded(d).encode())
     tools = read(root / "images" / "tools.json")
-    keys = {"php-dev": ("composer", "redis_version", "xdebug_version", "symfony"),
-            "php-frankenphp": ("composer", "redis_version", "xdebug_version", "symfony", "apcu_version"),
+    keys = TOOL_KEYS.get(d["family"], ()) if modern else {"php-dev": ("composer", "redis_version", "xdebug_version", "pcov_version", "symfony"),
+            "php-frankenphp": ("composer", "redis_version", "xdebug_version", "pcov_version", "symfony", "apcu_version"),
             "flowbite-xor-dev": ("node", "tailwind"),
             "python-dev": ("uv",)}.get(d["family"], ())
     h.update(encoded({key: tools[key] for key in keys}).encode())
     for path in sorted(paths):
         if path.is_file() and path.name != "definition.json":
             h.update(str(path.relative_to(root)).encode())
+            if modern:
+                h.update(b"executable" if path.stat().st_mode & 0o111 else b"regular")
             h.update(path.read_bytes())
     return h.hexdigest()
 
@@ -440,8 +466,14 @@ def main():
         if result["status"] != "selected":
             raise SystemExit(2)
     elif args.command == "affected":
-        changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines() if args.base and not args.all else ["images/shared/"]
-        print(json.dumps({"line": affected(changed, definitions())}))
+        defs = definitions()
+        if args.all or not args.base:
+            selected = sorted({root_line(line, defs) for line in defs})
+        else:
+            changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines()
+            previous_tools = json.loads(subprocess.check_output(["git", "show", f"{args.base}:images/tools.json"], cwd=ROOT, text=True))
+            selected = affected(changed, defs, previous_tools)
+        print(json.dumps({"line": selected}))
     elif args.command == "cache-key":
         print(cache_key(args.line, definitions()))
     elif args.command == "release-matrix":
