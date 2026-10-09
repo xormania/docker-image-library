@@ -39,6 +39,7 @@ printf 'Applying xorder-owned test synchronization overlay to pinned flowbite-xo
 git -C "$WORKSPACE" apply --check "$fixture_patch"
 git -C "$WORKSPACE" apply --whitespace=error "$fixture_patch"
 bash "$root/examples/flowbite-xor/run.sh" up
+bash "$root/examples/flowbite-xor/run.sh" exec test -s demo/var/tailwind/app.built.css
 test "$(bash "$root/examples/flowbite-xor/run.sh" exec git rev-parse HEAD)" = "${consumer[1]}"
 bash "$root/examples/flowbite-xor/run.sh" exec git status --porcelain
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cd demo && composer check-platform-reqs'

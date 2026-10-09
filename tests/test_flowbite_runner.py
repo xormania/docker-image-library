@@ -164,3 +164,68 @@ if "up" in args and os.environ.get("MOCK_UP_FAIL") == "1":
         (self.workspace / "package.json").write_text(json.dumps({"devDependencies": {"@playwright/test": "^1.58.2"}}))
         self.assertEqual(self.run_profile("up").returncode, 64)
         self.assertEqual(self.calls, [])
+
+
+class StartupBootstrapTests(unittest.TestCase):
+    def run_startup(self, mode="--application", build_failure=False):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            profile, demo = root / "profile", root / "app/demo"
+            (demo / "frankenphp").mkdir(parents=True)
+            profile.mkdir()
+            commands = root / "commands"
+            # Remap only the container's fixed filesystem prefix for this
+            # executable bootstrap test; preserve its actual shell control flow.
+            source = (ROOT / "examples/flowbite-xor/startup.sh").read_text()
+            (profile / "startup.sh").write_text(source.replace("/app/", str(root / "app") + "/"))
+            (profile / "verify-composer.php").write_text("fixture")
+            server = demo / "frankenphp/docker-entrypoint.sh"
+            server.write_text('''#!/bin/sh
+set -eu
+test -s var/tailwind/app.built.css
+printf 'server %s\n' "$*" >> "$STARTUP_COMMANDS"
+''')
+            executable = root / "php"
+            executable.write_text('''#!/usr/bin/env python3
+import os, pathlib, sys
+args = sys.argv[1:]
+with open(os.environ["STARTUP_COMMANDS"], "a") as log:
+    log.write("php " + " ".join(args) + "\\n")
+if args[-1] == "fingerprint":
+    print("composer-ready")
+if "tailwind:build" in args:
+    if os.environ.get("BUILD_FAILURE") == "1": sys.exit(1)
+    path = pathlib.Path("var/tailwind/app.built.css")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("compiled-css")
+''')
+            executable.chmod(0o755)
+            for command in ("composer", "flowbite-prime-tailwind"):
+                path = root / command
+                path.write_text('#!/bin/sh\nprintf "%s\\n" "' + command + ' $*" >> "$STARTUP_COMMANDS"\n')
+                path.chmod(0o755)
+            result = subprocess.run(["bash", str(profile / "startup.sh"), mode, "frankenphp", "run"],
+                                    env=dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                                             STARTUP_COMMANDS=str(commands), BUILD_FAILURE=str(int(build_failure))),
+                                    capture_output=True, text=True)
+            return result, commands.read_text().splitlines()
+
+    def test_application_compiles_css_after_priming_before_server(self):
+        result, commands = self.run_startup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        prime = next(i for i, command in enumerate(commands) if command.startswith("flowbite-prime-tailwind"))
+        build = next(i for i, command in enumerate(commands) if "tailwind:build" in command)
+        server = next(i for i, command in enumerate(commands) if command.startswith("server "))
+        self.assertLess(prime, build)
+        self.assertLess(build, server)
+        self.assertEqual(commands[server], "server frankenphp run")
+
+    def test_failed_css_build_stops_before_starting_server(self):
+        result, commands = self.run_startup(build_failure=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertFalse(any(command.startswith("server ") for command in commands))
+
+    def test_retained_service_prepare_does_not_rebuild_or_launch_server(self):
+        result, commands = self.run_startup(mode="--prepare")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any("tailwind:build" in command or command.startswith("server ") for command in commands))

@@ -49,6 +49,11 @@ fingerprint > "$marker.tmp"
 mv "$marker.tmp" "$marker"
 flowbite-prime-tailwind
 if [[ "$mode" = --application ]]; then
+  # The worker-served page renders Twig's Tailwind asset. Seeding the CLI alone
+  # leaves that page at HTTP 500 until the project's CSS has been compiled.
+  # Build before launching FrankenPHP; retained healthy services do not restart
+  # or rebuild CSS when the host runner only invokes --prepare again.
+  php bin/console tailwind:build --no-interaction
   # Keep the project's runtime, database wait and docker-php-entrypoint behavior.
   exec sh /app/demo/frankenphp/docker-entrypoint.sh "$@"
 fi

@@ -16,7 +16,9 @@ git clone -q "$second/repo.git" "$HOME/proof-repo-second"
 if command -v composer >/dev/null; then
   mkdir "$HOME/composer-tls"; cd "$HOME/composer-tls"
   php -r 'echo json_encode(["repositories"=>[["type"=>"composer","url"=>$argv[1]],["type"=>"composer","url"=>$argv[2]],["packagist.org"=>false]],"require"=>["fixture/proof-first"=>"1.0.0","fixture/proof-second"=>"1.0.0"]]);' "$first" "$second" > composer.json
-  composer install --no-interaction --no-progress --no-audit
+  # install audits only when requested; it has no --no-audit option. Keep
+  # Packagist disabled above so this fixture uses only its own TLS origins.
+  composer install --no-interaction --no-progress
   test -f vendor/fixture/proof-first/proof.txt
   test -f vendor/fixture/proof-second/proof.txt
 fi

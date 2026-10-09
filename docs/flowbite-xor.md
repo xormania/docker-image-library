@@ -48,7 +48,8 @@ bash examples/flowbite-xor/run.sh down
 ```
 
 `up` syncs recipes before Composer setup, seeds the matching cached Tailwind
-binary, starts the demo and browser, runs npm ci, warms Symfony's test cache and
+binary, compiles the project's Tailwind CSS before FrankenPHP starts, starts
+the demo and browser, runs npm ci, warms Symfony's test cache and
 checks a worker-served application page. The same application page is used by
 the healthcheck; Caddy metrics alone do not establish app readiness. Set
 `APP_READY_PATH=/your-public-page` if `/` is not the appropriate readiness route.
