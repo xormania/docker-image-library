@@ -57,7 +57,7 @@ The profile preserves the repository's application entrypoint, database wait
 and runtime behavior. Playwright's config builds stale Tailwind CSS before tests. There is no
 host Node dependency. The runner needs Python 3, Docker/Compose and registry/dependency
 access. Project names default to the workspace basename plus a stable path hash.
-Each workspace also gets stable loopback HTTP/HTTPS ports in 20000–49999
+Each workspace also gets stable loopback HTTP/HTTPS ports in 20000–29999
 (the HTTPS port is reused for HTTP3/UDP). A hash collision or occupied host port
 is reported before startup; select an explicit slot to resolve it.
 
@@ -67,7 +67,8 @@ bash examples/flowbite-xor/run.sh --slot 2 status
 bash examples/flowbite-xor/run.sh --slot 2 down
 ```
 
-Use the same slot for every command. `FLOWBITE_PROJECT`, `HTTP_PORT`,
+Explicit slots 0–14999 select ports in 20000–49999; the smaller default range
+avoids the usual Linux ephemeral port range. Use the same slot for every command. `FLOWBITE_PROJECT`, `HTTP_PORT`,
 `HTTPS_PORT` and `HTTP3_PORT` override derived values individually. The default
 HTTP3 port follows the selected HTTPS port. Port probes apply to a local Docker
 engine; Compose reports final binding conflicts, including races and remote
