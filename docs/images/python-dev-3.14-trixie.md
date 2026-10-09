@@ -2,13 +2,13 @@
 
 Python development with uv, pip, venv, native compilation and PostgreSQL clients.
 
-Available revision: **1.1.0**. Pin:
+Available revision: **1.1.2**. Pin:
 
 ```text
-ghcr.io/xormania/python-dev@sha256:2868a42d29b7c340a1c592b8135bf40dd78bc028a2fddb50fb80eb3970d1f97d
+ghcr.io/xormania/python-dev@sha256:f9821a6dba4ee2e50715c37421ff46437dc9104d4652ead1bc74eec561bcafba
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:43.147644Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:41:45.352953Z.
 
 ## Measured inventory — linux/amd64
 
@@ -31,17 +31,17 @@ Runtime: 3.14.8; OS: Debian GNU/Linux 13 (trixie).
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 593.9 MiB (622,720,973 bytes) |
-| Build, cache export and image load | 40.69s |
-| Public-artifact behavior and inventory verification | 12.18s |
+| Local image size | 593.9 MiB (622,722,691 bytes) |
+| Build, cache export and image load | 39.93s |
+| Public-artifact behavior and inventory verification | 22.71s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:25.223772Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:41:45.296878Z.
 
-External build cache at start: `restored`. This does not assert that every layer was a cache hit.
+External build cache at start: `empty`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.0.0, `ghcr.io/xormania/python-dev@sha256:ccd38b0cfb59a887a18d489be40ecf68a2a0ef083c46de634c0b0c424bfff3d5`; 1,191.8 MiB in the same image store. Change: **-50.2%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:43.147499Z.
+Size baseline: v1.1.0, `ghcr.io/xormania/python-dev@sha256:2868a42d29b7c340a1c592b8135bf40dd78bc028a2fddb50fb80eb3970d1f97d`; 593.9 MiB in the same image store. Change: **+0.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:25.223772Z.
 
-[Release notes](../releases/python-dev-3.14-trixie-v1.1.0.md).
+[Release notes](../releases/python-dev-3.14-trixie-v1.1.2.md).
 
 Capabilities: `python`, `uv`, `pip`, `venv`, `native-build`, `postgresql-client`.
 

@@ -2,13 +2,13 @@
 
 Loaded PHP and Symfony development, CLI tasks, unit and PostgreSQL integration tests.
 
-Available revision: **1.1.0**. Pin:
+Available revision: **1.2.0**. Pin:
 
 ```text
-ghcr.io/xormania/php-dev@sha256:53a1728c55ad8059184ef2ccc0bfb5c62e1b97c3cda87f14ae0897e46cf1317d
+ghcr.io/xormania/php-dev@sha256:766e2d2ffe1b043160a0fb9d67825982a87948a4b4e13b41a84298014b34f49d
 ```
 
-[Verification evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:37.954900Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:48.646676Z.
 
 ## Measured inventory — linux/amd64
 
@@ -21,31 +21,35 @@ Runtime: 8.5.11; OS: Debian GNU/Linux 13 (trixie).
 | curl | curl 8.14.1 (x86_64-pc-linux-gnu) libcurl/8.14.1 OpenSSL/3.5.7 zlib/1.3.1 brotli/1.1.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.64.0 nghttp3/1.8.0 librtmp/2.3 OpenLDAP/2.6.10 |
 | gh | gh version 2.46.0 (2025-01-13 Debian 2.46.0-3) |
 | git | git version 2.47.3 |
+| infection | Infection - PHP Mutation Testing Framework version 0.35.6 |
 | jq | jq-1.7 |
+| library-php-coverage | xorder PHP coverage runner 1.0.0 |
+| library-php-tests | xorder PHP test runner 1.0.0 |
 | php | PHP 8.5.11 (cli) (built: Oct  6 2026 01:22:31) (NTS) |
+| phpstan-isolated | PHPStan - PHP Static Analysis Tool 2.3.0 |
 | psql | psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1) |
 | rg | ripgrep 14.1.1 |
 | symfony | Symfony CLI version 5.22.0 (c) 2021-2026 Fabien Potencier (2026-10-06T20:55:04Z - stable) |
 
-Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `lexbor`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `uri`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
+Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filter`, `gd`, `hash`, `iconv`, `intl`, `json`, `lexbor`, `libxml`, `mbstring`, `mysqli`, `mysqlnd`, `openssl`, `pcntl`, `pcov`, `pcre`, `pdo`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pgsql`, `phar`, `posix`, `random`, `readline`, `redis`, `reflection`, `session`, `simplexml`, `sockets`, `sodium`, `spl`, `sqlite3`, `standard`, `tokenizer`, `uri`, `xdebug`, `xml`, `xmlreader`, `xmlwriter`, `zend opcache`, `zip`, `zlib`.
 
 ### Release measurements — linux/amd64
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 903.5 MiB (947,431,802 bytes) |
-| Build, cache export and image load | 171.56s |
-| Public-artifact behavior and inventory verification | 11.62s |
+| Local image size | 1,161.1 MiB (1,217,539,725 bytes) |
+| Build, cache export and image load | 200.90s |
+| Public-artifact behavior and inventory verification | 29.35s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:34.043560Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:48.585089Z.
 
-External build cache at start: `restored`. This does not assert that every layer was a cache hit.
+External build cache at start: `empty`. This does not assert that every layer was a cache hit.
 
-Size baseline: v1.0.0, `ghcr.io/xormania/php-dev@sha256:8a824a7e88ef81f63611629ad5e4a1de1fc17adc7cb278e8c48ab1d43e745b0c`; 903.5 MiB in the same image store. Change: **+0.0%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:37.954772Z.
+Size baseline: v1.1.0, `ghcr.io/xormania/php-dev@sha256:53a1728c55ad8059184ef2ccc0bfb5c62e1b97c3cda87f14ae0897e46cf1317d`; 903.5 MiB in the same image store. Change: **+28.5%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:18:34.043560Z.
 
-[Release notes](../releases/php-dev-8.5-trixie-v1.1.0.md).
+[Release notes](../releases/php-dev-8.5-trixie-v1.2.0.md).
 
-Capabilities: `php`, `composer`, `symfony`, `postgresql-client`, `native-build`, `xdebug`.
+Capabilities: `php`, `composer`, `symfony`, `postgresql-client`, `native-build`, `xdebug`, `pcov`, `php-testing`, `phpstan-isolated`, `mutation-testing`.
 
 Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.
 
@@ -56,3 +60,4 @@ Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID`
 - Project PHP dependencies come from Composer lockfiles.
 - Xdebug is off by default; enable with XDEBUG_MODE=coverage or debug.
 - No PHP-FPM, web server daemon, or Node toolchain is supplied.
+- PCOV is disabled by default. library-php-coverage pcov isolates Xdebug for each CLI process; library-php-tests uses project-locked PHPUnit and PHPStan, not global test packages.
