@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08T23:49:01.153339Z",
+  "generated_at": "2026-10-09T00:12:10.378339Z",
   "resources": [
     {
       "capabilities": [
@@ -50,6 +50,191 @@
         ],
         "completed_at": "2026-10-08T23:49:01.153339Z",
         "evidence": "https://github.com/xormania/xorder/actions/runs/37861336161",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "configuration:editorconfig"
+      ],
+      "created_at": "2026-10-09T00:10:15.721436Z",
+      "delivery": {
+        "filename": "editorconfig-1.0.0.tar",
+        "format": "tar",
+        "sha256": "5aa2360af22e47bb84708bd2262268527f7359e94f224f04213c0fc929dbddea",
+        "size_bytes": 10240,
+        "url": "https://github.com/xormania/xorder/releases/download/configuration/editorconfig/v1.0.0/editorconfig-1.0.0.tar"
+      },
+      "details": {
+        "files": [
+          {
+            "destination": ".editorconfig",
+            "source": "editorconfig"
+          }
+        ],
+        "scope": "project",
+        "target_application": "EditorConfig-compatible editors"
+      },
+      "documentation": "docs/resources/configuration-editorconfig.md",
+      "id": "configuration/editorconfig",
+      "identity": "sha256:5aa2360af22e47bb84708bd2262268527f7359e94f224f04213c0fc929dbddea",
+      "kind": "configuration",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [],
+        "requirements": [
+          "An editor with EditorConfig support is needed to apply the formatting settings."
+        ]
+      },
+      "purpose": "Small project-local EditorConfig starting point for PHP and common repository files.",
+      "release_record": "release-records/artifacts/configuration/editorconfig/1.0.0.json",
+      "targets": [
+        "any"
+      ],
+      "verification": {
+        "commands": [
+          [
+            "python3",
+            "scripts/xorder/verify-bundles.py",
+            "configuration/editorconfig",
+            "$ARTIFACT_ROOT"
+          ]
+        ],
+        "completed_at": "2026-10-09T00:10:15.721436Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "context:project-guidance"
+      ],
+      "created_at": "2026-10-09T00:10:16.849654Z",
+      "delivery": {
+        "filename": "project-guidance-1.0.0.tar",
+        "format": "tar",
+        "sha256": "4a1c7ff451e8f835c1d921c9a212af8d129e3ed166789d3cd52c9c01aef442ff",
+        "size_bytes": 10240,
+        "url": "https://github.com/xormania/xorder/releases/download/context/project-guidance/v1.0.0/project-guidance-1.0.0.tar"
+      },
+      "details": {
+        "audience": "codex",
+        "files": [
+          {
+            "destination": "AGENTS.md",
+            "source": "project-guidance.md"
+          }
+        ],
+        "scope": "project"
+      },
+      "documentation": "docs/resources/context-project-guidance.md",
+      "id": "context/project-guidance",
+      "identity": "sha256:4a1c7ff451e8f835c1d921c9a212af8d129e3ed166789d3cd52c9c01aef442ff",
+      "kind": "context",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [],
+        "requirements": [
+          "Select only when project-local Codex guidance is wanted; review the sample before adoption."
+        ]
+      },
+      "purpose": "Example Codex project-local guidance delivered explicitly as AGENTS.md.",
+      "release_record": "release-records/artifacts/context/project-guidance/1.0.0.json",
+      "targets": [
+        "any"
+      ],
+      "verification": {
+        "commands": [
+          [
+            "python3",
+            "scripts/xorder/verify-bundles.py",
+            "context/project-guidance",
+            "$ARTIFACT_ROOT"
+          ]
+        ],
+        "completed_at": "2026-10-09T00:10:16.849654Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "php",
+        "php-8.4",
+        "composer",
+        "symfony-cli",
+        "intl",
+        "mbstring",
+        "pdo-pgsql",
+        "dom",
+        "bcmath",
+        "zip",
+        "curl"
+      ],
+      "created_at": "2026-10-09T00:12:10.378339Z",
+      "delivery": {
+        "filename": "php-symfony-1.0.0.tar",
+        "format": "tar",
+        "sha256": "59ae1dd08d906bb3c897e7c4b26ad2dcfe0d9cd7bc76a3fe08132a1908be3c6f",
+        "size_bytes": 10240,
+        "url": "https://github.com/xormania/xorder/releases/download/environment/php-symfony/v1.0.0/php-symfony-1.0.0.tar"
+      },
+      "details": {
+        "activation": "devenv shell",
+        "backend": "devenv",
+        "files": [
+          {
+            "destination": "devenv.nix",
+            "source": "devenv.nix"
+          },
+          {
+            "destination": "devenv.yaml",
+            "source": "devenv.yaml"
+          },
+          {
+            "destination": "devenv.lock",
+            "source": "devenv.lock"
+          }
+        ],
+        "scope": "project"
+      },
+      "documentation": "docs/resources/environment-php-symfony.md",
+      "id": "environment/php-symfony",
+      "identity": "sha256:59ae1dd08d906bb3c897e7c4b26ad2dcfe0d9cd7bc76a3fe08132a1908be3c6f",
+      "kind": "environment",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "nix",
+          "devenv"
+        ],
+        "requirements": [
+          "Nix with nix-command and flakes enabled",
+          "devenv 2.4.0",
+          "Writable Nix store and access to the locked upstream inputs and binary caches"
+        ]
+      },
+      "purpose": "A reusable native devenv PHP 8.4 and Symfony development toolchain for a project on Linux amd64.",
+      "release_record": "release-records/artifacts/environment/php-symfony/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "commands": [
+          [
+            "bash",
+            "scripts/xorder/verify-devenv.sh",
+            "$ARTIFACT_ROOT"
+          ]
+        ],
+        "completed_at": "2026-10-09T00:12:10.378339Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
         "status": "passed",
         "surface": "github-actions-linux-amd64"
       },

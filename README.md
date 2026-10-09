@@ -39,6 +39,9 @@ Reading the catalog does not activate context bundles.
 | Resource | Revision | Target | Prerequisites | Exact identity |
 | --- | --- | --- | --- | --- |
 | [binary/composer](docs/resources/binary-composer.md) | 1.0.0 | linux/amd64 | `php` | `sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6` |
+| [configuration/editorconfig](docs/resources/configuration-editorconfig.md) | 1.0.0 | any | See usage | `sha256:5aa2360af22e47bb84708bd2262268527f7359e94f224f04213c0fc929dbddea` |
+| [context/project-guidance](docs/resources/context-project-guidance.md) | 1.0.0 | any | See usage | `sha256:4a1c7ff451e8f835c1d921c9a212af8d129e3ed166789d3cd52c9c01aef442ff` |
+| [environment/php-symfony](docs/resources/environment-php-symfony.md) | 1.0.0 | linux/amd64 | `nix`, `devenv` | `sha256:59ae1dd08d906bb3c897e7c4b26ad2dcfe0d9cd7bc76a3fe08132a1908be3c6f` |
 <!-- resources:end -->
 
 The generated [resource index](docs/resources/index.md) links verified usage,

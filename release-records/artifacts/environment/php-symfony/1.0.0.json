@@ -1,0 +1,93 @@
+{
+  "created_at": "2026-10-09T00:12:10.378339Z",
+  "definition": {
+    "capabilities": [
+      "php",
+      "php-8.4",
+      "composer",
+      "symfony-cli",
+      "intl",
+      "mbstring",
+      "pdo-pgsql",
+      "dom",
+      "bcmath",
+      "zip",
+      "curl"
+    ],
+    "details": {
+      "activation": "devenv shell",
+      "backend": "devenv",
+      "files": [
+        {
+          "destination": "devenv.nix",
+          "source": "devenv.nix"
+        },
+        {
+          "destination": "devenv.yaml",
+          "source": "devenv.yaml"
+        },
+        {
+          "destination": "devenv.lock",
+          "source": "devenv.lock"
+        }
+      ],
+      "scope": "project"
+    },
+    "documentation": "docs/resources/environment-php-symfony.md",
+    "id": "environment/php-symfony",
+    "kind": "environment",
+    "name": "php-symfony",
+    "prerequisites": {
+      "commands": [
+        "nix",
+        "devenv"
+      ],
+      "requirements": [
+        "Nix with nix-command and flakes enabled",
+        "devenv 2.4.0",
+        "Writable Nix store and access to the locked upstream inputs and binary caches"
+      ]
+    },
+    "purpose": "A reusable native devenv PHP 8.4 and Symfony development toolchain for a project on Linux amd64.",
+    "revision": "1.0.0",
+    "schema_version": 2,
+    "targets": [
+      "linux/amd64"
+    ],
+    "verification": {
+      "command": [
+        "bash",
+        "scripts/xorder/verify-devenv.sh"
+      ]
+    }
+  },
+  "id": "environment/php-symfony",
+  "input_fingerprint": "8c40f59f8bc8245991ce67ccf52bde827a5cf4c321ced18f53b0c94278b54f16",
+  "lifecycle": "available",
+  "publication": {
+    "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
+    "filename": "php-symfony-1.0.0.tar",
+    "format": "tar",
+    "public_download_verified_at": "2026-10-09T00:12:10.378339Z",
+    "sha256": "59ae1dd08d906bb3c897e7c4b26ad2dcfe0d9cd7bc76a3fe08132a1908be3c6f",
+    "size_bytes": 10240,
+    "url": "https://github.com/xormania/xorder/releases/download/environment/php-symfony/v1.0.0/php-symfony-1.0.0.tar"
+  },
+  "schema_version": 2,
+  "source_commit": "e2c8db2439b20ee51079063e4595c7f0f0e7d6e5",
+  "source_tag": "environment/php-symfony/v1.0.0",
+  "verification": {
+    "commands": [
+      [
+        "bash",
+        "scripts/xorder/verify-devenv.sh",
+        "$ARTIFACT_ROOT"
+      ]
+    ],
+    "completed_at": "2026-10-09T00:12:10.378339Z",
+    "evidence": "https://github.com/xormania/xorder/actions/runs/37863331446",
+    "status": "passed",
+    "surface": "github-actions-linux-amd64"
+  },
+  "version": "1.0.0"
+}
