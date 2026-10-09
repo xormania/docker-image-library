@@ -2,13 +2,13 @@
 
 Isolated Symfony UX Toolkit kit validation and clean locked Symfony 7.4 recipe-install applications, prepared for restricted consumer networks.
 
-Available revision: **1.0.0**. Pin:
+Available revision: **1.0.1**. Pin:
 
 ```text
-ghcr.io/xormania/php-toolkit@sha256:ecd476253546a991dbab18753b3f60eee192e51240b33890542c9d387dce50f5
+ghcr.io/xormania/php-toolkit@sha256:85f60474582b2d43a8a121e8c7ebc7c2d6e619245973db3dab2404f0f61b4a23
 ```
 
-[Verification evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:48:17.813167Z.
+[Verification evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:14:41.090659Z.
 
 ## Measured inventory — linux/amd64
 
@@ -37,15 +37,17 @@ Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filte
 
 | Metric | Measured value |
 | --- | ---: |
-| Local image size | 1,155.7 MiB (1,211,881,582 bytes) |
-| Build, cache export and image load | 12.55s |
-| Public-artifact behavior and inventory verification | 33.92s |
+| Local image size | 936.8 MiB (982,284,711 bytes) |
+| Build, cache export and image load | 12.97s |
+| Public-artifact behavior and inventory verification | 33.35s |
 
-Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:48:17.746506Z.
+Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:14:41.034687Z.
 
-External build cache at start: `empty`. This does not assert that every layer was a cache hit.
+External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
-[Release notes](../releases/php-toolkit-8.4-trixie-v1.0.0.md).
+Size baseline: v1.0.0, `ghcr.io/xormania/php-toolkit@sha256:ecd476253546a991dbab18753b3f60eee192e51240b33890542c9d387dce50f5`; 1,155.7 MiB in the same image store. Change: **-18.9%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:48:17.746506Z.
+
+[Release notes](../releases/php-toolkit-8.4-trixie-v1.0.1.md).
 
 Capabilities: `composer`, `mutation-testing`, `native-build`, `pcov`, `php`, `php-testing`, `phpstan-isolated`, `postgresql-client`, `prepared-composer-dependencies`, `symfony`, `symfony-toolkit-baseline`, `ux-toolkit-validation`, `xdebug`.
 
