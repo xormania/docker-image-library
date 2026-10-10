@@ -59,7 +59,8 @@ an existing profile, resolution lock, or managed installation.
 
 On a Docker-capable host, use `scripts/build.py LINE_ID LOCAL_TAG` and
 `scripts/verify-image.sh LINE_ID IMAGE`. Derived build input must be the exact
-matching parent artifact; PR tests use the just-built local parent. Publication
+matching parent artifact; PR tests reuse an available matching digest or use the
+just-built local parent. Publication
 uses its immutable registry digest. Image builds collect measured versions,
 packages, runtime and extensions using `scripts/inventory.py`.
 
@@ -76,6 +77,41 @@ build/verification helpers conservatively select all images. Publication also
 checks the accepted ledger before allocating runners, retaining incomplete PHP
 parent/browser pairs and changed-input guards.
 
+PR image selection keeps exact behavior targets within each shared parent build
+tree. Recipe, copied-input, tool-pin, and definition changes test their consumers
+and descendants. A change confined to one definition line tests only that line
+and its descendants; a change to the family's common definition tests every line.
+Fixture and runner changes test only the images that execute them. Ancestors
+provide exact build inputs without repeating their own behavior checks, and
+unaffected sibling branches are skipped. Matching available parent artifacts are
+pulled by digest; missing or changed parents are built before the selected child.
+
+Catalog and known schema-only changes run metadata validation. Shared image
+orchestration changes, including `validate.yml`, and unknown runtime helpers
+still exercise all images because their impact spans the validation path.
+Metadata/schema/unit checks run on every PR, and `checks` accepts intentionally
+skipped runtime jobs while failing on failed or cancelled required jobs.
+
+Inspect selection without building:
+
+```sh
+python3 scripts/library.py validation-matrix --base BASE_COMMIT
+python3 scripts/library.py validation-matrix --all
+```
+
+The matrix records each parent tree and its `verify_lines`, also shown in the
+workflow summary. The existing `affected` root-list interface remains available.
+For a toolkit-only local check:
+
+```sh
+python3 scripts/build.py php-dev/8.5-trixie image-library-check:dev \
+  --children --reuse-accepted --verify-lines '["php-toolkit/8.5-trixie"]'
+```
+
+Manual `Validate` runs and the weekly Tuesday 06:23 UTC schedule exercise every
+image, resource, environment, and application surface. Unchanged available
+images are still reused for runtime checks; these runs do not publish images.
+
 After a successful validation of the same PR and unchanged base, image selection
 compares the next update with that successful ancestral head. Failed runs,
 changed bases, unrelated force-pushes, and unavailable history fall back to the
@@ -88,8 +124,8 @@ shared files do not change Rust or Python fingerprints. Derived fingerprints
 also bind the exact accepted parent digest. Historical release records retain
 their original algorithm and evidence; migration belongs to fresh revisions.
 Tool-file changes select only consumers of the keys that actually changed.
-Validation pulls an unchanged accepted digest and runs behavior without building
-it. Missing or changed artifacts still build and verify normally. The optional
+Validation pulls an unchanged available accepted digest and runs selected behavior
+without building it. Missing or changed artifacts still build and verify normally. The optional
 `--cache-probe` checks source-label layer reuse when explicitly requested.
 
 Build caches use family-specific input fingerprints rather than commit SHAs.

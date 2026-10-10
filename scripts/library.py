@@ -9,7 +9,8 @@ import re
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from image_inputs import TOOL_KEYS, consumes, files as input_files
+from image_inputs import TOOL_KEYS, files as input_files
+from image_validation import affected_lines, matrix as validation_matrix
 
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^sha256:[a-f0-9]{64}$")
@@ -331,54 +332,9 @@ def generated(root=ROOT):
 
 
 def affected(changed, defs, previous_tools=None):
-    result = set()
-    metadata_scripts = {"scripts/release.py", "scripts/writeback.py", "scripts/refresh.py", "scripts/registry.py", "scripts/xorder_cli.py", "scripts/validation_base.py", "scripts/catalog_checks.py", "scripts/catalog_summary.py"}
-    metadata_workflows = {".github/workflows/publish.yml", ".github/workflows/refresh.yml", ".github/workflows/aliases.yml", ".github/workflows/catalog.yml"}
-    for path in changed:
-        families = set()
-        if path.startswith(("scripts/xorder/", "artifacts/", "profiles/", "tests/fixtures/devenv/", "tests/fixtures/artifacts/", "examples/resources/", "examples/devenv/")) or path in {
-            "schemas/resource.schema.json", "schemas/artifact-release-record.schema.json", "schemas/catalog-v2.schema.json", "schemas/profile.schema.json",
-            "schemas/resolution-lock.schema.json", "schemas/installation-receipt.schema.json",
-        }:
-            continue
-        elif path == "images/tools.json":
-            current = read(ROOT / path)
-            keys = set(current) | set(previous_tools or {})
-            if previous_tools is not None:
-                keys = {key for key in keys if current.get(key) != previous_tools.get(key)}
-            families = {family for family, used in TOOL_KEYS.items() if keys.intersection(used)}
-        elif path.startswith("images/shared/") or path == ".dockerignore":
-            families = {d["family"] for d in defs.values() if consumes(d["family"], path, ROOT)}
-        elif path.startswith(("tests/fixtures/php/", "tests/fixtures/mutation/")):
-            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev"}
-        elif path.startswith(("examples/php-toolkit/", "tests/fixtures/php-toolkit/")):
-            families = {"php-toolkit"}
-        elif path.startswith("tests/fixtures/frankenphp/"):
-            families = {"php-frankenphp", "flowbite-xor-dev"}
-        elif path.startswith(("examples/shared/", "tests/fixtures/network/")):
-            families = {"flowbite-xor-dev", "php-toolkit"}
-        elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
-            families = {"flowbite-xor-dev"}
-        elif path.startswith("tests/fixtures/trust/"):
-            result.update(defs)
-            continue
-        elif path.startswith("examples/php/"):
-            families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
-        elif path.startswith("tests/fixtures/python/"):
-            families = {"python-dev"}
-        elif path.startswith("tests/fixtures/rust/"):
-            families = {"rust-dev"}
-        elif path.startswith(("tests/test_", "tests/requirements/")) or path in metadata_scripts:
-            continue
-        elif path in metadata_workflows:
-            continue
-        elif path.startswith(("images/shared/", "scripts/", "schemas/", "tests/", "examples/", ".github/workflows/")):
-            result.update(defs)
-            continue
-        else:
-            families = {d["family"] for d in defs.values() if path.startswith(f"images/{d['family']}/")}
-        result.update(line for line, d in defs.items() if d["family"] in families)
-    return sorted({root_line(line, defs) for line in result})
+    # Preserve the existing root-list interface; CI uses the precise plan below.
+    selected = affected_lines(changed, defs, ROOT, previous_tools)
+    return sorted({root_line(line, defs) for line in selected})
 
 
 def fingerprint(d, root=ROOT):
@@ -441,7 +397,10 @@ def main():
     sub.add_parser("generate")
     sub.add_parser("check")
     s = sub.add_parser("select"); s.add_argument("requirements"); s.add_argument("--catalog", default=str(ROOT / "catalog.json"))
-    a = sub.add_parser("affected"); a.add_argument("--base"); a.add_argument("--all", action="store_true")
+    for command in ("affected", "validation-matrix"):
+        a = sub.add_parser(command)
+        a.add_argument("--base")
+        a.add_argument("--all", action="store_true")
     sub.add_parser("cache-key").add_argument("line")
     sub.add_parser("release-matrix")
     sub.add_parser("definitions")
@@ -465,15 +424,22 @@ def main():
         print(encoded(result), end="")
         if result["status"] != "selected":
             raise SystemExit(2)
-    elif args.command == "affected":
+    elif args.command in ("affected", "validation-matrix"):
         defs = definitions()
         if args.all or not args.base:
-            selected = sorted({root_line(line, defs) for line in defs})
+            selected = sorted(defs)
         else:
-            changed = subprocess.check_output(["git", "diff", "--name-only", args.base, "HEAD"], cwd=ROOT, text=True).splitlines()
+            changed = subprocess.check_output(["git", "diff", "--name-only", "--no-renames", args.base, "HEAD"], cwd=ROOT, text=True).splitlines()
             previous_tools = json.loads(subprocess.check_output(["git", "show", f"{args.base}:images/tools.json"], cwd=ROOT, text=True))
-            selected = affected(changed, defs, previous_tools)
-        print(json.dumps({"line": selected}))
+            previous_definitions = {}
+            for path in changed:
+                if path.startswith("images/") and path.endswith("/definition.json"):
+                    previous = subprocess.run(["git", "show", f"{args.base}:{path}"], cwd=ROOT, capture_output=True, text=True)
+                    if previous.returncode == 0:
+                        previous_definitions[path] = json.loads(previous.stdout)
+            selected = affected_lines(changed, defs, ROOT, previous_tools, previous_definitions)
+        result = validation_matrix(selected, defs) if args.command == "validation-matrix" else {"line": sorted({root_line(line, defs) for line in selected})}
+        print(json.dumps(result))
     elif args.command == "cache-key":
         print(cache_key(args.line, definitions()))
     elif args.command == "release-matrix":
