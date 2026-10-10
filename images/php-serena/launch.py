@@ -54,7 +54,7 @@ def index_fingerprint(project, config):
     digest.update(Path("/opt/xorder/serena/phpactor.phar").read_bytes())
     root = Path("/workspace") if project.is_relative_to(Path("/workspace")) else project
     for directory, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if d not in {".git", ".serena", "node_modules", "var", "assets"})
+        dirs[:] = sorted(d for d in dirs if d not in {".git", ".serena", "node_modules", "var"})
         for name in sorted(files):
             path = Path(directory) / name
             if path.is_symlink():

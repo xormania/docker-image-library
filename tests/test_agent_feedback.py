@@ -27,6 +27,7 @@ cache = load("dependency_cache", "examples/flowbite-xor/cache.py")
 runtime = load("host_runtime", "examples/shared/runtime.py")
 client = load("shell_serena", "examples/serena/client.py")
 integration = load("serena_integration", "images/php-serena/integration.py")
+trust = load("profile_trust", "examples/flowbite-xor/trust.py")
 
 
 class DependencySnapshotTests(unittest.TestCase):
@@ -101,6 +102,52 @@ class HostBudgetTests(unittest.TestCase):
         facts = {"cpus": 8, "load": 7, "memory_available": 2 * 1024**3}
         with patch.object(runtime, "resources", return_value=facts):
             self.assertEqual(runtime.worker_budget(Path("."), {}), 1)
+
+    def test_gc_does_not_touch_running_or_unowned_containers_or_referenced_images(self):
+        containers = [
+            {"Id": "running", "Image": "image1", "Config": {"Labels": {"dev.xorder.workspace": "/one"}}, "State": {"Running": True}},
+            {"Id": "stopped", "Image": "image2", "Config": {"Labels": {"dev.xorder.workspace": "/two"}}, "State": {"Running": False}},
+            {"Id": "unowned", "Image": "image4", "Config": {"Labels": {}}, "State": {"Running": False}},
+        ]
+        images = [{"Id": "image" + str(i), "Config": {"Labels": {"org.opencontainers.image.source": "https://github.com/xormania/xorder"}}} for i in range(1, 5)]
+        def inspect(argv, **kwargs):
+            if argv[1:3] == ["ps", "-aq"]:
+                return "running stopped unowned"
+            if argv[1:3] == ["image", "ls"]:
+                return "image1 image2 image3 image4"
+            if argv[1:3] == ["image", "inspect"]:
+                return json.dumps(images)
+            return json.dumps([item for item in containers if item["Id"] in argv[2:]])
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(runtime.subprocess, "check_output", side_effect=inspect), \
+                patch.object(runtime.subprocess, "run") as mutate:
+            env = dict(os.environ, XDG_CACHE_HOME=directory)
+            runtime.gc(env)
+            mutate.assert_not_called()
+            runtime.gc(env, apply=True)
+            calls = [call.args[0] for call in mutate.call_args_list]
+            self.assertEqual(calls, [["docker", "rm", "stopped"], ["docker", "image", "rm", "image3"]])
+
+
+class TrustDedupTests(unittest.TestCase):
+    def test_full_bundle_keeps_only_unique_additional_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            system = root / "system"
+            system.mkdir()
+            certs = []
+            for i in range(2):
+                path = root / f"{i}.crt"
+                subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                                "-subj", f"/CN=XorderFeedback{i}", "-keyout", str(root / f"{i}.key"), "-out", str(path)],
+                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                certs.append(path.read_text())
+            (system / "existing.crt").write_text(certs[0])
+            result = trust.additional(certs[0] + certs[1] + certs[1], system)
+            self.assertEqual(len(list(trust.certificates(result))), 1)
+            self.assertEqual(next(trust.certificates(result))[0], next(trust.certificates(certs[1]))[0])
+            with self.assertRaises(ValueError):
+                trust.additional(certs[0] + "private key or truncated data", system)
 
 
 class ShellMCPTests(unittest.TestCase):

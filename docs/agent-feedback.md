@@ -97,5 +97,9 @@ are installed during build. The runtime downloads no browser or Node packages.
 Garbage collection is dry-run by default and preserves volumes and caches. It
 lists stopped containers carrying xorder workspace labels and xorder images that
 no container references. Apply rechecks running state and never forces image
-removal. Orphaned registered worktree pointers and runner receipts may be removed;
-source checkouts and arbitrary downloaded runner directories are never deleted.
+removal. Orphaned registered worktree pointers and runner receipts may be removed.
+Use `gc --runner-copy /absolute/path/to/old-unpacked-xorder` to include an old
+runner copy in the plan. Copies must be outside the source checkout and current
+runner, contain xorder discovery/runner files, have no Git repository, and have
+no container bind references. Apply rechecks those references. Source checkouts
+and unselected runner directories are preserved.

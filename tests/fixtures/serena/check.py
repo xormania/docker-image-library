@@ -171,16 +171,18 @@ def main():
                 assert json.loads(reply.stdout)["ok"], reply.stdout
                 assert "xorder-shell" in source.read_text()
                 evidence["checks"].append("shell-query-trusted-source-edit")
-                js = checkout / fixture["project"] / "assets/controllers/xorder_navigation.js"
+                # Recipe-generated controllers are intentionally gitignored by
+                # this consumer; exercise source files eligible for navigation.
+                js = checkout / fixture["project"] / "assets/xorder_navigation.js"
                 usage = js.with_name("xorder_usage.js")
                 js.write_text("export class XorderNavigation { navigate() { return 42; } }\n")
                 usage.write_text("import { XorderNavigation } from './xorder_navigation.js';\nexport const xorderResult = new XorderNavigation().navigate();\n")
                 client = Client(command + ["--write", "--languages", "php_phpactor,typescript"], log)
-                symbols = client.repl("s.lsp.get_symbols_overview('assets/controllers/xorder_navigation.js', depth=1)")
+                symbols = client.repl("s.lsp.get_symbols_overview('assets/xorder_navigation.js', depth=1)")
                 assert "XorderNavigation" in symbols and "navigate" in symbols, symbols
-                refs = client.repl("s.lsp.find_referencing_symbols('XorderNavigation', 'assets/controllers/xorder_navigation.js')")
+                refs = client.repl("s.lsp.find_referencing_symbols('XorderNavigation', 'assets/xorder_navigation.js')")
                 assert "xorder_usage.js" in refs, refs
-                client.repl("s.edit.replace_content('assets/controllers/xorder_navigation.js', 'return 42', 'return 43', 'literal')")
+                client.repl("s.edit.replace_content('assets/xorder_navigation.js', 'return 42', 'return 43', 'literal')")
                 assert "return 43" in js.read_text()
                 evidence["checks"].append("javascript-symbols-cross-file-references-and-edit")
                 client.close()

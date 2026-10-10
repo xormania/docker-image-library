@@ -41,8 +41,8 @@
         "linux/amd64"
       ],
       "base": {
-        "tag": "docker.io/library/node:22-trixie",
-        "digest": "sha256:def2655045ff1ee91b28a48cb3ec84feafef6d128bda0ff6903e7847ed0b27b4"
+        "tag": "docker.io/library/node:22-trixie-slim",
+        "digest": "sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa"
       },
       "changes": [
         "Prepare Playwright 1.58.2 and its Chromium, Firefox and WebKit engines; verify each engine offline before catalog availability."

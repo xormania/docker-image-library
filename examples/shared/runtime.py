@@ -109,7 +109,7 @@ def heavy_run(workspace, env):
         lock.close()
 
 
-def gc(env, apply=False):
+def gc(env, apply=False, runner_copies=()):
     """Remove only stopped xorder-labelled containers and unused xorder image IDs."""
     def docker(*args):
         return subprocess.check_output(["docker", *args], env=env, text=True).strip()
@@ -123,7 +123,20 @@ def gc(env, apply=False):
     unused = [item for item in images if item["Id"] not in used and
               item.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.source") == "https://github.com/xormania/xorder"]
     result = {"dry_run": not apply, "stopped_containers": [item["Id"] for item in stopped],
-              "unused_images": [item["Id"] for item in unused], "old_runner_state": []}
+              "unused_images": [item["Id"] for item in unused], "old_runner_state": [], "old_runner_copies": []}
+    for value in runner_copies:
+        path = Path(value).resolve(strict=True)
+        current = Path(env["XORDER_RUNNER_ROOT"]).resolve()
+        workspace = Path(env["WORKSPACE"]).resolve()
+        if (not path.is_dir() or (path / ".git").exists() or current.is_relative_to(path)
+                or workspace.is_relative_to(path) or path.is_relative_to(workspace)
+                or not (path / "catalog-v2.json").is_file()
+                or not (path / "examples/flowbite-xor/runner.py").is_file()):
+            raise ValueError("Runner-copy cleanup needs an explicitly selected unpacked xorder copy outside the checkout and current runner")
+        if any(Path(mount.get("Source", "/")).is_relative_to(path)
+               for container in containers for mount in container.get("Mounts", []) if mount.get("Type") == "bind"):
+            raise ValueError("Runner copy is still mounted by a stack; stop and remove that stack first")
+        result["old_runner_copies"].append(str(path))
     # Receipts and generated git pointers are reconstructable. Never delete repositories.
     root = state_root(env)
     for folder in (root / "worktrees", root / "flowbite"):
@@ -146,5 +159,13 @@ def gc(env, apply=False):
             # No --force: Docker protects references that appeared since planning.
             subprocess.run(["docker", "image", "rm", image["Id"]], env=env, check=False)
         for path in result["old_runner_state"]:
+            shutil.rmtree(path)
+        for path in result["old_runner_copies"]:
+            # Recheck mounts immediately before removing the selected copy.
+            current_ids = docker("ps", "-aq").split()
+            current_containers = json.loads(docker("inspect", *current_ids)) if current_ids else []
+            if any(Path(mount.get("Source", "/")).is_relative_to(Path(path))
+                   for container in current_containers for mount in container.get("Mounts", []) if mount.get("Type") == "bind"):
+                raise ValueError("Runner copy acquired a stack reference; cleanup stopped")
             shutil.rmtree(path)
     return 0

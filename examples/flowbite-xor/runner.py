@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Local Compose orchestration; dependencies and application hooks stay project-owned."""
 import hashlib
+import argparse
 import json
 import os
 from pathlib import Path
@@ -214,9 +215,14 @@ def main(arguments):
     if action == "status":
         return status(project, env)
     if action == "gc":
-        if extra not in ([], ["--apply"], ["--dry-run"]):
-            raise ValueError("gc is dry-run by default; use --apply to remove listed unused resources")
-        return gc(env, apply=extra == ["--apply"])
+        parser = argparse.ArgumentParser(prog="xr gc", description="List unused resources; dry-run by default")
+        mode = parser.add_mutually_exclusive_group()
+        mode.add_argument("--apply", action="store_true")
+        mode.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--runner-copy", action="append", default=[], help="Explicit unpacked old runner copy to inspect and remove")
+        options = parser.parse_args(extra)
+        env["XORDER_RUNNER_ROOT"] = str(PROFILE.parents[1])
+        return gc(env, apply=options.apply, runner_copies=options.runner_copy)
     if not env.get("IMAGE"):
         raise ValueError("Select IMAGE from the verified flowbite-xor-dev catalog")
     ca = env.get("CA_CERTIFICATE")
