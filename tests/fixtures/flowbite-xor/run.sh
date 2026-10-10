@@ -49,6 +49,22 @@ bash "$root/examples/flowbite-xor/run.sh" status
 # Matching setup avoids package reinstalls; the recorded content stays stable.
 after_setup=$(bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cat demo/var/xorder/composer-ready demo/var/xorder/node-ready')
 test "$before_setup" = "$after_setup"
+# Complete dependencies can be adopted with unrecorded worktree setup, without
+# inventing receipts or allowing writes through the mounted dependency paths.
+bash "$root/examples/flowbite-xor/run.sh" exec rm demo/var/xorder/composer-ready demo/var/xorder/node-ready
+bash "$root/examples/flowbite-xor/run.sh" up --reuse-only > "$work/reuse-only.log" 2>&1 || { cat "$work/reuse-only.log"; exit 1; }
+grep -q 'readiness marker is missing' "$work/reuse-only.log"
+bash "$root/examples/flowbite-xor/run.sh" exec test ! -e demo/var/xorder/composer-ready
+bash "$root/examples/flowbite-xor/run.sh" exec test ! -e demo/var/xorder/node-ready
+for directory in demo/vendor node_modules demo/assets/vendor; do
+  if bash "$root/examples/flowbite-xor/run.sh" exec touch "$directory/.xorder-write-probe"; then
+    echo "Reuse-only dependency directory was writable: $directory" >&2
+    exit 1
+  fi
+done
+# Ordinary setup remains available when deliberately returning to private,
+# writable dependency mounts. It records its own hooks and npm installation.
+bash "$root/examples/flowbite-xor/run.sh" up
 # Restore an accidentally omitted manifest from captured Symfony metadata.
 asset_metadata=$(bash "$root/examples/flowbite-xor/run.sh" exec sha256sum demo/assets/vendor/installed.php)
 bash "$root/examples/flowbite-xor/run.sh" exec rm demo/assets/vendor/installed.php

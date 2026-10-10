@@ -121,6 +121,7 @@ and direct usage pages remains sufficient.
 - [Selection and requirement gaps](docs/selection.md)
 - [Workspace, caches, database, and browser recipes](docs/usage.md)
 - [FrankenPHP and flowbite-xor development/testing](docs/flowbite-xor.md)
+- [Claude cloud session quick start and dependency reuse](docs/claude-cloud.md)
 - [Reusable PHP test tasks and per-process coverage](docs/php-tests.md)
 - [Prepared Serena v2 REPL, shell access and editing](docs/serena.md)
 - [Agent feedback implementation and runner operations](docs/agent-feedback.md)
