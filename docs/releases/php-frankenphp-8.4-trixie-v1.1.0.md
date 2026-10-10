@@ -25,8 +25,6 @@ Base/parent: `docker.io/dunglas/frankenphp:1-php8.4-trixie@sha256:2fd4a848c05bf4
 
 Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:44:22.594975Z.
 
-Plan about **3 GiB free for a cold pull**, plus space for project dependencies and test output. This estimate is twice the measured unpacked image size, rounded up; shared layers may lower it, while the image store, temporary files and sandbox quotas can increase the requirement. Check free space on the Docker data filesystem; it may differ from the checkout filesystem.
-
 External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
 Size baseline: v1.0.0, `ghcr.io/xormania/php-frankenphp@sha256:9cd194f21ef4600fbba343fa5a471528fff3f6db6a1889ea280fb58d68cf30d2`; 931.8 MiB in the same image store. Change: **+27.6%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37852642503); 2026-10-08T22:22:56.838890Z.

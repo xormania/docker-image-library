@@ -22,8 +22,6 @@ Base/parent: `docker.io/library/rust:1.99-slim-trixie@sha256:24e632c09342c20abf8
 
 Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:28.971289Z.
 
-Plan about **3 GiB free for a cold pull**, plus space for project dependencies and test output. This estimate is twice the measured unpacked image size, rounded up; shared layers may lower it, while the image store, temporary files and sandbox quotas can increase the requirement. Check free space on the Docker data filesystem; it may differ from the checkout filesystem.
-
 External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
 Size baseline: v1.0.0, `ghcr.io/xormania/rust-dev@sha256:f7a732022c49f33478b4237d9a8dcd78c8925ee14a6df5fec16ad08729dd0e04`; 1,784.0 MiB in the same image store. Change: **-28.5%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:52.317985Z.

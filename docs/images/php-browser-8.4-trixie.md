@@ -45,8 +45,6 @@ Extensions: `bcmath`, `core`, `ctype`, `curl`, `date`, `dom`, `fileinfo`, `filte
 
 Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38002658722); 2026-10-09T23:13:05.903283Z.
 
-Plan about **4 GiB free for a cold pull**, plus space for project dependencies and test output. This estimate is twice the measured unpacked image size, rounded up; shared layers may lower it, while the image store, temporary files and sandbox quotas can increase the requirement. Check free space on the Docker data filesystem; it may differ from the checkout filesystem.
-
 External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
 Size baseline: v1.2.0, `ghcr.io/xormania/php-browser@sha256:f14c53bd6c4c27b54b1415d6913947ec359c28e003d27292ef930d1c9b646464`; 1,834.5 MiB in the same image store. Change: **-11.9%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/37884893194); 2026-10-09T04:46:44.078214Z.
