@@ -49,6 +49,21 @@ def php_exec(compose, env, *arguments, cwd="/app", capture=False, check=True, fo
                  *overrides, "php", *arguments], env, capture=capture, check=check)
 
 
+def compose_command(workspace, project, env):
+    command = ["docker", "compose", "--project-directory", str(workspace / "demo"), "-p", project]
+    if env.get("XORDER_PARITY_FIXTURE") == "1":
+        # Consumer configuration is executable infrastructure, not trusted input.
+        # The controlled fixture mounts only this checkout and the trusted profile.
+        for name in ("Caddyfile", "conf.d/10-app.ini", "conf.d/20-app.dev.ini"):
+            path = (workspace / "demo/frankenphp" / name).resolve(strict=True)
+            if not path.is_relative_to(workspace) or not path.is_file():
+                raise ValueError("Parity configuration must stay inside the disposable consumer checkout")
+        command += ["--env-file", os.devnull, "-f", str(PROFILE.parents[1] / "tests/fixtures/playwright/compose.yaml")]
+    else:
+        command += ["-f", str(workspace / "demo/compose.yaml"), "-f", str(workspace / "demo/compose.override.yaml")]
+    return [*command, "-f", str(PROFILE / "compose.yaml")]
+
+
 def identity(workspace, env, slot):
     key = hashlib.sha256(str(workspace).encode()).hexdigest()
     project = env.get("FLOWBITE_PROJECT") or "flowbite-" + re.sub(r"[^a-z0-9_-]", "-", workspace.name.lower())[:32] + "-" + key[:10]
@@ -248,8 +263,7 @@ def main(arguments):
     preference = env.get("COMPOSER_INSTALL_PREFERENCE") or "dist"
     if preference not in ("dist", "source"):
         raise ValueError("COMPOSER_INSTALL_PREFERENCE must be dist or source")
-    compose = ["docker", "compose", "--project-directory", str(workspace / "demo"), "-p", project,
-               "-f", str(workspace / "demo/compose.yaml"), "-f", str(workspace / "demo/compose.override.yaml"), "-f", str(PROFILE / "compose.yaml")]
+    compose = compose_command(workspace, project, env)
     overlay = {"services": {"php": {"volumes": []}}}
     if action == "up" and not env["BROWSER_IMAGE"].startswith("mcr.microsoft.com/playwright:"):
         overlay["services"]["browser"] = {"command": ["playwright", "run-server", "--port", "3000", "--host", "0.0.0.0"]}

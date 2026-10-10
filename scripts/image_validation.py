@@ -9,6 +9,7 @@ METADATA_SCRIPTS = {
     "scripts/release.py", "scripts/writeback.py", "scripts/refresh.py",
     "scripts/registry.py", "scripts/xorder_cli.py", "scripts/validation_base.py",
     "scripts/catalog_checks.py", "scripts/catalog_summary.py",
+    "scripts/browser_release.py",
 }
 METADATA_WORKFLOWS = {
     ".github/workflows/publish.yml", ".github/workflows/refresh.yml",
@@ -95,7 +96,7 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
                 families = {"php-toolkit"}
             elif path.startswith(("examples/serena/", "tests/fixtures/serena/")):
                 families = {"php-serena"}
-            elif path.startswith("tests/fixtures/playwright/"):
+            elif path == "scripts/playwright_fixture.py" or path.startswith("tests/fixtures/playwright/"):
                 families = {"playwright-browser"}
             elif path.startswith("tests/fixtures/frankenphp/"):
                 families = {"php-frankenphp", "flowbite-xor-dev"}

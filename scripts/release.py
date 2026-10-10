@@ -71,7 +71,7 @@ def release_measurements(line, revision, artifact, accepted, evidence, measured_
     return measurements
 
 
-def publish(line, source, destination, parent=None):
+def publish(line, source, destination, parent=None, browser_evidence=None):
     d = definitions()[line]
     accepted = records()
     prior = [r for r in accepted if r["line_id"] == line and r["version"] == d["revision"]]
@@ -104,6 +104,17 @@ def publish(line, source, destination, parent=None):
     existing = resolve(candidate, authenticated=True)
     inventory_path = destination / "inventory.json"
     resolved_base = parent or pinned(d["base"])
+    browser_proof = None
+    def verify_candidate(artifact):
+        nonlocal browser_proof
+        if d["family"] != "playwright-browser":
+            verify(line, artifact, inventory_path)
+            return
+        if browser_evidence is None:
+            raise ValueError("Browser publication requires anonymous parity evidence")
+        from browser_release import accepted_evidence
+        browser_proof = accepted_evidence(line, source, artifact, browser_evidence)
+        inventory_path.write_text(encoded(browser_proof["inventory"]))
     build_seconds = build_cache = None
     if existing:
         artifact = repository + "@" + existing["digest"]
@@ -111,13 +122,15 @@ def publish(line, source, destination, parent=None):
         labels = json.loads(subprocess.check_output(["docker", "inspect", artifact, "--format", "{{json .Config.Labels}}"], text=True))
         if labels.get("org.opencontainers.image.revision") != source or labels.get("org.opencontainers.image.version") != d["revision"]:
             raise RuntimeError("Candidate metadata does not match this release")
-        verify(line, artifact, inventory_path)
+        verify_candidate(artifact)
     else:
+        if d["family"] == "playwright-browser":
+            raise ValueError("Stage and anonymously verify the browser candidate before publication")
         build_cache = cache_source(line.replace("/", "-"))
         build_start = time.monotonic()
         build(line, candidate, source, parent, cache=line.replace("/", "-"))
         build_seconds = round(time.monotonic() - build_start, 2)
-        verify(line, candidate, inventory_path)
+        verify_candidate(candidate)
         run("docker", "push", candidate)
     published = resolve(candidate, authenticated=True)
     if not published:
@@ -136,8 +149,10 @@ def publish(line, source, destination, parent=None):
         env = dict(os.environ, DOCKER_CONFIG=config)
         run("docker", "pull", "--platform", "linux/amd64", artifact, env=env)
         verification_start = time.monotonic()
-        verify(line, artifact, inventory_path)
-        verification_seconds = round(time.monotonic() - verification_start, 2)
+        verify_candidate(artifact)
+        verification_seconds = browser_proof["verification_seconds"] if browser_proof else round(time.monotonic() - verification_start, 2)
+        if browser_proof:
+            build_seconds, build_cache = browser_proof.get("build_seconds"), browser_proof.get("cache_source")
         measurements = release_measurements(line, d["revision"], artifact, accepted, evidence, now(),
                                             verification_seconds, env, build_seconds, build_cache)
     date = now()
@@ -276,9 +291,9 @@ def aliases():
         alias_report(plan)
 
 
-def publish_tree(line, source, parent=None):
+def publish_tree(line, source, parent=None, browser_evidence=None):
     output = ROOT / "out" / line.replace("/", "-")
-    record = publish(line, source, output, parent)
+    record = publish(line, source, output, parent, browser_evidence)
     output.mkdir(parents=True, exist_ok=True)
     (output / "record.json").write_text(encoded(record))
     reference = record["publication"]["repository"] + "@" + record["publication"]["digest"]
@@ -290,8 +305,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("line", nargs="?"); parser.add_argument("--source", default=os.environ.get("GITHUB_SHA"))
     parser.add_argument("--aliases", action="store_true")
+    parser.add_argument("--browser-evidence", type=Path)
     args = parser.parse_args()
     if args.aliases:
         aliases()
     else:
-        publish_tree(args.line, args.source)
+        publish_tree(args.line, args.source, browser_evidence=args.browser_evidence)
