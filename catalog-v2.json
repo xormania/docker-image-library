@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-09T23:15:06.534072Z",
+  "generated_at": "2026-10-10T06:17:43.699213Z",
   "resources": [
     {
       "capabilities": [
@@ -2409,6 +2409,86 @@
         "surface": "github-actions-linux-amd64"
       },
       "version": "1.1.1"
+    },
+    {
+      "capabilities": [
+        "composer",
+        "mutation-testing",
+        "native-build",
+        "offline-php-semantic-tools",
+        "pcov",
+        "php",
+        "php-testing",
+        "phpactor",
+        "phpstan-isolated",
+        "postgresql-client",
+        "serena-v2-repl",
+        "symfony",
+        "xdebug"
+      ],
+      "created_at": "2026-10-10T06:17:43.699213Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-serena:8.5-trixie-v1.0.0",
+        "extensions": [
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pcov",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zip"
+        ],
+        "family": "php-serena",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "curl",
+          "gh",
+          "git",
+          "infection",
+          "jq",
+          "library-php-coverage",
+          "library-php-tests",
+          "library-serena",
+          "phpactor",
+          "psql",
+          "rg",
+          "uv"
+        ]
+      },
+      "documentation": "docs/images/php-serena-8.5-trixie.md",
+      "id": "image/php-serena/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-serena@sha256:9efe7bb1989723578a3eed03a2ee5802145af1efaba4a1297dd994d5abe62718",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Prepared Serena v2 REPL and PHPactor for PHP/Symfony source work over stdio MCP, verified against flowbite-xor.",
+      "release_record": "release-records/php-serena/8.5-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-10T06:17:43.699213Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/38030147899",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
     },
     {
       "capabilities": [
