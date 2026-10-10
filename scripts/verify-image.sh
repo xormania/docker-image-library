@@ -5,6 +5,16 @@ line=${1:?Usage: verify-image.sh LINE_ID IMAGE}
 image=${2:?Supply image reference}
 root=$(cd "$(dirname "$0")/.." && pwd)
 family=${line%%/*}
+if [[ "$family" = playwright-browser ]]; then
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+  docker run --rm --network=none --init --shm-size=1g \
+    -e PUID="$(id -u)" -e PGID="$(id -g)" \
+    -v "$work:/workspace" -v "$root/tests/fixtures/playwright:/proof:ro" \
+    "$image" node /proof/check.cjs
+  test -s "$work/chromium.png" && test -s "$work/firefox.png" && test -s "$work/webkit.png"
+  exit 0
+fi
 kind=${family%-dev}
 case "$family" in php-browser|php-toolkit|php-serena|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
 work=$(mktemp -d)

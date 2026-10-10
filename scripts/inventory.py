@@ -46,6 +46,9 @@ elif family == "python-dev":
 elif family == "rust-dev":
     runtime = run("rustc", "--version").split()[1]
     commands.update({"rustc": ["rustc", "--version"], "cargo": ["cargo", "--version"], "rustfmt": ["rustfmt", "--version"], "clippy": ["cargo", "clippy", "--version"], "rustup": ["rustup", "--version"]})
+elif family == "playwright-browser":
+    runtime = run("node", "-p", "require('/opt/playwright/node_modules/playwright/package.json').version")
+    commands = {"node": ["node", "--version"], "playwright": ["playwright", "--version"]}
 else:
     raise SystemExit("Unknown family")
 for tool, command in commands.items():
@@ -61,6 +64,8 @@ result = {"platform": "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}[platfor
 if family == "rust-dev":
     result["rust_targets"] = run("rustup", "target", "list", "--installed").splitlines()
 if family == "php-serena":
+    tools["node"] = run("node", "--version")
+    tools["typescript-language-server"] = run("/opt/xorder/serena/javascript/node_modules/.bin/typescript-language-server", "--version")
     result["serena"] = {
         "source_revision": run("git", "-c", "safe.directory=/opt/serena-source", "-C", "/opt/serena-source", "rev-parse", "HEAD"),
         "upstream_lock_sha256": hashlib.sha256(Path("/opt/serena-source/uv.lock").read_bytes()).hexdigest(),

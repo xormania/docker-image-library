@@ -262,7 +262,7 @@ statefile.write_text(json.dumps(state))
         cache = self.directory / "Composer cache"
         cache.mkdir()
         self.assertEqual(self.run_profile("up", COMPOSER_CACHE_DIR=str(cache), PUID="0", PGID="0").returncode, 0)
-        mount = next(call["overlay"] for call in self.calls if "overlay" in call)["services"]["php"]["volumes"][0]
+        mount = next(mount for call in self.calls if "overlay" in call for mount in call["overlay"]["services"]["php"]["volumes"] if mount["target"] == "/run/composer-cache")
         self.assertEqual(mount["target"], "/run/composer-cache")
         self.assertEqual(Path(mount["source"]).parent, cache / "xorder")
         self.assertTrue(Path(mount["source"]).is_dir())
@@ -431,6 +431,22 @@ statefile.write_text(json.dumps(state))
         self.assertEqual(result.returncode, 1)
         self.assertIn("browser: running, health=unhealthy", result.stdout)
 
+    def test_status_fails_when_required_loopback_relay_is_missing(self):
+        self.assertEqual(self.run_profile("up").returncode, 0)
+        self.commands.unlink()
+        result = self.run_profile("status", HTTPS_PROXY="http://127.0.0.1:3128")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("proxy relay: unavailable", result.stdout)
+        self.assertIn("disk:", result.stdout)
+        self.assertIn("load:", result.stdout)
+        self.assertFalse(any("up" in call["args"] for call in self.calls))
+
+    def test_sync_uses_the_complete_profile_command_from_checkout_root(self):
+        self.assertEqual(self.run_profile("sync").returncode, 0)
+        command = self.calls[-1]["args"]
+        self.assertEqual(command[-3:], ["php", "php", "tools/sync-demo"])
+        self.assertEqual(command[command.index("-w") + 1], "/app")
+
 
 class StartupBootstrapTests(unittest.TestCase):
     def run_startup(self, mode="--application", build_failure=False, assets_missing=False, asset_failure=False, composer_reused=False):
@@ -448,6 +464,7 @@ class StartupBootstrapTests(unittest.TestCase):
             source = (ROOT / "examples/flowbite-xor/startup.sh").read_text()
             (profile / "startup.sh").write_text(source.replace("/app/", str(root / "app") + "/"))
             (profile / "verify-composer.php").write_text("fixture")
+            (profile / "cache.py").write_text((ROOT / "examples/flowbite-xor/cache.py").read_text())
             server = demo / "frankenphp/docker-entrypoint.sh"
             server.write_text('''#!/bin/sh
 set -eu

@@ -5,6 +5,8 @@ services:
     labels:
       dev.xorder.workspace: ${WORKSPACE:?Resolved by run.sh}
       dev.xorder.proxy-owner: ${XORDER_PROXY_OWNER:?Resolved by run.sh}
+    cpus: ${PHP_CPUS:-2}
+    mem_limit: ${PHP_MEMORY:-2g}
     entrypoint: [bash, /run/xorder/startup.sh, --entrypoint]
     command: [frankenphp, run, --config, /etc/frankenphp/Caddyfile, --watch]
     environment:
@@ -45,7 +47,11 @@ services:
       timeout: 5s
       retries: 60
   browser:
-    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:?Derived from the project lockfile}-noble
+    image: ${BROWSER_IMAGE:?Selected from the project Playwright version}
+    labels:
+      dev.xorder.workspace: ${WORKSPACE:?Resolved by run.sh}
+    cpus: ${BROWSER_CPUS:-2}
+    mem_limit: ${BROWSER_MEMORY:-2g}
     network_mode: service:php
     init: true
     shm_size: 1gb

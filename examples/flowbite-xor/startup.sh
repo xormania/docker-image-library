@@ -10,6 +10,17 @@ if [[ "${1:-}" = --entrypoint ]]; then
     chown -R "$uid:$gid" /app/demo/var
   fi
   cd /app/demo
+  if [[ -n "${LIBRARY_CA_FILE:-}" ]]; then
+    additional_ca=$(mktemp /tmp/xorder-additional-ca.XXXXXXXX.pem)
+    python3 "$profile/trust.py" "$LIBRARY_CA_FILE" "$additional_ca"
+    chmod 0644 "$additional_ca"
+    if [[ -s "$additional_ca" ]]; then
+      export LIBRARY_CA_FILE="$additional_ca"
+    else
+      unset LIBRARY_CA_FILE
+      rm -f "$additional_ca"
+    fi
+  fi
   exec bash /usr/local/bin/library-entrypoint bash "$profile/startup.sh" --application "$@"
 fi
 mode=${1:?Supply --prepare or --application}; shift
@@ -26,6 +37,9 @@ fi
 php /app/tools/sync-demo
 composer validate --no-check-publish --no-interaction
 mkdir -p var/xorder
+# Both trees include their original installation metadata. Normal project
+# verification and hooks below still decide whether they are usable.
+python3 "$profile/cache.py" restore
 # Restore only a previously recorded, byte-matching Symfony installation.
 php "$profile/importmap-state.php" restore
 marker=var/xorder/composer-ready
@@ -54,6 +68,7 @@ fi
 php "$profile/importmap-state.php" record
 fingerprint > "$marker.tmp"
 mv "$marker.tmp" "$marker"
+python3 "$profile/cache.py" store
 flowbite-prime-tailwind
 if [[ "$mode" = --application ]]; then
   # The worker-served page renders Twig's Tailwind asset. Seeding the CLI alone

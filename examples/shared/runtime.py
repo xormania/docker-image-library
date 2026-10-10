@@ -1,0 +1,150 @@
+"""Host resource observations, daemon recovery and cooperative heavy-run limits."""
+from contextlib import contextmanager
+import fcntl
+import json
+import math
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+
+
+def state_root(env):
+    root = Path(env.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "xorder"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def resources(workspace):
+    cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    try:
+        quota, period = Path("/sys/fs/cgroup/cpu.max").read_text().split()
+        if quota != "max":
+            cpus = min(cpus, max(1, math.ceil(int(quota) / int(period))))
+    except (OSError, ValueError):
+        pass
+    available = None
+    try:
+        entries = dict(line.split(":", 1) for line in Path("/proc/meminfo").read_text().splitlines())
+        available = int(entries["MemAvailable"].split()[0]) * 1024
+        limit = Path("/sys/fs/cgroup/memory.max").read_text().strip()
+        if limit != "max":
+            available = min(available, max(0, int(limit) - int(Path("/sys/fs/cgroup/memory.current").read_text())))
+    except (OSError, ValueError, KeyError):
+        pass
+    load = os.getloadavg()[0] if hasattr(os, "getloadavg") else 0
+    disk = shutil.disk_usage(workspace)
+    return {"cpus": cpus, "load": round(load, 2), "memory_available": available,
+            "disk_total": disk.total, "disk_free": disk.free, "disk_used": disk.used}
+
+
+def print_resources(workspace):
+    facts = resources(workspace)
+    print(f"disk: {facts['disk_used']/1024**3:.1f} GiB used, {facts['disk_free']/1024**3:.1f} GiB free "
+          f"({facts['disk_used']/facts['disk_total']:.0%} used)")
+    memory = f", {facts['memory_available']/1024**3:.1f} GiB available" if facts['memory_available'] is not None else ""
+    print(f"load: {facts['load']:.2f}, CPU budget {facts['cpus']}{memory}")
+
+
+def ensure_daemon(env):
+    def reachable():
+        return subprocess.run(["docker", "info"], env=env, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=15).returncode == 0
+    if reachable():
+        return
+    from network import local_engine
+    if not local_engine(env):
+        raise ValueError("Remote Docker daemon unavailable; restore the selected engine")
+    explicit = env.get("XORDER_DOCKER_START_COMMAND")
+    commands = [shlex.split(explicit)] if explicit else ([
+        ["systemctl", "start", "docker"], ["service", "docker", "start"]
+    ] if os.getuid() == 0 else [["systemctl", "--user", "start", "docker"]])
+    for command in commands:
+        if not command or not shutil.which(command[0]):
+            continue
+        print("Docker unavailable; attempting configured service recovery", flush=True)
+        subprocess.run(command, env=env, check=False, timeout=30,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if reachable():
+            return
+    raise ValueError("Docker daemon unavailable. Start Docker or set XORDER_DOCKER_START_COMMAND, then run up")
+
+
+def worker_budget(workspace, env):
+    facts = resources(workspace)
+    cpu_budget = max(1, int(facts["cpus"] - facts["load"]))
+    memory_budget = max(1, facts["memory_available"] // (1024**3)) if facts["memory_available"] else 1
+    maximum = int(env.get("XORDER_TEST_MAX_WORKERS", "4"))
+    if maximum < 1:
+        raise ValueError("XORDER_TEST_MAX_WORKERS must be positive")
+    return min(cpu_budget, memory_budget, maximum)
+
+
+@contextmanager
+def heavy_run(workspace, env):
+    count = int(env.get("XORDER_TEST_MAX_RUNS", "1"))
+    if not 1 <= count <= 64:
+        raise ValueError("XORDER_TEST_MAX_RUNS must be between 1 and 64")
+    folder = state_root(env) / "test-runs"
+    folder.mkdir(parents=True, exist_ok=True)
+    lock = None
+    for slot in range(count):
+        candidate = (folder / f"{slot}.lock").open("a+")
+        try:
+            fcntl.flock(candidate, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock = candidate
+            break
+        except BlockingIOError:
+            candidate.close()
+    if lock is None:
+        raise ValueError("Another heavy test run holds the host budget. Retry when it finishes "
+                         "or deliberately increase XORDER_TEST_MAX_RUNS")
+    try:
+        lock.seek(0); lock.truncate()
+        lock.write(json.dumps({"workspace": str(workspace), "pid": os.getpid()})); lock.flush()
+        yield worker_budget(workspace, env)
+    finally:
+        lock.seek(0); lock.truncate()
+        lock.close()
+
+
+def gc(env, apply=False):
+    """Remove only stopped xorder-labelled containers and unused xorder image IDs."""
+    def docker(*args):
+        return subprocess.check_output(["docker", *args], env=env, text=True).strip()
+    ids = docker("ps", "-aq") .split()
+    containers = json.loads(docker("inspect", *ids)) if ids else []
+    used = {item.get("Image") for item in containers}
+    stopped = [item for item in containers if item.get("Config", {}).get("Labels", {}).get("dev.xorder.workspace")
+               and not item.get("State", {}).get("Running")]
+    image_ids = docker("image", "ls", "-q", "--no-trunc").split()
+    images = json.loads(docker("image", "inspect", *dict.fromkeys(image_ids))) if image_ids else []
+    unused = [item for item in images if item["Id"] not in used and
+              item.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.source") == "https://github.com/xormania/xorder"]
+    result = {"dry_run": not apply, "stopped_containers": [item["Id"] for item in stopped],
+              "unused_images": [item["Id"] for item in unused], "old_runner_state": []}
+    # Receipts and generated git pointers are reconstructable. Never delete repositories.
+    root = state_root(env)
+    for folder in (root / "worktrees", root / "flowbite"):
+        if folder.exists():
+            for item in folder.glob("*/workspace.json"):
+                try:
+                    workspace = Path(json.loads(item.read_text())["workspace"])
+                    if not workspace.exists():
+                        result["old_runner_state"].append(str(item.parent))
+                except (OSError, ValueError, KeyError):
+                    pass
+    print(json.dumps(result, indent=2))
+    if apply:
+        for item in stopped:
+            # Reinspect: never remove a container which became running since planning.
+            if json.loads(docker("inspect", item["Id"]))[0]["State"].get("Running"):
+                continue
+            subprocess.run(["docker", "rm", item["Id"]], env=env, check=True)
+        for image in unused:
+            # No --force: Docker protects references that appeared since planning.
+            subprocess.run(["docker", "image", "rm", image["Id"]], env=env, check=False)
+        for path in result["old_runner_state"]:
+            shutil.rmtree(path)
+    return 0

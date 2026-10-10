@@ -1,0 +1,9 @@
+{
+  "name": "xorder-php-serena",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "typescript": "5.9.3",
+    "typescript-language-server": "5.1.3"
+  }
+}

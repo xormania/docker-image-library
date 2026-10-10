@@ -40,8 +40,9 @@ def build(line, image, source, parent=None, cache=None):
         args.update(INFECTION_URL=tools["infection"]["url"], INFECTION_SHA256=tools["infection"]["sha256"])
     if d["family"] == "php-frankenphp":
         args["APCU_VERSION"] = tools["apcu_version"]
-    if d["family"] == "flowbite-xor-dev":
+    if d["family"] in ("flowbite-xor-dev", "php-serena"):
         args["NODE_IMAGE"] = pinned(tools["node"])
+    if d["family"] == "flowbite-xor-dev":
         args.update(TAILWIND_VERSION=tools["tailwind"]["version"],
                     TAILWIND_URL=tools["tailwind"]["url"], TAILWIND_SHA256=tools["tailwind"]["sha256"])
     if d["family"] == "python-dev":

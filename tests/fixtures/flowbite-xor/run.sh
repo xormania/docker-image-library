@@ -40,6 +40,7 @@ printf 'Applying xorder-owned test synchronization overlay to pinned flowbite-xo
 git -C "$WORKSPACE" apply --check "$fixture_patch"
 git -C "$WORKSPACE" apply --whitespace=error "$fixture_patch"
 bash "$root/examples/flowbite-xor/run.sh" up
+bash "$root/examples/flowbite-xor/run.sh" sync
 bash "$root/examples/flowbite-xor/run.sh" status
 bash "$root/examples/flowbite-xor/run.sh" exec test -s demo/var/tailwind/app.built.css
 before_setup=$(bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cat demo/var/xorder/composer-ready demo/var/xorder/node-ready')
