@@ -25,6 +25,7 @@ acceptance = load('serena_acceptance', 'tests/fixtures/serena/check.py')
 class SerenaTests(unittest.TestCase):
     def test_textual_repl_error_cannot_pass_as_successful_mcp(self):
         client = acceptance.Client.__new__(acceptance.Client)
+        client.session = 'test-session'
         client.call = lambda *args: {'content': [{'type': 'text', 'text': 'RuntimeError: failed\n  line 1: answer = 42'}]}
         with self.assertRaisesRegex(AssertionError, 'RuntimeError'):
             client.repl('answer = 42')

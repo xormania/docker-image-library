@@ -25,8 +25,9 @@ normal development runner before using Serena. This image does not supply a
 substitute application `vendor/`. Existing flowbite-xor app/browser images and
 their launch configuration remain useful independently.
 
-The image defaults to the persistent `serena_repl` interface. For example, within
-one MCP session:
+The image defaults to the persistent `serena_repl` interface. Call
+`initial_instructions` first, then pass its issued session ID as `session` on every
+`serena_repl` call, with Python in `code`. For example, within one Serena session:
 
 ```python
 s.info('lsp.find_symbol', 'lsp.find_referencing_symbols')

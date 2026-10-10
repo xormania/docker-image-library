@@ -32,6 +32,12 @@ class Client:
             self.call("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
                                     "clientInfo": {"name": "xorder-serena-acceptance", "version": "1.0.0"}})
             self.send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            instructions = self.call("tools/call", {"name": "initial_instructions", "arguments": {}})
+            assert not instructions.get("isError"), instructions
+            text = "\n".join(item["text"] for item in instructions.get("content", []) if item["type"] == "text")
+            session = re.search(r"Your Serena session id is `([^`]+)`", text)
+            assert session, "Serena did not issue a session id"
+            self.session = session.group(1)
         except BaseException:
             self.close()
             raise
@@ -54,7 +60,7 @@ class Client:
                 return reply["result"]
 
     def repl(self, code, expected_error=False):
-        reply = self.call("tools/call", {"name": "serena_repl", "arguments": {"code": code}})
+        reply = self.call("tools/call", {"name": "serena_repl", "arguments": {"session": self.session, "code": code}})
         text = "\n".join(item["text"] for item in reply.get("content", []) if item["type"] == "text")
         if not expected_error:
             assert not reply.get("isError"), reply
