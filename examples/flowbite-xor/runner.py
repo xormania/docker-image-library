@@ -258,14 +258,21 @@ def main(arguments):
                       env, capture=True, check=False)
         repository = common.stdout.strip() if common.returncode == 0 else str(workspace)
         scope = hashlib.sha256(repository.encode()).hexdigest()
-        shared = Path(env.get("XORDER_SHARED_CACHE_DIR", str(state_root(env) / "dependencies"))) / scope
+        # Repository grouping is organizational only. Each checkout gets its own
+        # bind, so untrusted linked worktrees cannot replace another's executable
+        # snapshots or Composer dist archives. Cross-worktree reuse is an explicit
+        # bundle import authenticated against a caller-supplied trusted digest.
+        cache_root = Path(env.get("XORDER_SHARED_CACHE_DIR", str(state_root(env) / "dependencies"))).resolve()
+        shared = cache_root / scope / key
+        if shared.resolve() != shared:
+            raise ValueError("Dependency cache must not be redirected by symlinks")
         shared.mkdir(parents=True, exist_ok=True)
-        if shared.is_symlink():
-            raise ValueError("Shared dependency cache must not be a symlink")
         overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(shared), "target": "/run/xorder-cache", "bind": {"create_host_path": False}})
         overlay["services"]["php"]["environment"] = {"XORDER_CACHE_IMAGE": env["IMAGE"]}
         if not env.get("COMPOSER_CACHE_DIR"):
             downloads = shared / "composer-downloads"
+            if downloads.resolve() != downloads:
+                raise ValueError("Composer downloads must not be redirected by symlinks")
             downloads.mkdir(exist_ok=True)
             overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(downloads), "target": "/run/composer-cache", "bind": {"create_host_path": False}})
             overlay["services"]["php"]["environment"]["COMPOSER_CACHE_DIR"] = "/run/composer-cache"

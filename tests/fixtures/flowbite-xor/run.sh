@@ -64,15 +64,16 @@ test "$(bash "$root/examples/flowbite-xor/run.sh" exec git rev-parse HEAD)" = "$
 # The same prepared dependency artifacts must work in another clean worktree
 # with networking disabled, including Symfony's importmap installation metadata.
 bash "$root/examples/flowbite-xor/run.sh" cache export --output /app/dependencies.zip
+bundle_sha256=$(sha256sum "$WORKSPACE/dependencies.zip" | cut -d ' ' -f 1)
 git -C "$work/main" worktree add --detach "$work/cache-consumer" FETCH_HEAD
 mkdir -p "$work/imported-cache"
 cp "$WORKSPACE/dependencies.zip" "$work/cache-consumer/dependencies.zip"
 docker run --rm --network=none \
-  -e PUID="$(id -u)" -e PGID="$(id -g)" -e XORDER_CACHE_IMAGE="$image" \
+  -e PUID="$(id -u)" -e PGID="$(id -g)" -e XORDER_CACHE_IMAGE="$image" -e BUNDLE_SHA256="$bundle_sha256" \
   -v "$work/cache-consumer:/app" -v "$work/imported-cache:/run/xorder-cache" \
   -v "$root/examples/flowbite-xor:/profile:ro" -w /app/demo "$image" bash -euc '
     php /app/tools/sync-demo
-    python3 /profile/cache.py import --input /app/dependencies.zip
+    python3 /profile/cache.py import --input /app/dependencies.zip --sha256 "$BUNDLE_SHA256"
     php /profile/verify-composer.php verify
     php /profile/importmap-state.php verify
   '

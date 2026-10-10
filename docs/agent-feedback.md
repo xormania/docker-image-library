@@ -14,7 +14,7 @@ only after publication and accepted release evidence.
 | A3: repeated cold indexing | Optional per-worktree/per-image cache with complete source/dependency/backend/settings fingerprint and exclusive lifetime lease | Image acceptance restarts against one cache; source changes invalidate completeness |
 | A4: JavaScript and Twig | Locked TypeScript 5.9.3 / language-server 5.1.3; explicit mixed-language selection; coverage table | Offline JavaScript symbols, references, and source editing; Twig remains documented text navigation |
 | A5: timeout/session/dead server | Configurable LSP timeout, structured session ID, immediate stopped-server error and explicit recovery | Protocol tests and actual structured MCP response acceptance |
-| B1: downloads and prepared dependencies | Repository-scoped Composer downloads, separate verified vendor/importmap snapshots, portable export/import | Metadata/mode/symlink preservation, checksum rejection and input invalidation tests; Symfony/Composer still verify restored installations |
+| B1: downloads and prepared dependencies | Checkout-isolated Composer downloads and vendor/importmap snapshots, authenticated portable export/import | Metadata/mode/symlink preservation, poisoned-bundle rejection and input invalidation tests; Symfony/Composer still verify restored installations |
 | B2: disk and cleanup | Disk status and dry-run garbage collection of stopped xorder containers, unreferenced xorder images and orphaned runner state | Cleanup preserves running containers, referenced images and source repositories |
 | C1: sync | Profile-declared `sync` action runs the complete project sync command | Runner command regression test and consumer acceptance |
 | C2: recovery and trust | Daemon/relay status, idempotent service and relay recovery, unique additional CA roots | Existing relay acceptance plus failure/status tests and real PEM parsing |
@@ -54,10 +54,13 @@ applies. Separate hosts or distinct `XDG_CACHE_HOME` roots have separate budgets
 
 ## Shared dependencies and CI artifacts
 
-Linked worktrees share the canonical Git repository's cache namespace. Unrelated
-repositories do not share writable downloads. `XORDER_SHARED_CACHE_DIR` selects
-an alternate host root; `XORDER_SHARED_CACHE=0` disables automatic sharing. The
-existing explicit `COMPOSER_CACHE_DIR` option retains its workspace isolation.
+Caches are grouped by canonical Git repository and isolated by checkout path.
+Each container mounts only its checkout's snapshots and Composer downloads; a
+linked worktree cannot write another checkout's dependency inputs. Old writable
+repository-wide snapshots are not reused automatically. `XORDER_SHARED_CACHE_DIR`
+selects an alternate host root while retaining checkout isolation;
+`XORDER_SHARED_CACHE=0` disables the automatic cache binds. The existing explicit
+`COMPOSER_CACHE_DIR` option also retains its workspace isolation.
 Cache binds stay outside HOME and the entrypoint does not change their ownership.
 
 Snapshots have separate identities for Composer vendor and importmap assets.
@@ -67,17 +70,28 @@ Archives preserve executable modes, relative symlinks and installation metadata;
 all regular files are checked before atomically restoring an absent tree. Existing
 trees are not overwritten. The consuming project's Composer verification,
 autoload generation, setup hooks and Symfony importmap validation still run.
+Those checks establish installation consistency, not producer trust: vendor and
+importmap metadata can execute code. Cross-checkout imports therefore require an
+expected SHA-256 supplied through a trusted producer or CI artifact channel.
+The helper authenticates the entire bundle before reading its archives, and
+extracts the same authenticated bytes even if the input path is replaced.
 
 ```sh
 python3 scripts/xr.py /path/to/worktree cache export --output /app/dependencies.zip
-# Transfer dependencies.zip using the CI artifact mechanism or another explicit copy.
-python3 scripts/xr.py /path/to/other-worktree cache import --input /app/dependencies.zip
+# Export prints SHA-256. Transfer the bundle and record that digest through a
+# trusted channel; DEPENDENCIES_SHA256 is the expected digest from that producer.
+python3 scripts/xr.py /path/to/other-worktree cache import \
+  --input /app/dependencies.zip --sha256 "$DEPENDENCIES_SHA256"
 ```
 
 Both paths are container paths; `/app` is the checkout bind. A CI preparation job
 can run `python3 examples/flowbite-xor/cache.py export --project demo --cache CACHE
 --output dependencies.zip --image EXACT_IMAGE` and upload that file. Consumers
-with matching runtime/image/lock inputs import the same bytes. The helper is
+with matching runtime/image/lock inputs import the same bytes using
+`--sha256 EXPECTED_DIGEST`. Obtain the digest from the trusted preparation job,
+not a manifest or checksum file supplied by an untrusted bundle producer.
+Projects without the selected `importmap.php` export/import vendor only.
+The helper is
 stdlib Python and requires the project's PHP runtime for its compatibility key.
 This xorder PR does not modify flowbite-xor's separate CI workflow.
 

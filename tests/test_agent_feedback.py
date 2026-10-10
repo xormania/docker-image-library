@@ -84,6 +84,61 @@ class DependencySnapshotTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cache.restore_archive(self.archive, self.root / "two/demo/vendor", "proof", self.root / "two")
 
+    def test_vendor_only_bundle_round_trip_without_selected_importmap(self):
+        source = self.vendor.parent
+        target = self.root / "two/demo"
+        target.mkdir(parents=True)
+        for project in (source, target):
+            (project / "composer.json").write_text('{}')
+            (project / "composer.lock").write_text('{"packages":[]}')
+        producer_cache, consumer_cache = self.root / "producer", self.root / "consumer"
+        producer_cache.mkdir()
+        consumer_cache.mkdir()
+        bundle = self.root / "dependencies.zip"
+        with patch.dict(os.environ, {"IMPORTMAP_FILE": "custom-missing.php", "IMPORTMAP_VENDOR_DIR": "assets/vendor"}), \
+                patch.object(cache.subprocess, "check_output", return_value="8.5"):
+            self.assertEqual(cache.main(["export", "--project", str(source), "--cache", str(producer_cache),
+                                         "--image", "image:a", "--output", str(bundle)]), 0)
+            self.assertEqual(cache.main(["import", "--project", str(target), "--cache", str(consumer_cache),
+                                         "--image", "image:a", "--input", str(bundle), "--sha256", cache.sha(bundle)]), 0)
+        self.assertEqual((target / "vendor/bin/tool").read_bytes(), (self.vendor / "bin/tool").read_bytes())
+        self.assertTrue((target / "vendor/link").is_symlink())
+        self.assertFalse((target / "assets/vendor").exists())
+
+    def test_self_consistent_poisoned_bundle_is_rejected_before_promotion(self):
+        project = self.root / "two/demo"
+        project.mkdir(parents=True)
+        consumer_cache = self.root / "consumer"
+        consumer_cache.mkdir()
+        bundle = self.root / "dependencies.zip"
+        with zipfile.ZipFile(bundle, "w") as output:
+            output.write(self.archive, "vendor-proof.zip")
+        trusted_digest = cache.sha(bundle)
+        # The attacker recomputes a consistent manifest after replacing code;
+        # internal checksums alone would accept this archive.
+        (self.vendor / "autoload.php").write_text("<?php /* attacker payload */")
+        cache.write_archive(self.vendor, self.archive, "proof")
+        with zipfile.ZipFile(bundle, "w") as output:
+            output.write(self.archive, "vendor-proof.zip")
+        with patch.object(cache, "identity", return_value="proof"), \
+                self.assertRaisesRegex(ValueError, "trusted expected digest"):
+            cache.main(["import", "--project", str(project), "--cache", str(consumer_cache),
+                        "--input", str(bundle), "--sha256", trusted_digest])
+        self.assertFalse((project / "vendor").exists())
+        self.assertEqual(list(consumer_cache.glob("*.zip")), [])
+
+    def test_import_requires_a_trusted_digest(self):
+        with self.assertRaises(SystemExit) as error:
+            cache.main(["import", "--project", str(self.vendor.parent), "--cache", str(self.root),
+                        "--input", str(self.archive)])
+        self.assertEqual(error.exception.code, 2)
+
+    def test_bundle_replacement_cannot_change_authenticated_bytes(self):
+        digest = cache.sha(self.archive)
+        with cache.authenticated_bundle(self.archive, digest) as bundle:
+            self.archive.write_bytes(b"replaced after authentication")
+            self.assertEqual(json.loads(bundle.read("manifest.json"))["identity"], "proof")
+
 
 class HostBudgetTests(unittest.TestCase):
     def test_another_worktree_cannot_start_a_second_heavy_run(self):

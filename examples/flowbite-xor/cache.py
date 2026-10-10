@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Verified dependency snapshots, portable between worktrees and CI artifact jobs."""
+"""Isolated dependency snapshots with authenticated worktree/CI bundle imports."""
 import argparse
 import fcntl
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import subprocess
 import tempfile
+from contextlib import contextmanager
 import zipfile
 
 
@@ -18,6 +21,24 @@ def sha(path):
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             value.update(block)
     return value.hexdigest()
+
+
+@contextmanager
+def authenticated_bundle(path, expected_sha256):
+    # Verify the exact open bytes we will parse, not a path that another process
+    # can replace between hashing and extraction. The digest comes from the
+    # caller's trusted producer/CI channel, never from inside the bundle.
+    with tempfile.TemporaryFile() as verified:
+        value = hashlib.sha256()
+        with path.open("rb") as incoming:
+            for block in iter(lambda: incoming.read(1024 * 1024), b""):
+                value.update(block)
+                verified.write(block)
+        if not hmac.compare_digest(value.hexdigest(), expected_sha256):
+            raise ValueError("Dependency bundle SHA-256 differs from the trusted expected digest")
+        verified.seek(0)
+        with zipfile.ZipFile(verified) as bundle:
+            yield bundle
 
 
 def identity(project, kind, image="", runtime=None):
@@ -119,6 +140,7 @@ def main(argv=None):
     parser.add_argument("--image", default=os.environ.get("XORDER_CACHE_IMAGE", ""))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--input", type=Path)
+    parser.add_argument("--sha256", help="Trusted expected SHA-256 of an imported bundle")
     args = parser.parse_args(argv)
     project = args.project.resolve()
     if not args.cache.is_dir():
@@ -127,15 +149,19 @@ def main(argv=None):
         parser.error("Cache directory is unavailable")
     if args.action == "export" and not args.output or args.action == "import" and not args.input:
         parser.error("export needs --output; import needs --input")
+    if args.action == "import" and not re.fullmatch(r"[0-9a-fA-F]{64}", args.sha256 or ""):
+        parser.error("import needs --sha256 from a trusted producer or CI artifact channel")
     vendor = os.environ.get("IMPORTMAP_VENDOR_DIR", "assets/vendor")
     folders = {"vendor": project / "vendor", "importmap": project / vendor}
+    if not (project / os.environ.get("IMPORTMAP_FILE", "importmap.php")).is_file():
+        del folders["importmap"]
     for folder in folders.values():
         if not folder.resolve().is_relative_to(project):
             raise ValueError("Dependency directory must be inside the project")
     with (args.cache / "snapshots.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if args.action == "import":
-            with zipfile.ZipFile(args.input) as bundle:
+            with authenticated_bundle(args.input, args.sha256.lower()) as bundle:
                 for kind in folders:
                     key = identity(project, kind, args.image)
                     name = kind + "-" + key + ".zip"
@@ -153,8 +179,6 @@ def main(argv=None):
                             temporary.unlink(missing_ok=True)
         selected = []
         for kind, folder in folders.items():
-            if kind == "importmap" and not (project / os.environ.get("IMPORTMAP_FILE", "importmap.php")).is_file():
-                continue
             key = identity(project, kind, args.image)
             archive = args.cache / (kind + "-" + key + ".zip")
             if args.action in {"store", "export"} and folder.is_dir():
@@ -173,6 +197,7 @@ def main(argv=None):
                 for archive in selected:
                     bundle.write(archive, archive.name)
             print("Exported dependency snapshots to " + str(args.output))
+            print("SHA-256: " + sha(args.output))
     return 0
 
 

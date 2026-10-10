@@ -288,6 +288,44 @@ statefile.write_text(json.dumps(state))
         second.symlink_to(first, target_is_directory=True)
         self.assertEqual(self.run_profile("exec", "true", WORKSPACE=str(second_workspace), COMPOSER_CACHE_DIR=str(cache)).returncode, 64)
 
+    def test_linked_worktrees_mount_disjoint_snapshot_and_download_caches(self):
+        subprocess.run(["git", "init", "-q", str(self.workspace)], check=True)
+        subprocess.run(["git", "-C", str(self.workspace), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(self.workspace), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                        "commit", "-qm", "fixture"], check=True)
+        linked = self.directory / "linked"
+        subprocess.run(["git", "-C", str(self.workspace), "worktree", "add", "-q", "--detach", str(linked)], check=True)
+        self.assertEqual(self.run_profile("cache", "export", "--output", "/app/dependencies.zip").returncode, 0)
+        first = {mount["target"]: Path(mount["source"]) for mount in self.calls[-1]["overlay"]["services"]["php"]["volumes"]}
+        (first["/run/xorder-cache"] / "vendor-poison.zip").write_bytes(b"attacker-controlled snapshot")
+        (first["/run/composer-cache"] / "dist-poison.zip").write_bytes(b"attacker-controlled dependency")
+        self.assertEqual(self.run_profile("cache", "export", "--output", "/app/dependencies.zip", WORKSPACE=str(linked)).returncode, 0)
+        second = {mount["target"]: Path(mount["source"]) for mount in self.calls[-1]["overlay"]["services"]["php"]["volumes"]}
+        for destination in ("/run/xorder-cache", "/run/composer-cache"):
+            self.assertNotEqual(first[destination], second[destination])
+            self.assertFalse(second[destination].is_relative_to(first["/run/xorder-cache"]))
+            self.assertFalse(first[destination].is_relative_to(second["/run/xorder-cache"]))
+        self.assertFalse((second["/run/xorder-cache"] / "vendor-poison.zip").exists())
+        self.assertFalse((second["/run/composer-cache"] / "dist-poison.zip").exists())
+        # An alternate cache root must retain checkout isolation too.
+        self.assertEqual(self.run_profile("cache", "export", "--output", "/app/dependencies.zip",
+                                          WORKSPACE=str(linked), XORDER_SHARED_CACHE_DIR=str(self.directory / "custom-cache")).returncode, 0)
+        mounts = self.calls[-1]["overlay"]["services"]["php"]["volumes"]
+        self.assertTrue(all(Path(mount["source"]).is_relative_to(self.directory / "custom-cache") for mount in mounts))
+
+    def test_default_cache_cannot_be_redirected_to_another_checkout(self):
+        self.assertEqual(self.run_profile("cache", "export", "--output", "/app/dependencies.zip").returncode, 0)
+        mounts = self.calls[-1]["overlay"]["services"]["php"]["volumes"]
+        snapshots = Path(next(mount["source"] for mount in mounts if mount["target"] == "/run/xorder-cache"))
+        downloads = snapshots / "composer-downloads"
+        downloads.rmdir()
+        downloads.symlink_to(self.workspace, target_is_directory=True)
+        self.assertEqual(self.run_profile("cache", "export", "--output", "/app/dependencies.zip").returncode, 64)
+        downloads.unlink()
+        snapshots.rmdir()
+        snapshots.symlink_to(self.workspace, target_is_directory=True)
+        self.assertEqual(self.run_profile("cache", "export", "--output", "/app/dependencies.zip").returncode, 64)
+
     def test_up_prepares_dependencies_then_test_cache_then_served_page(self):
         self.assertEqual(self.run_profile("up").returncode, 0)
         args = [call["args"] for call in self.calls if call["args"][0] == "compose"]
