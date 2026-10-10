@@ -32,7 +32,7 @@ def build(line, image, source, parent=None, cache=None):
     d = definitions()[line]
     tools = read(ROOT / "images/tools.json")
     args = {"BASE_IMAGE": parent or pinned(d["base"]), "SOURCE_COMMIT": source,
-            "IMAGE_VERSION": d["revision"], "APT_REFRESH": d["revision"]}
+            "IMAGE_VERSION": d["revision"], "APT_REFRESH": d["revision"], "IMAGE_LINE": d["line"]}
     if d["family"] in ("php-dev", "php-frankenphp"):
         args.update(COMPOSER_IMAGE=pinned(tools["composer"]), REDIS_VERSION=tools["redis_version"],
                     XDEBUG_VERSION=tools["xdebug_version"], PCOV_VERSION=tools["pcov_version"],

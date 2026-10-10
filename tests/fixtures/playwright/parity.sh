@@ -33,7 +33,7 @@ cleanup() {
   rm -rf "$work"
 }
 trap cleanup EXIT
-mapfile -t consumer < <(python3 - "$root/tests/fixtures/playwright/consumer.json" <<'PY'
+mapfile -t consumer < <(python3 - "$root/tests/fixtures/playwright/consumers/${line#*/}.json" <<'PY'
 import json, sys
 item = json.load(open(sys.argv[1]))
 print(item['repository']); print(item['commit']); print(item['playwright_version'])

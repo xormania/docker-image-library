@@ -9,10 +9,12 @@ METADATA_SCRIPTS = {
     "scripts/release.py", "scripts/writeback.py", "scripts/refresh.py",
     "scripts/registry.py", "scripts/xorder_cli.py", "scripts/validation_base.py",
     "scripts/catalog_checks.py", "scripts/catalog_summary.py",
+    "scripts/refresh_browser.py",
 }
 METADATA_WORKFLOWS = {
     ".github/workflows/publish.yml", ".github/workflows/refresh.yml",
     ".github/workflows/aliases.yml", ".github/workflows/catalog.yml",
+    ".github/workflows/browser-refresh.yml",
 }
 METADATA_SCHEMAS = {
     "schemas/definition.schema.json", "schemas/release-record.schema.json",
@@ -85,8 +87,7 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
             continue
         else:
             # COPY inputs can live outside images/, such as prepared Toolkit locks.
-            consumers = {d["family"] for d in defs.values() if consumes(d["family"], path, root)}
-            inputs.update(line for line, d in defs.items() if d["family"] in consumers)
+            inputs.update(line for line, d in defs.items() if consumes(d["family"], path, root, d.get("line")))
             if path.startswith("images/shared/") or path == ".dockerignore":
                 continue
             elif path.startswith(("tests/fixtures/php/", "tests/fixtures/mutation/")):
@@ -95,6 +96,10 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
                 families = {"php-toolkit"}
             elif path.startswith(("examples/serena/", "tests/fixtures/serena/")):
                 families = {"php-serena"}
+            elif path.startswith("tests/fixtures/playwright/consumers/"):
+                selected.update(line for line, d in defs.items() if d["family"] == "playwright-browser"
+                                and path == f"tests/fixtures/playwright/consumers/{d['line']}.json")
+                continue
             elif path.startswith("tests/fixtures/playwright/"):
                 families = {"playwright-browser"}
             elif path.startswith("tests/fixtures/frankenphp/"):
@@ -113,6 +118,9 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
                 selected.update(defs)
                 continue
             else:
+                if path.startswith("images/playwright-browser/lines/"):
+                    # Exact COPY consumers above already retain the affected line.
+                    continue
                 families = {d["family"] for d in defs.values() if path.startswith(f"images/{d['family']}/")}
                 is_input = True
         target = inputs if is_input else selected
