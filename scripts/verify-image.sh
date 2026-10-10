@@ -14,6 +14,7 @@ if [[ "$family" = playwright-browser ]]; then
     -v "$work:/workspace" -v "$root/tests/fixtures/playwright:/proof:ro" \
     "$image" node /proof/check.cjs | tee "$root/out/playwright/acceptance.json"
   test -s "$work/chromium.png" && test -s "$work/firefox.png" && test -s "$work/webkit.png"
+  bash "$root/tests/fixtures/playwright/parity.sh" "$image" "$line"
   exit 0
 fi
 kind=${family%-dev}
