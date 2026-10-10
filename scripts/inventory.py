@@ -29,6 +29,10 @@ if family.startswith("php") or family == "flowbite-xor-dev":
                      "library-php-tests": ["library-php-tests", "--version"],
                      "phpstan-isolated": ["php", "/opt/xorder/php-tools/vendor/bin/phpstan", "--version"]})
     commands["infection"] = ["infection", "--version"]
+    if family == "php-serena":
+        commands.update({"library-serena": ["library-serena", "--version"],
+                         "phpactor": ["php", "/opt/xorder/serena/phpactor.phar", "--version"],
+                         "uv": ["uv", "--version"]})
     if family == "php-browser":
         commands.update({"chromium": ["chromium", "--version"], "chromedriver": ["chromedriver", "--version"]})
     if family in ("php-frankenphp", "flowbite-xor-dev"):
@@ -56,6 +60,13 @@ result = {"platform": "linux/" + {"x86_64": "amd64", "aarch64": "arm64"}[platfor
           "os": os_release, "packages": run("dpkg-query", "-W", "-f=${Package}=${Version}\\n").splitlines()}
 if family == "rust-dev":
     result["rust_targets"] = run("rustup", "target", "list", "--installed").splitlines()
+if family == "php-serena":
+    result["serena"] = {
+        "source_revision": run("git", "-c", "safe.directory=/opt/serena-source", "-C", "/opt/serena-source", "rev-parse", "HEAD"),
+        "upstream_lock_sha256": hashlib.sha256(Path("/opt/serena-source/uv.lock").read_bytes()).hexdigest(),
+        "phpactor_sha256": hashlib.sha256(Path("/opt/xorder/serena/phpactor.phar").read_bytes()).hexdigest(),
+        "python_version": run("/opt/serena-env/bin/python", "--version"),
+    }
 if family == "php-toolkit":
     result["prepared_projects"] = {}
     for name in ("validator", "symfony-7.4"):
