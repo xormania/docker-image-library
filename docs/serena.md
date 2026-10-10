@@ -92,7 +92,7 @@ Stimulus default-exported classes are named `default`. Qualify the member and
 supply its original source file to disambiguate controllers:
 
 ```python
-s.lsp.find_symbol('default/connect', relative_path='modal/assets/controllers/modal_controller.js')
+s.lsp.find_symbol('default/connect', relative_path='modal/assets/controllers/flowbite_modal_controller.js')
 ```
 
 An empty references result does not prove that a Stimulus method or routed PHP
