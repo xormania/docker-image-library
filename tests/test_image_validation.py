@@ -35,11 +35,30 @@ class ImageSelectionTests(unittest.TestCase):
     def test_parent_recipe_checks_all_consuming_descendants(self):
         expected = ["php-browser/8.4-trixie", "php-browser/8.5-trixie",
                     "php-dev/8.4-trixie", "php-dev/8.5-trixie",
+                    "php-serena/8.5-trixie",
                     "php-toolkit/8.4-trixie", "php-toolkit/8.5-trixie"]
         self.assertEqual(self.selected("images/php-dev/Dockerfile"), expected)
         self.assertEqual(self.selected("images/shared/php-tests.py"), sorted(expected + [
             "php-frankenphp/8.4-trixie", "php-frankenphp/8.5-trixie",
             "flowbite-xor-dev/8.4-trixie", "flowbite-xor-dev/8.5-trixie"]))
+
+    def test_serena_inputs_check_only_serena_with_php85_as_a_prerequisite(self):
+        for path in ("images/php-serena/Dockerfile", "images/php-serena/requirements-build.txt",
+                     "images/php-serena/launch.py", "examples/serena/run.py",
+                     "tests/fixtures/serena/check.py", "tests/fixtures/serena/consumer.json"):
+            with self.subTest(path=path):
+                selected = self.selected(path)
+                self.assertEqual(selected, ["php-serena/8.5-trixie"])
+                self.assertEqual(matrix(selected, self.defs), {"include": [
+                    {"line": "php-dev/8.5-trixie", "verify_lines": ["php-serena/8.5-trixie"]}]})
+
+    def test_shared_php_behavior_includes_serena(self):
+        expected = sorted(line for line, d in self.defs.items()
+                          if d["family"].startswith("php-") or d["family"] == "flowbite-xor-dev")
+        for path in ("tests/fixtures/php/run.sh", "tests/fixtures/mutation/run.sh"):
+            with self.subTest(path=path):
+                self.assertEqual(self.selected(path), expected)
+        self.assertEqual(self.selected("examples/php/compose.yaml"), expected + ["python-dev/3.14-trixie"])
 
     def test_behavior_change_does_not_propagate_as_an_artifact_change(self):
         defs = copy.deepcopy(self.defs)
@@ -56,14 +75,14 @@ class ImageSelectionTests(unittest.TestCase):
         path = "images/php-dev/definition.json"
         previous = json.loads((ROOT / path).read_text())
         previous["lines"]["8.5-trixie"]["revision"] = "0.9.0"
-        expected = ["php-browser/8.5-trixie", "php-dev/8.5-trixie", "php-toolkit/8.5-trixie"]
+        expected = ["php-browser/8.5-trixie", "php-dev/8.5-trixie", "php-serena/8.5-trixie", "php-toolkit/8.5-trixie"]
         self.assertEqual(self.selected(path, previous_definitions={path: previous}), expected)
         del previous["lines"]["8.5-trixie"]
         self.assertEqual(self.selected(path, previous_definitions={path: previous}), expected)
         previous["purpose"] = "A changed common contract"
-        self.assertEqual(len(self.selected(path, previous_definitions={path: previous})), 6)
+        self.assertEqual(len(self.selected(path, previous_definitions={path: previous})), 7)
         # An entirely new definition has no prior value: check every authored line.
-        self.assertEqual(len(self.selected(path, previous_definitions={})), 6)
+        self.assertEqual(len(self.selected(path, previous_definitions={})), 7)
 
     def test_tool_pins_check_exact_consumers_and_their_descendants(self):
         previous = json.loads((ROOT / "images/tools.json").read_text())
@@ -160,7 +179,7 @@ class ImageExecutionTests(unittest.TestCase):
                 patch.object(build, "image_measurements", return_value={"image_size_bytes": 100}):
             build.main(self.args(Path(tmp) / "parent.json"))
             self.assertEqual([call.args[0] for call in verify.call_args_list], [
-                self.parent, "php-browser/8.5-trixie", self.child])
+                self.parent, "php-browser/8.5-trixie", "php-serena/8.5-trixie", self.child])
 
     def test_deep_descendant_prepares_only_its_ancestor_path(self):
         defs = copy.deepcopy(definitions())

@@ -90,9 +90,11 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
             if path.startswith("images/shared/") or path == ".dockerignore":
                 continue
             elif path.startswith(("tests/fixtures/php/", "tests/fixtures/mutation/")):
-                families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev"}
+                families = {"php-dev", "php-browser", "php-toolkit", "php-serena", "php-frankenphp", "flowbite-xor-dev"}
             elif path.startswith(("examples/php-toolkit/", "tests/fixtures/php-toolkit/")):
                 families = {"php-toolkit"}
+            elif path.startswith(("examples/serena/", "tests/fixtures/serena/")):
+                families = {"php-serena"}
             elif path.startswith("tests/fixtures/frankenphp/"):
                 families = {"php-frankenphp", "flowbite-xor-dev"}
             elif path.startswith(("examples/shared/", "tests/fixtures/network/")):
@@ -100,7 +102,7 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
             elif path.startswith(("examples/flowbite-xor/", "tests/fixtures/flowbite-xor/")):
                 families = {"flowbite-xor-dev"}
             elif path.startswith("examples/php/"):
-                families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
+                families = {"php-dev", "php-browser", "php-toolkit", "php-serena", "php-frankenphp", "flowbite-xor-dev", "python-dev"}
             elif path.startswith("tests/fixtures/python/"):
                 families = {"python-dev"}
             elif path.startswith("tests/fixtures/rust/"):

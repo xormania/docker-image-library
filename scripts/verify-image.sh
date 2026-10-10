@@ -6,7 +6,7 @@ image=${2:?Supply image reference}
 root=$(cd "$(dirname "$0")/.." && pwd)
 family=${line%%/*}
 kind=${family%-dev}
-case "$family" in php-browser|php-toolkit|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
+case "$family" in php-browser|php-toolkit|php-serena|php-frankenphp|flowbite-xor-dev) kind=php ;; esac
 work=$(mktemp -d)
 project="image-check-${RANDOM}-${RANDOM}"
 cp -a "$root/tests/fixtures/$kind/." "$work/"
@@ -50,5 +50,8 @@ if [[ "$family" = flowbite-xor-dev ]]; then
 fi
 if [[ "$family" = php-toolkit ]]; then
   IMAGE="$image" TOOLKIT_LOCAL_IMAGE=1 TOOLKIT_REQUIRE_PREPARED=1 bash "$root/tests/fixtures/php-toolkit/run.sh"
+fi
+if [[ "$family" = php-serena ]]; then
+  python3 "$root/tests/fixtures/serena/check.py" "$image"
 fi
 printf 'Behavioral recipe completed in %ss for %s\n' "$((SECONDS-start))" "$line"

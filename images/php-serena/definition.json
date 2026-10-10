@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "family": "php-serena",
+  "purpose": "Prepared Serena v2 REPL and PHPactor for PHP/Symfony source work over stdio MCP, verified against flowbite-xor.",
+  "capabilities": [
+    "serena-v2-repl",
+    "phpactor",
+    "offline-php-semantic-tools"
+  ],
+  "extensions": [],
+  "tools": [
+    "library-serena",
+    "phpactor",
+    "uv"
+  ],
+  "execution": {
+    "workspace": "/workspace",
+    "home": "/home/dev",
+    "default_uid": 1000,
+    "default_gid": 1000,
+    "uid_env": "PUID",
+    "gid_env": "PGID",
+    "cache_paths": [
+      "/home/dev/.cache"
+    ]
+  },
+  "companions": [],
+  "limitations": [
+    "Serena is pinned to the tested v2 beta revision b79e2a55f9d4072084977dd35bd07d31146d88b9.",
+    "PHP semantic operations are backed by PHPactor; Twig and Symfony container/service semantics are not established by PHP symbol tests.",
+    "The consuming project owns its Composer dependencies. Prepared language-server startup needs no runtime downloads.",
+    "The REPL can execute Python with container permissions. The standalone runner does not implement Agentscient role permissions or coordination.",
+    "The runner uses temporary session state. REPL variables, indexes and new memories do not survive process restart.",
+    "The public runner mounts source read-only by default; pass --write explicitly for trusted editing sessions."
+  ],
+  "lines": {
+    "8.5-trixie": {
+      "runtime_line": "8.5",
+      "os": "debian-trixie",
+      "revision": "1.0.0",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "base": {
+        "parent": "php-dev/8.5-trixie"
+      },
+      "changes": [
+        "Package the tested Serena v2 REPL/PHPactor pair with locked Python dependencies, private session configuration and offline MCP acceptance against flowbite-xor."
+      ],
+      "migration": "New opt-in image. Keep existing application images and Composer locks. Pull a verified exact digest before configuring an MCP client; select the checkout and project directory explicitly. Source is read-only by default; opt into editing with --write."
+    }
+  },
+  "input_fingerprint_version": 2
+}
