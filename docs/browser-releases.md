@@ -18,7 +18,9 @@ starts at 1.0.0. The old exact releases and pins remain usable.
 
 Every candidate keeps RGB subpixel rendering, launches Chromium/Firefox/WebKit
 offline, and compares Chromium screenshots with committed baselines at its
-own pinned consumer commit. Baseline updates and test retries are disabled for
+own pinned consumer commit and accepted application-image digest. The watcher
+records that digest when preparing the proposal; later catalog updates do not
+change an existing fixture or retry. Baseline updates and test retries are disabled for
 that parity run. A mismatch stops acceptance and retains the report/diff files.
 
 Merge the passing source PR, then review the normal publication/catalog PR.

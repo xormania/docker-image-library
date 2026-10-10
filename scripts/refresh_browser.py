@@ -10,6 +10,7 @@ import urllib.request
 from pathlib import Path
 
 from library import ROOT, encoded, version
+from playwright_fixture import application_image
 
 REPOSITORY = "xormania/flowbite-xor"
 
@@ -48,6 +49,7 @@ def prepare(pin, root=ROOT):
         return False
     if previous and version(previous["playwright_version"]) > version(browser_version):
         raise ValueError("Refusing an automatic browser downgrade")
+    fixture_pin = dict(pin, application_image=application_image(json.loads((root / "catalog-v2.json").read_text())))
     proposal = copy.deepcopy(previous or definition["lines"][sorted(definition["lines"])[-1]])
     proposal.update(runtime_line=f"{major}.{minor}", playwright_version=browser_version,
                     revision="1.0.0" if previous is None else ".".join(map(str, (*version(previous["revision"])[:2], version(previous["revision"])[2] + 1))),
@@ -67,7 +69,7 @@ def prepare(pin, root=ROOT):
     path.write_text(encoded(definition))
     fixture = root / "tests/fixtures/playwright/consumers" / (line + ".json")
     fixture.parent.mkdir(parents=True, exist_ok=True)
-    fixture.write_text(encoded(pin))
+    fixture.write_text(encoded(fixture_pin))
     return True
 
 

@@ -31,6 +31,7 @@ class BrowserRefreshTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             shutil.copytree(ROOT / "images", root / "images")
+            shutil.copyfile(ROOT / "catalog-v2.json", root / "catalog-v2.json")
             before = {line: fingerprint(d, root) for line, d in definitions(root).items()}
             path = "images/playwright-browser/definition.json"
             old_definition = json.loads((root / path).read_text())
@@ -44,8 +45,17 @@ class BrowserRefreshTests(unittest.TestCase):
             with patch.object(refresh_browser.subprocess, "run", side_effect=resolve) as npm:
                 self.assertTrue(refresh_browser.prepare(pin, root))
                 npm.assert_called_once()
+                fixture = root / "tests/fixtures/playwright/consumers/1.64-trixie.json"
+                prepared = fixture.read_bytes()
+                self.assertRegex(json.loads(prepared)["application_image"], r"@sha256:[a-f0-9]{64}$")
+                catalog = json.loads((root / "catalog-v2.json").read_text())
+                entry = dict(next(item for item in catalog["resources"] if item["identity"] == json.loads(prepared)["application_image"]))
+                entry.update(version="99.0.0", identity="ghcr.io/xormania/flowbite-xor-dev@sha256:" + "a" * 64)
+                catalog["resources"].append(entry)
+                (root / "catalog-v2.json").write_text(json.dumps(catalog))
                 self.assertFalse(refresh_browser.prepare(pin, root))
                 npm.assert_called_once()
+                self.assertEqual(fixture.read_bytes(), prepared)
             current = definitions(root)
             for line in before:
                 self.assertEqual(fingerprint(current[line], root), before[line], line)
@@ -60,6 +70,7 @@ class BrowserRefreshTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             shutil.copytree(ROOT / "images", root / "images")
+            shutil.copyfile(ROOT / "catalog-v2.json", root / "catalog-v2.json")
             definition = root / "images/playwright-browser/definition.json"
             original = definition.read_bytes()
             pin = {"repository": "https://github.com/xormania/flowbite-xor.git",
