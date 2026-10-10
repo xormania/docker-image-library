@@ -1,11 +1,13 @@
 import argparse
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
 
 
 def load(name, path):
@@ -17,9 +19,17 @@ def load(name, path):
 
 runner = load('serena_runner', 'examples/serena/run.py')
 launcher = load('serena_launcher', 'images/php-serena/launch.py')
+acceptance = load('serena_acceptance', 'tests/fixtures/serena/check.py')
 
 
 class SerenaTests(unittest.TestCase):
+    def test_textual_repl_error_cannot_pass_as_successful_mcp(self):
+        client = acceptance.Client.__new__(acceptance.Client)
+        client.call = lambda *args: {'content': [{'type': 'text', 'text': 'RuntimeError: failed\n  line 1: answer = 42'}]}
+        with self.assertRaisesRegex(AssertionError, 'RuntimeError'):
+            client.repl('answer = 42')
+        self.assertIn('RuntimeError', client.repl('answer = 42', expected_error=True))
+
     def test_runner_keeps_sibling_sources_visible_and_enforces_readonly(self):
         with tempfile.TemporaryDirectory(prefix='serena checkout ') as directory:
             root = Path(directory)

@@ -50,6 +50,7 @@ def main():
         state.mkdir()
         (state / "project.yml").write_text(json.dumps(config))
         (home / "serena_config.yml").write_text(json.dumps({
+            "projects": [],
             "project_serena_folder_location": str(state),
             "agent_interface": "REPL", "language_backend": "LSP",
             "gui_log_window": False, "web_dashboard": False,

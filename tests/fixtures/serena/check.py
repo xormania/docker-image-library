@@ -3,10 +3,12 @@
 import json
 import os
 import queue
+import re
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -41,8 +43,9 @@ class Client:
     def call(self, method, params=None):
         self.serial += 1
         self.send({"jsonrpc": "2.0", "id": self.serial, "method": method, "params": params or {}})
+        deadline = time.monotonic() + 120
         while True:
-            reply = self.responses.get(timeout=120)
+            reply = self.responses.get(timeout=max(0, deadline - time.monotonic()))
             if "invalid_stdout" in reply or "eof" in reply:
                 raise AssertionError(reply)
             if reply.get("id") == self.serial:
@@ -56,7 +59,7 @@ class Client:
         if not expected_error:
             assert not reply.get("isError"), reply
             # Serena can encode execution errors inside a successful MCP reply.
-            assert "Traceback (most recent call last)" not in text, text
+            assert not re.match(r"^(?:[\w.]*Error|[\w.]*Exception):", text), text
         return text
 
     def close(self):
