@@ -4,7 +4,7 @@ set -euo pipefail
 browser=${1:?Supply browser image}
 line=${2:?Supply browser line}
 root=$(cd "$(dirname "$0")/../../.." && pwd)
-inputs=$(python3 "$root/scripts/playwright_fixture.py" "$root/tests/fixtures/playwright/consumer.json" "$root/catalog-v2.json")
+inputs=$(python3 "$root/scripts/playwright_fixture.py" "$root/tests/fixtures/playwright/consumers/${line#*/}.json" "$root/catalog-v2.json")
 mapfile -t consumer <<< "$inputs"
 work=$(mktemp -d)
 export BROWSER_IMAGE="$browser" WORKSPACE="$work/repo" FLOWBITE_PROJECT="browser-parity-${RANDOM}-${RANDOM}"

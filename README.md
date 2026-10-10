@@ -124,6 +124,7 @@ and direct usage pages remains sufficient.
 - [Reusable PHP test tasks and per-process coverage](docs/php-tests.md)
 - [Prepared Serena v2 REPL, shell access and editing](docs/serena.md)
 - [Agent feedback implementation and runner operations](docs/agent-feedback.md)
+- [Browser releases matched to consumer Playwright pins](docs/browser-releases.md)
 - [Isolated Toolkit validation and fresh Symfony applications](docs/php-toolkit.md)
 - [Cloud prerequisites and verification evidence](docs/compatibility.md)
 - [Versions, pins, upgrades, and rollback](docs/versioning.md)

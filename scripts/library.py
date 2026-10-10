@@ -107,6 +107,8 @@ def validate_inventory(definition, inventory):
             assert project["packages"]["symfony/ux-toolkit"] == "v3.5.1"
             assert re.fullmatch(r"[a-f0-9]{64}", project["composer_lock_sha256"])
         assert projects["symfony-7.4"]["packages"]["symfony/framework-bundle"].startswith("v7.4.")
+    if definition["family"] == "playwright-browser" and definition.get("playwright_version"):
+        assert inventory["runtime_version"] == definition["playwright_version"], "Browser version does not match its authored line"
     if "node" in definition["capabilities"]:
         assert inventory["tools"]["node"].startswith("v22."), "The flowbite-xor Node line must match CI"
     if "wasm32-unknown-unknown" in definition["capabilities"]:
@@ -348,7 +350,7 @@ def affected(changed, defs, previous_tools=None):
 
 def fingerprint(d, root=ROOT):
     modern = d.get("input_fingerprint_version", 1) == 2
-    paths = input_files(d["family"], root) if modern else list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
+    paths = input_files(d["family"], root, d["line"]) if modern else list((root / "images" / d["family"]).glob("*")) + list((root / "images" / "shared").glob("*"))
     if d["family"] == "php-toolkit" and not modern:
         paths += [root / "examples/php-toolkit/validator" / name for name in ("composer.json", "composer.lock")]
         paths += list((root / "examples/php-toolkit/symfony-7.4").rglob("*"))
