@@ -1,23 +1,16 @@
-# playwright-browser/1.58-trixie
+# playwright-browser/1.58-trixie v1.0.2
 
-Version-matched Chromium, Firefox and WebKit browser server without PHP or development build tools.
+- Retain RGB screenshot parity and isolate browser locks and fixtures by runtime line; prepare matched releases when the consumer Playwright pin changes.
 
-Available revision: **1.0.2**. Pin:
+Migration: Select the accepted 1.0.2 digest after publication for isolated browser inputs and RGB rendering. Existing exact release pins remain unchanged.
 
-```text
-ghcr.io/xormania/playwright-browser@sha256:48c7089b8ca4353f74ba66bda332f94e8ace76743ebd9a98560c83f9f82c3627
-```
+Source: `201dcf12755be051163db4f7327d982acd809c07` (`playwright-browser/1.58-trixie/v1.0.2`).
 
-[Verification evidence](https://github.com/xormania/xorder/actions/runs/38082448522); 2026-10-10T20:33:15.844093Z.
+Artifact: `ghcr.io/xormania/playwright-browser@sha256:48c7089b8ca4353f74ba66bda332f94e8ace76743ebd9a98560c83f9f82c3627`.
 
-## Measured inventory — linux/amd64
+Base/parent: `docker.io/library/node:22-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa`.
 
-Runtime: 1.58.2; OS: Debian GNU/Linux 13 (trixie).
-
-| Tool | Version |
-| --- | --- |
-| node | v22.23.3 |
-| playwright | Version 1.58.2 |
+[Verification](https://github.com/xormania/xorder/actions/runs/38082448522).
 
 ### Release measurements — linux/amd64
 
@@ -35,15 +28,4 @@ External build cache at start: `restored`. This does not assert that every layer
 
 Size baseline: v1.0.0, `ghcr.io/xormania/playwright-browser@sha256:0e16fe1ce8a199880035fc6d9937682c18cc8d9b4b732f228716d33942831f76`; 2,213.9 MiB in the same image store. Change: **+0.0%**. [Baseline measurement](https://github.com/xormania/xorder/actions/runs/38055213253); 2026-10-10T13:23:00.606311Z.
 
-[Release notes](../releases/playwright-browser-1.58-trixie-v1.0.2.md).
-
-Capabilities: `playwright`, `chromium`, `firefox`, `webkit`, `browser-server`, `node`.
-
-Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.
-
-[Usage](../usage.md) · [Selection](../selection.md) · [Compatibility evidence](../compatibility.md)
-
-## Limitations
-
-- Use the exact Playwright version pinned by the consuming project.
-- Linux/amd64 only. All three engines are included; size savings are measured during validation and publication.
+The release record and GitHub Release asset retain the exact definition and per-platform inventory. The generated documentation commit is later than the build source commit.
