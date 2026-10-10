@@ -73,7 +73,7 @@ def prepare(pin, root=ROOT):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--consumer-ref", default="master", help="Consumer branch, tag or immutable commit")
+    parser.add_argument("--consumer-ref", default="main", help="Consumer branch, tag or immutable commit")
     parser.add_argument("--pr", action="store_true", help="Use normal feature-branch writeback and open a PR")
     args = parser.parse_args()
     pin = consumer_pin(args.consumer_ref)

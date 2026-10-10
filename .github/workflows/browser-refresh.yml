@@ -7,7 +7,7 @@ on:
       consumer_ref:
         description: flowbite-xor branch or commit containing the proposed Playwright bump
         type: string
-        default: master
+        default: main
   repository_dispatch:
     types: [playwright-bump]
 permissions:
@@ -33,5 +33,5 @@ jobs:
       - run: python3 -m pip install -r requirements-ci.txt
       - name: Propose the exact consumer pin
         env:
-          CONSUMER_REF: ${{ inputs.consumer_ref || github.event.client_payload.consumer_ref || 'master' }}
+          CONSUMER_REF: ${{ inputs.consumer_ref || github.event.client_payload.consumer_ref || 'main' }}
         run: python3 scripts/refresh_browser.py --consumer-ref "$CONSUMER_REF" --pr
