@@ -230,7 +230,7 @@ def main(arguments):
         env["XORDER_REUSE_ONLY"] = "1" if options.reuse_only else reuse
         if env["XORDER_REUSE_ONLY"] == "0" and (env.get("COMPOSER_INSTALL_PREFERENCE") or "dist") != "dist":
             raise ValueError("up installs from dist only. Remove COMPOSER_INSTALL_PREFERENCE=source; source clones can exhaust the sandbox disk. Use up --reuse-only with complete existing dependencies")
-    reuse_only = env.get("XORDER_REUSE_ONLY") == "1"
+    reuse_only = action == "up" and env.get("XORDER_REUSE_ONLY") == "1"
     workspace = Path(env["WORKSPACE"]).resolve(strict=True)
     if not workspace.is_dir():
         raise ValueError("WORKSPACE must be a directory")

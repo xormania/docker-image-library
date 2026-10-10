@@ -405,6 +405,9 @@ statefile.write_text(json.dumps(state))
         result = self.run_profile("up", XORDER_REUSE_ONLY="1")
         self.assertEqual(result.returncode, 64)
         self.assertIn("inside the mounted workspace", result.stderr)
+        # Recovery must work even when a session-wide reuse flag is inherited
+        # and the dependency tree has been removed or redirected.
+        self.assertEqual(self.run_profile("down", XORDER_REUSE_ONLY="1").returncode, 0)
 
     def test_source_or_configuration_change_invalidates_setup_receipt(self):
         self.assertEqual(self.run_profile("up").returncode, 0)
