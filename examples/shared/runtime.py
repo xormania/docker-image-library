@@ -39,10 +39,15 @@ def resources(workspace):
             "disk_total": disk.total, "disk_free": disk.free, "disk_used": disk.used}
 
 
-def print_resources(workspace):
+def print_resources(workspace, env=None):
     facts = resources(workspace)
-    print(f"disk: {facts['disk_used']/1024**3:.1f} GiB used, {facts['disk_free']/1024**3:.1f} GiB free "
-          f"({facts['disk_used']/facts['disk_total']:.0%} used)")
+    threshold = float((env or os.environ).get("XORDER_DISK_WARN_GIB", "3"))
+    if not math.isfinite(threshold) or threshold < 0:
+        raise ValueError("XORDER_DISK_WARN_GIB must be a finite nonnegative number")
+    print(f"disk: {facts['disk_free']/1024**3:.1f} GiB free, {facts['disk_used']/1024**3:.1f} GiB used "
+          "(filesystem accounting; sandbox quota may differ)")
+    if facts["disk_free"] < threshold * 1024**3:
+        print(f"disk warning: below {threshold:g} GiB free; reclaim space before pulling images or running tests")
     memory = f", {facts['memory_available']/1024**3:.1f} GiB available" if facts['memory_available'] is not None else ""
     print(f"load: {facts['load']:.2f}, CPU budget {facts['cpus']}{memory}")
 
@@ -109,21 +114,54 @@ def heavy_run(workspace, env):
         lock.close()
 
 
-def gc(env, apply=False, runner_copies=()):
+def referenced_images(containers, images, keep=()):
+    """Protect direct images and local ancestors, including BuildKit's layer-only ancestry."""
+    aliases = {alias: image["Id"] for image in images
+               for alias in [image["Id"], *(image.get("RepoTags") or []), *(image.get("RepoDigests") or [])]}
+    used = {aliases.get(value, value) for value in keep}
+    for container in containers:
+        for value in (container.get("Image"), container.get("Config", {}).get("Image")):
+            if value:
+                used.add(aliases.get(value, value))
+    by_id = {image["Id"]: image for image in images}
+    pending = list(used)
+    while pending:
+        image = by_id.get(pending.pop())
+        if not image:
+            continue
+        layers = image.get("RootFS", {}).get("Layers", [])
+        parents = {image.get("Parent")}
+        # Docker's Parent is often empty for OCI/BuildKit images. RootFS diff-ID
+        # prefixes also establish ancestors; equal layers conservatively protect
+        # configuration-only derivatives and aliases of the same filesystem.
+        parents.update(other["Id"] for other in images
+                       if (prior := other.get("RootFS", {}).get("Layers", []))
+                       and len(prior) <= len(layers) and layers[:len(prior)] == prior)
+        for parent in parents - used - {None, ""}:
+            used.add(parent)
+            pending.append(parent)
+    return used
+
+
+def gc(env, apply=False, runner_copies=(), keep=()):
     """Remove only stopped xorder-labelled containers and unused xorder image IDs."""
     def docker(*args):
         return subprocess.check_output(["docker", *args], env=env, text=True).strip()
     ids = docker("ps", "-aq") .split()
     containers = json.loads(docker("inspect", *ids)) if ids else []
-    used = {item.get("Image") for item in containers}
     stopped = [item for item in containers if item.get("Config", {}).get("Labels", {}).get("dev.xorder.workspace")
                and not item.get("State", {}).get("Running")]
-    image_ids = docker("image", "ls", "-q", "--no-trunc").split()
+    image_ids = docker("image", "ls", "-aq", "--no-trunc").split()
     images = json.loads(docker("image", "inspect", *dict.fromkeys(image_ids))) if image_ids else []
+    # Resolve exact local identities before planning. An unknown keep reference
+    # stops cleanup instead of silently ignoring a misspelling or a missing pull.
+    kept = [image["Id"] for image in json.loads(docker("image", "inspect", *keep))] if keep else []
+    used = referenced_images(containers, images, kept)
     unused = [item for item in images if item["Id"] not in used and
               item.get("Config", {}).get("Labels", {}).get("org.opencontainers.image.source") == "https://github.com/xormania/xorder"]
     result = {"dry_run": not apply, "stopped_containers": [item["Id"] for item in stopped],
-              "unused_images": [item["Id"] for item in unused], "old_runner_state": [], "old_runner_copies": []}
+              "unused_images": [item["Id"] for item in unused], "kept_images": kept,
+              "old_runner_state": [], "old_runner_copies": []}
     for value in runner_copies:
         path = Path(value).resolve(strict=True)
         current = Path(env["XORDER_RUNNER_ROOT"]).resolve()
@@ -156,6 +194,13 @@ def gc(env, apply=False, runner_copies=()):
                 continue
             subprocess.run(["docker", "rm", item["Id"]], env=env, check=True)
         for image in unused:
+            current_ids = docker("ps", "-aq").split()
+            current_containers = json.loads(docker("inspect", *current_ids)) if current_ids else []
+            current_image_ids = docker("image", "ls", "-aq", "--no-trunc").split()
+            current_images = json.loads(docker("image", "inspect", *dict.fromkeys(current_image_ids))) if current_image_ids else []
+            if image["Id"] in referenced_images(current_containers, current_images, kept):
+                print(f"Skipped image now referenced: {image['Id']}")
+                continue
             # No --force: Docker protects references that appeared since planning.
             subprocess.run(["docker", "image", "rm", image["Id"]], env=env, check=False)
         for path in result["old_runner_state"]:

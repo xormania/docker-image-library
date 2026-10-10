@@ -1,5 +1,7 @@
 """Regression coverage for cache integrity, MCP shell sessions and host budgets."""
 import importlib.util
+import io
+from contextlib import redirect_stdout
 import json
 import os
 from pathlib import Path
@@ -141,6 +143,69 @@ class DependencySnapshotTests(unittest.TestCase):
 
 
 class HostBudgetTests(unittest.TestCase):
+    def test_low_free_space_warns_even_when_host_capacity_is_large(self):
+        facts = {"disk_free": int(1.8 * 1024**3), "disk_used": int(36.5 * 1024**3),
+                 "disk_total": 256 * 1024**3, "cpus": 4, "load": 1, "memory_available": None}
+        output = io.StringIO()
+        with patch.object(runtime, "resources", return_value=facts), redirect_stdout(output):
+            runtime.print_resources(Path("."), {"XORDER_DISK_WARN_GIB": "3"})
+        self.assertIn("disk: 1.8 GiB free", output.getvalue())
+        self.assertIn("below 3 GiB free", output.getvalue())
+        self.assertNotIn("14%", output.getvalue())
+
+    def test_gc_protects_nonstack_daemons_local_parents_and_explicit_keeps(self):
+        images = [
+            {"Id": "base", "RootFS": {"Layers": ["a"]}},
+            {"Id": "parent", "RootFS": {"Layers": ["a", "b"]}},
+            {"Id": "local", "RootFS": {"Layers": ["a", "b", "c"]}},
+            {"Id": "serena", "RootFS": {"Layers": ["a", "d"]}},
+            {"Id": "toolkit", "RepoTags": ["toolkit:lint"], "RootFS": {"Layers": ["a", "e"]}},
+            {"Id": "unused", "RootFS": {"Layers": ["a", "f"]}},
+        ]
+        for image in images:
+            image["Config"] = {"Labels": {"org.opencontainers.image.source": "https://github.com/xormania/xorder"}}
+        containers = [{"Id": "daemon", "Image": "serena", "Config": {}, "State": {"Running": True}},
+                      {"Id": "stack", "Image": "local", "Config": {}, "State": {"Running": False}}]
+        def inspect(argv, **kwargs):
+            if argv[1:3] == ["ps", "-aq"]:
+                return "daemon stack"
+            if argv[1:3] == ["image", "ls"]:
+                return " ".join(image["Id"] for image in images)
+            if argv[1:3] == ["image", "inspect"]:
+                return json.dumps([image for image in images if image["Id"] in argv[3:] or
+                                   any(tag in argv[3:] for tag in image.get("RepoTags", []))])
+            return json.dumps(containers)
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(runtime.subprocess, "check_output", side_effect=inspect), \
+                patch.object(runtime.subprocess, "run") as mutate, redirect_stdout(io.StringIO()) as output:
+            runtime.gc(dict(os.environ, XDG_CACHE_HOME=directory), keep=["toolkit:lint"])
+            mutate.assert_not_called()
+            self.assertEqual(json.loads(output.getvalue())["unused_images"], ["unused"])
+
+    def test_parent_metadata_and_created_container_alias_are_protected(self):
+        images = [{"Id": "base"}, {"Id": "child", "Parent": "base", "RepoTags": ["child:latest"]}]
+        used = runtime.referenced_images([{"Config": {"Image": "child:latest"}}], images)
+        self.assertTrue({"base", "child"} <= used)
+
+    def test_apply_rechecks_new_container_ancestry_before_image_removal(self):
+        image = {"Id": "parent", "RootFS": {"Layers": ["a"]},
+                 "Config": {"Labels": {"org.opencontainers.image.source": "https://github.com/xormania/xorder"}}}
+        child = {"Id": "child", "RootFS": {"Layers": ["a", "b"]}}
+        listings = iter(["", "new-daemon"])
+        def inspect(argv, **kwargs):
+            if argv[1:3] == ["ps", "-aq"]:
+                return next(listings)
+            if argv[1:3] == ["image", "ls"]:
+                return "parent child"
+            if argv[1:3] == ["image", "inspect"]:
+                return json.dumps([image, child])
+            return json.dumps([{"Id": "new-daemon", "Image": "child"}])
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(runtime.subprocess, "check_output", side_effect=inspect), \
+                patch.object(runtime.subprocess, "run") as mutate, redirect_stdout(io.StringIO()):
+            runtime.gc(dict(os.environ, XDG_CACHE_HOME=directory), apply=True)
+            mutate.assert_not_called()
+
     def test_another_worktree_cannot_start_a_second_heavy_run(self):
         with tempfile.TemporaryDirectory() as directory:
             env = dict(os.environ, XDG_CACHE_HOME=directory, XORDER_TEST_MAX_RUNS="1")

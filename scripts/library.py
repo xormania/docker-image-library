@@ -236,6 +236,13 @@ def measurement_markdown(platform):
             f"| Public-artifact behavior and inventory verification | {metrics['verification_seconds']:.2f}s |\n\n"
             f"Size method: `{metrics['size_method']}`; image store: `{metrics['image_store']}`. "
             f"[Measurement evidence]({metrics['evidence']}); {metrics['measured_at']}.\n\n")
+    # Budget compressed downloads and unpacked layers together. This is a
+    # conservative planning estimate, not a measured download or quota guarantee.
+    budget = math.ceil(2 * metrics['image_size_bytes'] / 1024**3)
+    text += (f"Plan about **{budget} GiB free for a cold pull**, plus space for project dependencies and test output. "
+             "This estimate is twice the measured unpacked image size, rounded up; shared layers may lower it, "
+             "while the image store, temporary files and sandbox quotas can increase the requirement. "
+             "Check free space on the Docker data filesystem; it may differ from the checkout filesystem.\n\n")
     if "cache_source" in metrics:
         text += f"External build cache at start: `{metrics['cache_source']}`. This does not assert that every layer was a cache hit.\n\n"
     baseline = metrics.get("baseline")
