@@ -220,6 +220,17 @@ def main(arguments):
     if action not in ("up", "status", "sync", "test", "cache", "gc", "phpunit", "php-tests", "exec", "logs", "down"):
         raise ValueError(f"Unknown action: {action}")
     env = dict(os.environ)
+    if action == "up":
+        parser = argparse.ArgumentParser(prog="xr up")
+        parser.add_argument("--reuse-only", action="store_true", help="Verify and adopt existing dependencies with read-only mounts; never install or run setup hooks")
+        options = parser.parse_args(extra)
+        reuse = env.get("XORDER_REUSE_ONLY") or "0"
+        if reuse not in ("0", "1"):
+            raise ValueError("XORDER_REUSE_ONLY must be 0 or 1")
+        env["XORDER_REUSE_ONLY"] = "1" if options.reuse_only else reuse
+        if env["XORDER_REUSE_ONLY"] == "0" and (env.get("COMPOSER_INSTALL_PREFERENCE") or "dist") != "dist":
+            raise ValueError("up installs from dist only. Remove COMPOSER_INSTALL_PREFERENCE=source; source clones can exhaust the sandbox disk. Use up --reuse-only with complete existing dependencies")
+    reuse_only = env.get("XORDER_REUSE_ONLY") == "1"
     workspace = Path(env["WORKSPACE"]).resolve(strict=True)
     if not workspace.is_dir():
         raise ValueError("WORKSPACE must be a directory")
@@ -261,14 +272,33 @@ def main(arguments):
         env.update({"XORDER_" + key: value for key, value in settings.items()})
     if action == "up":
         env["XORDER_INPUT_FINGERPRINT"] = input_fingerprint(workspace, env)
-    preference = env.get("COMPOSER_INSTALL_PREFERENCE") or "dist"
-    if preference not in ("dist", "source"):
-        raise ValueError("COMPOSER_INSTALL_PREFERENCE must be dist or source")
     compose = compose_command(workspace, project, env)
     overlay = {"services": {"php": {"volumes": []}}}
+    if reuse_only:
+        # Protect the actual dependency files even when project code or a tool
+        # attempts a write. Receipts, Symfony caches and compiled CSS stay local.
+        paths = [Path("demo/vendor"), Path("node_modules")]
+        map_file = Path(env.get("IMPORTMAP_FILE") or "importmap.php")
+        asset_vendor = Path(env.get("IMPORTMAP_VENDOR_DIR") or "assets/vendor")
+        for path in (map_file, asset_vendor):
+            if path.is_absolute() or ".." in path.parts:
+                raise ValueError("Reuse-only importmap paths must be relative paths inside demo")
+        if (workspace / "demo" / map_file).is_file():
+            paths.append(Path("demo") / asset_vendor)
+        missing = []
+        for path in paths:
+            source = (workspace / path).resolve()
+            if not source.is_relative_to(workspace):
+                raise ValueError("Reuse-only dependencies must stay inside the mounted workspace")
+            if not source.is_dir():
+                missing.append(str(path))
+                continue
+            overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(source), "target": "/app/" + path.as_posix(), "read_only": True, "bind": {"create_host_path": False}})
+        if missing:
+            raise ValueError("Reuse-only dependency directories are missing: " + ", ".join(missing) + "; prepare a private complete installation before retrying")
     if action == "up" and not env["BROWSER_IMAGE"].startswith("mcr.microsoft.com/playwright:"):
         overlay["services"]["browser"] = {"command": ["playwright", "run-server", "--port", "3000", "--host", "0.0.0.0"]}
-    if action in ("up", "cache") and env.get("XORDER_SHARED_CACHE", "1") != "0":
+    if action in ("up", "cache") and not reuse_only and env.get("XORDER_SHARED_CACHE", "1") != "0":
         common = call(["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"],
                       env, capture=True, check=False)
         repository = common.stdout.strip() if common.returncode == 0 else str(workspace)
@@ -292,7 +322,7 @@ def main(arguments):
             overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(downloads), "target": "/run/composer-cache", "bind": {"create_host_path": False}})
             overlay["services"]["php"]["environment"]["COMPOSER_CACHE_DIR"] = "/run/composer-cache"
     cache = env.get("COMPOSER_CACHE_DIR")
-    if cache:
+    if cache and not reuse_only:
         host_cache = Path(cache)
         if not host_cache.is_absolute() or not host_cache.is_dir():
             raise ValueError("COMPOSER_CACHE_DIR must be an existing absolute host cache directory")
@@ -336,17 +366,25 @@ def main(arguments):
                 previous = json.loads(receipt.read_text())
             except (OSError, ValueError):
                 previous = {}
+            if reuse_only:
+                # Inspect before Compose can start/recreate application services.
+                # A one-off check bypasses every application/bootstrap hook.
+                call([*compose, "run", "--rm", "--no-deps", "--user", f'{env["PUID"]}:{env["PGID"]}',
+                      "--entrypoint", "bash", "php", "/run/xorder/startup.sh", "--check-reuse"], env)
             call([*compose, "up", "--wait", "--wait-timeout", "600", "--no-build"], env)
             # Recheck lockfiles even when Compose retained an existing container.
             php_exec(compose, env, "bash", "/run/xorder/startup.sh", "--prepare", cwd="/app/demo")
-            npm = php_exec(compose, env, "node", "/run/xorder/node-state.cjs", "verify", capture=True, check=False)
+            npm = php_exec(compose, env, "node", "/run/xorder/node-state.cjs", "inspect" if reuse_only else "verify", capture=True, check=False)
             if npm.returncode:
+                if reuse_only:
+                    raise ValueError("Reuse-only npm dependencies changed or are incomplete: " + npm.stderr.strip())
                 php_exec(compose, env, "npm", "ci")
                 npm = php_exec(compose, env, "node", "/run/xorder/node-state.cjs", "record", capture=True)
-            composer_state = php_exec(compose, env, "cat", "var/xorder/composer-ready", cwd="/app/demo", capture=True).stdout.strip()
+            composer_state = (php_exec(compose, env, "php", "/run/xorder/verify-composer.php", "fingerprint", cwd="/app/demo", capture=True)
+                              if reuse_only else php_exec(compose, env, "cat", "var/xorder/composer-ready", cwd="/app/demo", capture=True)).stdout.strip()
             current = {"configuration": configuration_hash, "inputs": env["XORDER_INPUT_FINGERPRINT"],
                        "containers": sorted(container["Id"] for container in containers(project, env)),
-                       "composer": composer_state, "npm": npm.stdout.strip()}
+                       "composer": composer_state, "npm": npm.stdout.strip(), "reuse_only": reuse_only}
             if previous != current:
                 # Only a previously successful exact setup can reuse its test cache.
                 php_exec(compose, env, "php", "bin/console", "cache:warmup", "--env=test", cwd="/app/demo")

@@ -2,6 +2,8 @@
 
 This optional profile targets the actual
 [`xormania/flowbite-xor`](https://github.com/xormania/flowbite-xor) repository.
+For Claude cloud sessions, read the [session quick start](claude-cloud.md)
+before starting a stack or importing another worktree's dependencies.
 The acceptance fixture pins commit
 [`c8878af`](https://github.com/xormania/flowbite-xor/tree/c8878af66897d8c10af694050a7a588166942117),
 inspected on 8 October 2026: Symfony 8.1, UX 3.5.1, PHP 8.5/FrankenPHP workers,
@@ -187,13 +189,50 @@ configures other paths in Symfony, set these variables to those same paths
 before `up`. An application without the selected importmap file skips this
 asset step. No package versions or generated dependency mappings are invented.
 
-For a writable existing host Composer cache or source-preferred installations:
+Composer installation is dist-only. `up` rejects a source preference before
+starting Docker work, checks that source fallback is disabled in Composer 2.10+
+and that locked packages have supported dist artifacts, and refuses to update
+an incomplete source-installed tree. A blocked archive download stops setup;
+it does not retry with git clones. Complete source-installed packages can still
+be verified and reused without another install.
+
+For a writable existing host Composer download cache:
 
 ```sh
 export COMPOSER_CACHE_DIR='/absolute/path/to/composer-cache'
-export COMPOSER_INSTALL_PREFERENCE=source  # default: dist
 bash examples/flowbite-xor/run.sh up
 ```
+
+### Reuse existing dependencies without rewriting them
+
+```sh
+bash examples/flowbite-xor/run.sh up --reuse-only
+```
+
+Alternatively set `XORDER_REUSE_ONLY=1` for a session wrapper. This mode ignores
+an inherited source preference because it performs no installation. Before
+starting or recreating services, a one-off container checks Composer manifest/
+lock agreement, package metadata, generated autoloads, npm manifest/lock/package
+agreement and Symfony importmap metadata/assets. Incomplete inputs fail with
+the missing setup reported. No packages, autoloads, importmap files or readiness
+markers are repaired; cache snapshots are neither restored nor stored, recipe
+sync is skipped, and Composer setup hooks and npm ci do not run.
+
+`demo/vendor`, `node_modules` and the configured importmap vendor directory
+are mounted read-only in PHP. The dependency paths must already exist inside
+the workspace; the importmap defaults are the paths below in this guide.
+This protects hardlinked package files from application/bootstrap writes too.
+Use the flag on every `up`; later `exec` commands use the retained container
+and its read-only mounts. Changing back to ordinary `up` restores writable
+mounts and normal setup behavior.
+
+A missing or changed Composer/npm readiness marker is reported as an unrecorded
+setup step. Complete dependency metadata can be adopted without pretending
+that project hooks ran or creating a marker. Application health must still
+pass before `Ready` is printed. Symfony runtime/test caches, compiled Tailwind
+CSS and the host runner receipt remain writable and local to the stack; this
+mode protects dependency trees rather than making the whole application read-only.
+Prepare missing hooks, recipes or assets in a private writable tree before reuse.
 
 The runner creates a separate `xorder/<workspace-hash>` cache under that existing
 directory and mounts only that child. Writable dependency archives are not shared
