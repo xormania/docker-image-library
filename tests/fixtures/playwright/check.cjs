@@ -1,5 +1,8 @@
 const { chromium, firefox, webkit } = require('/opt/playwright/node_modules/playwright');
+const { execFileSync } = require('node:child_process');
 (async () => {
+  const rgba = execFileSync('fc-match', ['-f', '%{rgba}', 'monospace'], { encoding: 'utf8' }).trim();
+  if (rgba !== '1') throw new Error(`Expected RGB subpixel rendering (rgba=1), got ${rgba}`);
   const versions = {};
   for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
     const browser = await engine.launch({ headless: true });
@@ -13,5 +16,5 @@ const { chromium, firefox, webkit } = require('/opt/playwright/node_modules/play
       versions[name] = browser.version();
     } finally { await browser.close(); }
   }
-  console.log(JSON.stringify(versions));
+  console.log(JSON.stringify({ rgba: Number(rgba), engines: versions }));
 })().catch(error => { console.error(error); process.exit(1); });

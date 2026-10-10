@@ -36,7 +36,7 @@
     "1.58-trixie": {
       "runtime_line": "1.58",
       "os": "debian-trixie",
-      "revision": "1.0.0",
+      "revision": "1.0.1",
       "platforms": [
         "linux/amd64"
       ],
@@ -45,9 +45,9 @@
         "digest": "sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa"
       },
       "changes": [
-        "Prepare Playwright 1.58.2 and its Chromium, Firefox and WebKit engines; verify each engine offline before catalog availability."
+        "Use RGB subpixel rendering to match the consuming project's Noble Chromium screenshot baselines; verify fontconfig and committed screenshot parity."
       ],
-      "migration": "New optional companion. The runner retains the official image for versions without an accepted xorder browser release. BROWSER_IMAGE explicitly selects a local candidate or verified digest."
+      "migration": "Compatible rendering fix. Select the accepted 1.0.1 digest after publication; existing 1.0.0 digest pins remain unchanged."
     }
   }
 }

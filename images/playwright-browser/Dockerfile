@@ -6,6 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-brow
 COPY images/playwright-browser/package*.json /opt/playwright/
 RUN npm ci --prefix /opt/playwright --ignore-scripts --no-audit --no-fund \
     && /opt/playwright/node_modules/.bin/playwright install --with-deps chromium firefox webkit \
+    && mv /etc/fonts/conf.d/10-sub-pixel-none.conf /etc/fonts/10-sub-pixel-none.conf.disabled \
+    && ln -s /usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf /etc/fonts/conf.d/10-sub-pixel-rgb.conf \
     && apt-get update \
     && apt-get install -y --no-install-recommends python3 gosu ca-certificates \
     && rm -rf /var/lib/apt/lists/* /root/.npm /usr/local/lib/node_modules/npm \

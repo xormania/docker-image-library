@@ -1,0 +1,26 @@
+# Controlled parity infrastructure; consumer Compose and dotenv files are ignored.
+services:
+  php:
+    working_dir: /app/demo
+    environment:
+      SERVER_NAME: localhost, php:80
+      DEFAULT_URI: https://localhost
+      SERVER_ROOT: /app/demo/public
+      APP_ENV: dev
+      FRANKENPHP_WORKER_CONFIG: watch
+      FRANKENPHP_SITE_CONFIG: hot_reload
+      MERCURE_EXTRA_DIRECTIVES: playground
+      MERCURE_PUBLISHER_JWT_KEY: parity-fixture-key
+      MERCURE_SUBSCRIBER_JWT_KEY: parity-fixture-key
+      MERCURE_JWT_SECRET: parity-fixture-key
+      MERCURE_URL: http://php/.well-known/mercure
+      MERCURE_PUBLIC_URL: https://localhost/.well-known/mercure
+    volumes:
+      - ${WORKSPACE:?Disposable consumer checkout}:/app
+      - ./frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
+      - ./frankenphp/conf.d/20-app.dev.ini:/usr/local/etc/php/app.conf.d/20-app.dev.ini:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  caddy_data:
+  caddy_config:
