@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Local Compose orchestration; dependencies and application hooks stay project-owned."""
 import hashlib
+import argparse
 import json
 import os
 from pathlib import Path
@@ -12,7 +13,9 @@ import tempfile
 
 PROFILE = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROFILE.parent / "shared"))
-from network import container_environment, local_engine, owner_label, stop  # noqa: E402
+from network import container_environment, local_engine, owner_label, stop, loopback_proxy, PROXIES  # noqa: E402
+from proxy_relay import directory as relay_directory, running as relay_running  # noqa: E402
+from runtime import ensure_daemon, print_resources, heavy_run, gc, state_root  # noqa: E402
 
 PHP_TEST_ENVIRONMENT = (
     "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION",
@@ -80,10 +83,30 @@ def readiness(container, env):
 def status(project, env):
     daemon = call(["docker", "info", "--format", "{{json .ServerVersion}}"], env, capture=True, check=False)
     print("project: " + project)
+    print_resources(Path(env["WORKSPACE"]))
     if daemon.returncode:
         print("daemon: unavailable (start Docker, then run up)")
         return 1
     print("daemon: reachable")
+    relay = True
+    if env.get("PROXY_PASSTHROUGH", "auto") == "auto" and any(
+            env.get(name) and loopback_proxy(env[name], name) for name in PROXIES):
+        active = relay_running(relay_directory(f"flowbite:{env['WORKSPACE']}:{project}"))
+        relay = bool(active)
+        expected = sorted({(proxy[1], proxy[2]) for name in PROXIES
+                           if env.get(name) and (proxy := loopback_proxy(env[name], name))})
+        if active and sorted(tuple(target) for target in active["config"]["targets"]) != expected:
+            relay = False
+        if active:
+            for host, port in active["config"]["targets"]:
+                try:
+                    with socket.create_connection((host, port), timeout=2):
+                        pass
+                except OSError:
+                    relay = False
+        print("proxy relay: " + ("ready" if relay else "unavailable (run up to restore)"))
+    else:
+        print("proxy relay: not required")
     found = containers(project, env)
     php = None
     services = {}
@@ -100,7 +123,17 @@ def status(project, env):
             print(service + ": absent")
     ready = readiness(php, env)
     print("application: " + ("ready" if ready else "not ready"))
-    return 0 if ready and all(services.get(service, {}).get("State", {}).get("Running") and services[service]["State"].get("Health", {}).get("Status") == "healthy" for service in ("php", "browser")) else 1
+    return 0 if relay and ready and all(services.get(service, {}).get("State", {}).get("Running") and services[service]["State"].get("Health", {}).get("Status") == "healthy" for service in ("php", "browser")) else 1
+
+
+def browser_image(version):
+    resources = json.loads((PROFILE.parents[1] / "catalog-v2.json").read_text())["resources"]
+    candidates = [entry for entry in resources if entry["id"].startswith("image/playwright-browser/")
+                  and entry["lifecycle"] == "available" and entry["verification"]["status"] == "passed"
+                  and json.loads((PROFILE.parents[1] / entry["release_record"]).read_text())["platforms"][0]["inventory"]["runtime_version"] == version]
+    if candidates:
+        return max(candidates, key=lambda item: tuple(map(int, item["version"].split("."))))["identity"]
+    return f"mcr.microsoft.com/playwright:v{version}-noble"
 
 
 def check_ports(project, env):
@@ -157,7 +190,7 @@ def input_fingerprint(workspace, env):
 
 def main(arguments):
     if not arguments:
-        raise ValueError("Usage: run.sh [--slot N] up|status|test|phpunit|php-tests|exec|logs|down [arguments]")
+        raise ValueError("Usage: run.sh [--slot N] up|status|sync|test|cache|gc|phpunit|php-tests|exec|logs|down [arguments]")
     slot = None
     if arguments[0] == "--slot":
         if len(arguments) < 3 or not arguments[1].isdigit():
@@ -169,7 +202,7 @@ def main(arguments):
         if not extra[1].isdigit():
             raise ValueError("--slot must be a nonnegative integer")
         slot = int(extra[1]); extra = extra[2:]
-    if action not in ("up", "status", "test", "phpunit", "php-tests", "exec", "logs", "down"):
+    if action not in ("up", "status", "sync", "test", "cache", "gc", "phpunit", "php-tests", "exec", "logs", "down"):
         raise ValueError(f"Unknown action: {action}")
     env = dict(os.environ)
     workspace = Path(env["WORKSPACE"]).resolve(strict=True)
@@ -181,6 +214,15 @@ def main(arguments):
                HTTP_PORT=http, HTTPS_PORT=https, HTTP3_PORT=udp, CONTAINER_CA_FILE="")
     if action == "status":
         return status(project, env)
+    if action == "gc":
+        parser = argparse.ArgumentParser(prog="xr gc", description="List unused resources; dry-run by default")
+        mode = parser.add_mutually_exclusive_group()
+        mode.add_argument("--apply", action="store_true")
+        mode.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--runner-copy", action="append", default=[], help="Explicit unpacked old runner copy to inspect and remove")
+        options = parser.parse_args(extra)
+        env["XORDER_RUNNER_ROOT"] = str(PROFILE.parents[1])
+        return gc(env, apply=options.apply, runner_copies=options.runner_copy)
     if not env.get("IMAGE"):
         raise ValueError("Select IMAGE from the verified flowbite-xor-dev catalog")
     ca = env.get("CA_CERTIFICATE")
@@ -191,6 +233,9 @@ def main(arguments):
     # Only starting a new browser requires the lock. Recovery inspection and
     # cleanup work after deleted/moved dependency files as well.
     env["PLAYWRIGHT_VERSION"] = playwright(workspace) if action in ("up", "test") else "0.0.0"
+    env["BROWSER_IMAGE"] = env.get("BROWSER_IMAGE") or browser_image(env["PLAYWRIGHT_VERSION"])
+    if action == "up":
+        ensure_daemon(env)
     proxy_owner = f"flowbite:{workspace}:{project}"
     env["XORDER_PROXY_OWNER"] = owner_label(proxy_owner)
     if action not in ("down", "logs"):
@@ -206,6 +251,31 @@ def main(arguments):
     compose = ["docker", "compose", "--project-directory", str(workspace / "demo"), "-p", project,
                "-f", str(workspace / "demo/compose.yaml"), "-f", str(workspace / "demo/compose.override.yaml"), "-f", str(PROFILE / "compose.yaml")]
     overlay = {"services": {"php": {"volumes": []}}}
+    if action == "up" and not env["BROWSER_IMAGE"].startswith("mcr.microsoft.com/playwright:"):
+        overlay["services"]["browser"] = {"command": ["playwright", "run-server", "--port", "3000", "--host", "0.0.0.0"]}
+    if action in ("up", "cache") and env.get("XORDER_SHARED_CACHE", "1") != "0":
+        common = call(["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                      env, capture=True, check=False)
+        repository = common.stdout.strip() if common.returncode == 0 else str(workspace)
+        scope = hashlib.sha256(repository.encode()).hexdigest()
+        # Repository grouping is organizational only. Each checkout gets its own
+        # bind, so untrusted linked worktrees cannot replace another's executable
+        # snapshots or Composer dist archives. Cross-worktree reuse is an explicit
+        # bundle import authenticated against a caller-supplied trusted digest.
+        cache_root = Path(env.get("XORDER_SHARED_CACHE_DIR", str(state_root(env) / "dependencies"))).resolve()
+        shared = cache_root / scope / key
+        if shared.resolve() != shared:
+            raise ValueError("Dependency cache must not be redirected by symlinks")
+        shared.mkdir(parents=True, exist_ok=True)
+        overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(shared), "target": "/run/xorder-cache", "bind": {"create_host_path": False}})
+        overlay["services"]["php"]["environment"] = {"XORDER_CACHE_IMAGE": env["IMAGE"]}
+        if not env.get("COMPOSER_CACHE_DIR"):
+            downloads = shared / "composer-downloads"
+            if downloads.resolve() != downloads:
+                raise ValueError("Composer downloads must not be redirected by symlinks")
+            downloads.mkdir(exist_ok=True)
+            overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(downloads), "target": "/run/composer-cache", "bind": {"create_host_path": False}})
+            overlay["services"]["php"]["environment"]["COMPOSER_CACHE_DIR"] = "/run/composer-cache"
     cache = env.get("COMPOSER_CACHE_DIR")
     if cache:
         host_cache = Path(cache)
@@ -219,20 +289,21 @@ def main(arguments):
         scoped_cache.mkdir(parents=True, exist_ok=True)
         overlay["services"]["php"]["volumes"].append({"type": "bind", "source": str(scoped_cache), "target": "/run/composer-cache", "bind": {"create_host_path": False}})
         # Keep the bind outside HOME so the image cannot change host ownership.
-        overlay["services"]["php"]["environment"] = {"COMPOSER_CACHE_DIR": "/run/composer-cache"}
+        overlay["services"]["php"].setdefault("environment", {})["COMPOSER_CACHE_DIR"] = "/run/composer-cache"
     if env.get("WORKTREE_GIT", "0") == "1" and (workspace / ".git").is_file():
         common = call(["git", "-C", str(workspace), "rev-parse", "--path-format=absolute", "--git-common-dir"], env, capture=True).stdout.strip()
         private = call(["git", "-C", str(workspace), "rev-parse", "--absolute-git-dir"], env, capture=True).stdout.strip()
         key = hashlib.sha256(str(workspace).encode()).hexdigest()
         pointer = Path(env.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "xorder/worktrees" / key / "git-pointer"
         pointer.parent.mkdir(parents=True, exist_ok=True)
+        (pointer.parent / "workspace.json").write_text(json.dumps({"workspace": str(workspace)}))
         pointer.write_text(f"gitdir: {private}\n")
         pointer.chmod(0o644)
         overlay["services"]["php"].setdefault("environment", {})["GIT_OPTIONAL_LOCKS"] = "0"
         for source, target in ((common, common), (str(pointer), "/app/.git")):
             overlay["services"]["php"]["volumes"].append({"type": "bind", "source": source, "target": target, "read_only": True, "bind": {"create_host_path": False}})
     with tempfile.TemporaryDirectory(prefix="xorder-compose-") as directory:
-        if overlay["services"]["php"]["volumes"]:
+        if overlay["services"]["php"]["volumes"] or "browser" in overlay["services"]:
             filename = Path(directory) / "overlay.json"
             filename.write_text(json.dumps(overlay))
             compose += ["-f", str(filename)]
@@ -240,8 +311,8 @@ def main(arguments):
             configuration = call([*compose, "config", "--format", "json"], env, capture=True).stdout
             # Include all services supplied by the consuming Compose project.
             service_names = json.loads(configuration).get("services", {})
-            for key in ("XORDER_NO_PROXY", "XORDER_no_proxy"):
-                env[key] = ",".join(dict.fromkeys([*env[key].split(","), *service_names]))
+            for proxy_key in ("XORDER_NO_PROXY", "XORDER_no_proxy"):
+                env[proxy_key] = ",".join(dict.fromkeys([*env[proxy_key].split(","), *service_names]))
             if service_names:
                 configuration = call([*compose, "config", "--format", "json"], env, capture=True).stdout
             configuration_hash = hashlib.sha256(configuration.encode()).hexdigest()
@@ -266,12 +337,23 @@ def main(arguments):
                 php_exec(compose, env, "php", "bin/console", "cache:warmup", "--env=test", cwd="/app/demo")
             php_exec(compose, env, "curl", "--fail", "--silent", "--show-error", "--insecure", "--noproxy", "*", "--max-time", "15", "https://localhost" + env.get("APP_READY_PATH", "/"))
             receipt.parent.mkdir(parents=True, exist_ok=True)
+            (receipt.parent / "workspace.json").write_text(json.dumps({"workspace": str(workspace)}))
             temporary_receipt = receipt.with_suffix(".tmp")
             temporary_receipt.write_text(json.dumps(current))
             temporary_receipt.replace(receipt)
             print(f"Ready: {project} http://localhost:{http} https://localhost:{https}")
         elif action == "test":
-            php_exec(compose, env, "npx", "playwright", "test", *extra)
+            with heavy_run(workspace, env) as workers:
+                if not any(arg == "--workers" or arg.startswith("--workers=") or arg == "-j" for arg in extra):
+                    extra = [f"--workers={workers}", *extra]
+                print(f"Test budget acquired; automatic worker budget {workers}", flush=True)
+                php_exec(compose, env, "npx", "playwright", "test", *extra)
+        elif action == "sync":
+            sync = json.loads((PROFILE / "profile.json").read_text())["sync"]
+            php_exec(compose, env, *sync)
+            print("Synced project recipes, controllers and templates using " + " ".join(sync))
+        elif action == "cache":
+            php_exec(compose, env, "python3", "/run/xorder/cache.py", *extra, cwd="/app/demo")
         elif action == "phpunit":
             call([*compose, "exec", "-T", "--user", f'{env["PUID"]}:{env["PGID"]}', "-w", "/app/demo",
                   "-e", "XDEBUG_MODE=" + env.get("PHPUNIT_XDEBUG_MODE", "off"), "-e", "APP_ENV=test", "-e", "APP_DEBUG=1",

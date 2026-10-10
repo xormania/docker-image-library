@@ -12,6 +12,8 @@ TOOL_KEYS = {
     "python-dev": ("uv", "apt_indexes"),
     "rust-dev": ("apt_indexes",),
     "php-browser": ("apt_indexes",),
+    "php-serena": ("node",),
+    "playwright-browser": ("apt_indexes",),
 }
 
 

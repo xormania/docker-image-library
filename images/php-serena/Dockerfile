@@ -1,6 +1,14 @@
 # syntax=docker/dockerfile:1
 ARG BASE_IMAGE
+ARG NODE_IMAGE
+FROM ${NODE_IMAGE} AS node
 FROM ${BASE_IMAGE}
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+COPY images/php-serena/package*.json /opt/xorder/serena/javascript/
+RUN npm ci --prefix /opt/xorder/serena/javascript --ignore-scripts --no-audit --no-fund \
+    && npm cache clean --force
 
 # Keep the proven Agentscient v2 REPL/PHPactor pair. The PHP/Trixie parent
 # supplies Python and mbstring; consume its exact verified artifact unchanged.
@@ -24,6 +32,7 @@ RUN curl --fail --location --silent --show-error \
         --output /opt/xorder/serena/phpactor.phar \
     && echo '53bbe9625cd9b5e9b394bc2f595fbad13dbbe6dfc96950c56dea3b5d9a246cc3  /opt/xorder/serena/phpactor.phar' | sha256sum --check
 COPY --chmod=755 images/php-serena/launch.py /usr/local/bin/library-serena
+COPY images/php-serena/integration.py /usr/local/bin/integration.py
 ENV PYTHONDONTWRITEBYTECODE=1
 CMD ["library-serena"]
 

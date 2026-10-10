@@ -40,6 +40,7 @@ printf 'Applying xorder-owned test synchronization overlay to pinned flowbite-xo
 git -C "$WORKSPACE" apply --check "$fixture_patch"
 git -C "$WORKSPACE" apply --whitespace=error "$fixture_patch"
 bash "$root/examples/flowbite-xor/run.sh" up
+bash "$root/examples/flowbite-xor/run.sh" sync
 bash "$root/examples/flowbite-xor/run.sh" status
 bash "$root/examples/flowbite-xor/run.sh" exec test -s demo/var/tailwind/app.built.css
 before_setup=$(bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cat demo/var/xorder/composer-ready demo/var/xorder/node-ready')
@@ -60,6 +61,23 @@ docker run --rm --network none \
   "$image" php /xorder/tests/fixtures/flowbite-xor/verify-importmap-reuse.php /app/demo/vendor/autoload.php
 
 test "$(bash "$root/examples/flowbite-xor/run.sh" exec git rev-parse HEAD)" = "${consumer[1]}"
+# The same prepared dependency artifacts must work in another clean worktree
+# with networking disabled, including Symfony's importmap installation metadata.
+bash "$root/examples/flowbite-xor/run.sh" cache export --output /app/dependencies.zip
+bundle_sha256=$(sha256sum "$WORKSPACE/dependencies.zip" | cut -d ' ' -f 1)
+git -C "$work/main" worktree add --detach "$work/cache-consumer" FETCH_HEAD
+mkdir -p "$work/imported-cache"
+cp "$WORKSPACE/dependencies.zip" "$work/cache-consumer/dependencies.zip"
+docker run --rm --network=none \
+  -e PUID="$(id -u)" -e PGID="$(id -g)" -e XORDER_CACHE_IMAGE="$image" -e BUNDLE_SHA256="$bundle_sha256" \
+  -v "$work/cache-consumer:/app" -v "$work/imported-cache:/run/xorder-cache" \
+  -v "$root/examples/flowbite-xor:/profile:ro" -w /app/demo "$image" bash -euc '
+    php /app/tools/sync-demo
+    python3 /profile/cache.py import --input /app/dependencies.zip --sha256 "$BUNDLE_SHA256"
+    php /profile/verify-composer.php verify
+    php /profile/importmap-state.php verify
+  '
+rm -f "$WORKSPACE/dependencies.zip"
 bash "$root/examples/flowbite-xor/run.sh" exec git status --porcelain
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cd demo && composer check-platform-reqs'
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c \

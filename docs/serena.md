@@ -1,6 +1,6 @@
 # Prepared Serena for PHP and Symfony
 
-`php-serena/8.5-trixie` adds Serena v2 REPL and PHPactor to xorder's PHP 8.5
+`php-serena/8.5-trixie` adds Serena v2 REPL, PHPactor and JavaScript/TypeScript tooling to xorder's PHP 8.5
 development image. It is an independent stdio MCP service for source discovery
 and editing. The [catalog](../catalog-v2.json) is the availability authority:
 the authored image is not available until publication and verification produce
@@ -38,14 +38,54 @@ s.lsp.find_referencing_symbols('CspNonce', 'src/Security/CspNonce.php')
 Use upstream API discovery for the selected revision. The REPL retains variables
 between cells. A failed cell may already have edited source: inspect its textual
 error and the resulting files before retrying. Reconnecting starts a new REPL;
-variables and temporary indexes/memories are lost, while source edits remain.
+variables and temporary memories are lost, while source edits remain. Optional matching indexes survive.
 There is no automatic replay of a failed or interrupted cell.
+
+
+## Shell queries and persistent editing
+
+These additions require the new 1.1 image after publication and acceptance; an older digest does not gain new binaries or launcher options. Shell access uses the same MCP service and needs no harness MCP registration:
+
+```sh
+python3 examples/serena/client.py query find_symbol LabController \
+  --workspace /path/to/flowbite-xor --project demo --image "$SERENA_IMAGE" \
+  --path src/Controller/LabController.php --cache-dir /path/to/serena-cache
+```
+
+For repeated work, launch one daemon per worktree. Its socket directory must be owned by the current user with mode 0700. Calls are serialized against one REPL; errors return JSON and exit nonzero. Nothing automatically replays a failed edit.
+
+```sh
+mkdir -p /path/to/private-serena
+chmod 700 /path/to/private-serena
+python3 examples/serena/client.py serve --workspace /path/to/flowbite-xor \
+  --project demo --image "$SERENA_IMAGE" --write \
+  --languages php_phpactor,typescript --request-timeout 180 \
+  --cache-dir /path/to/serena-cache --socket /path/to/private-serena/session.sock
+# From another shell:
+python3 examples/serena/client.py call --socket /path/to/private-serena/session.sock \
+  --code "s.edit.replace_content('src/Example.php', 'old', 'new', 'literal')"
+python3 examples/serena/client.py status --socket /path/to/private-serena/session.sock
+python3 examples/serena/client.py stop --socket /path/to/private-serena/session.sock
+```
+
+`--write` enables edits and a writable source mount. `--read-only` is available for inspection. The MCP `initial_instructions` response also exposes `structuredContent.session_id`. Request timeouts are configurable independently of the shell startup timeout; a stopped language server reports recovery through `s.lsp.restart_language_server()` or a session restart.
+
+| Source | Navigation | Editing |
+| --- | --- | --- |
+| PHP | PHPactor symbols and references | Serena source/symbol editing in write mode |
+| JavaScript / TypeScript | TypeScript language server symbols and references | Serena source/symbol editing in write mode |
+| Twig / YAML service IDs | Text search; semantic coverage is not established | Text edits in write mode |
+
+Navigation honors project ignore rules. Use `--project .` to work on the kit's
+original recipes outside `demo`; generated demo controller copies may be
+gitignored. JavaScript reference queries include eligible workspace sources even
+when the application has no `jsconfig.json` or `tsconfig.json`, without writing
+either configuration file into the checkout.
 
 ## Workspace and session behavior
 
 The Linux/amd64 runner requires Python 3.9+ and a working Docker engine with the
-chosen image already present. Each invocation creates a separate container and
-temporary state, preserving parallel worktree/session separation. It runs as the
+chosen image already present. Each invocation creates a separate container and temporary REPL state. Optional index storage is scoped to the canonical checkout, project and exact image, preserving worktree separation. It runs as the
 host UID/GID, keeps protocol stdout clean, disables runtime networking, and
 exposes only the selected checkout. It mounts no host home or Docker socket.
 The checkout is read-only by default, enforced by the mount as well as upstream
@@ -54,8 +94,7 @@ a trusted checkout. `--read-only` explicitly selects the default behavior.
 
 Startup completes PHPactor's initial project index before exposing MCP. Cold
 startup therefore takes longer for large dependency trees, but the first reference
-query sees a complete initial index. Indexing uses the private session cache and
-does not require runtime networking or write generated files into the checkout.
+query sees a complete initial index. Indexing uses the private session cache by default. Pass `--cache-dir /absolute/cache/path` to persist it. A complete-index marker binds source bytes (including installed PHP dependencies and sibling kit source), settings and PHPactor bytes. Changed inputs complete an incremental build before serving; unchanged inputs reuse the completed index. One process holds a cache lease for its lifetime; reuse the daemon for concurrent clients. Startup needs no runtime networking and writes no generated configuration into the checkout.
 
 Serena's Python REPL has the container user's capabilities. This runner does not
 implement Agentscient's role policy, operation locks, process auditing or work
@@ -67,8 +106,7 @@ the prepared PHPactor default when no backend is selected, and keeps generated
 configuration outside the source tree. Repository activation commands and
 language-server-specific settings are discarded; global trusted project paths are
 explicitly empty. A `phpactor_version` or `ls_path` override is rejected with an
-actionable error, as is an incompatible backend selection. This profile
-uses session-local state and does not persist newly written Serena memories.
+actionable error, as is an incompatible backend selection. This profile keeps newly written Serena memories session-local. PHPactor automatic configuration prompts are disabled through its launch configuration and initialization options, including on a clean read-only checkout.
 
 ## What the Symfony profile establishes
 
@@ -76,7 +114,7 @@ The image provides PHP semantic tools, a PHP runtime and Composer. Acceptance
 uses actual flowbite-xor Symfony source: class/method lookup, cross-file references,
 an edit and semantic reread, persistent REPL variables, a partial edit followed by
 an error, and a fresh read-only session. PHP attributes and constructor types are
-present in this consumer. This does not establish semantic Twig navigation,
+present in this consumer. JavaScript/TypeScript uses the prepared TypeScript language server (`--languages php_phpactor,typescript`). This does not establish semantic Twig navigation,
 resolution of service identifiers from YAML, or runtime container inspection.
 Use the application's installed Symfony/Mate capabilities for runtime facts.
 

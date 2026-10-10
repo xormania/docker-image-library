@@ -96,7 +96,8 @@ def main():
             "-w", "/workspace/demo", image, "composer", "install", "--no-interaction", "--prefer-dist",
             "--no-progress", "--no-scripts", "--no-plugins")
         command = [sys.executable, str(ROOT / "examples/serena/run.py"), str(checkout),
-                   "--image", image, "--project", fixture["project"]]
+                   "--image", image, "--project", fixture["project"], "--request-timeout", "180",
+                   "--cache-dir", str(Path(directory) / "index-cache")]
         source = checkout / fixture["project"] / fixture["file"]
         original = source.read_text()
         settings = checkout / fixture["project"] / ".serena/project.yml"
@@ -111,6 +112,20 @@ def main():
         client = None
         try:
             with log_path.open("w") as log:
+                # The first session must be read-only, with no earlier writable
+                # session available to answer PHPactor's configuration prompts.
+                assert not (checkout / fixture["project"] / ".phpactor.json").exists()
+                client = Client(command, log)
+                fresh = client.repl("s.lsp.find_symbol('LabController', relative_path='src/Controller/LabController.php', include_body=True)")
+                assert "LabController" in fresh, fresh
+                client.repl("s.lsp.find_referencing_symbols('LabController', 'src/Controller/LabController.php')")
+                assert "CspNonce" in client.repl(f"s.lsp.find_symbol({fixture['symbol']!r}, relative_path={fixture['file']!r})")
+                assert not (checkout / fixture["project"] / ".phpactor.json").exists()
+                evidence["checks"].append("clean-first-readonly-symbols-references-server-remains-alive")
+                instructions = client.call("tools/call", {"name": "initial_instructions", "arguments": {}})
+                assert instructions["structuredContent"]["session_id"]
+                evidence["checks"].append("structured-session-identity")
+                client.close()
                 client = Client(command + ["--write"], log)
                 assert "serena_repl" in {tool["name"] for tool in client.call("tools/list")["tools"]}
                 assert "42" in client.repl("xorder_answer = 42; xorder_answer")
@@ -146,6 +161,33 @@ def main():
                 evidence["checks"].append("restart-loses-repl-state-preserves-source-and-readonly-mount")
                 client.close()
                 client = None
+                # Exercise the shell entry point against the same prepared
+                # service, including source changes made without MCP registration.
+                cli = [sys.executable, str(ROOT / "examples/serena/client.py"), "query",
+                       "--workspace", str(checkout), "--project", fixture["project"], "--image", image,
+                       "--cache-dir", str(Path(directory) / "index-cache"), "--write"]
+                reply = run(*cli, "--code", f"s.edit.replace_content({fixture['file']!r}, 'xorder-partial', 'xorder-shell', 'literal')",
+                            capture_output=True, text=True)
+                assert json.loads(reply.stdout)["ok"], reply.stdout
+                assert "xorder-shell" in source.read_text()
+                evidence["checks"].append("shell-query-trusted-source-edit")
+                # Recipe-generated controllers are intentionally gitignored by
+                # this consumer; exercise source files eligible for navigation.
+                js = checkout / fixture["project"] / "assets/xorder_navigation.js"
+                usage = js.with_name("xorder_usage.js")
+                js.write_text("export class XorderNavigation { navigate() { return 42; } }\n")
+                usage.write_text("import { XorderNavigation } from './xorder_navigation.js';\nexport const xorderResult = new XorderNavigation().navigate();\n")
+                client = Client(command + ["--write", "--languages", "php_phpactor,typescript"], log)
+                symbols = client.repl("s.lsp.get_symbols_overview('assets/xorder_navigation.js', depth=1)")
+                assert "XorderNavigation" in symbols and "navigate" in symbols, symbols
+                refs = client.repl("s.lsp.find_referencing_symbols('XorderNavigation', 'assets/xorder_navigation.js')")
+                assert "xorder_usage.js" in refs, refs
+                client.repl("s.edit.replace_content('assets/xorder_navigation.js', 'return 42', 'return 43', 'literal')")
+                assert "return 43" in js.read_text()
+                evidence["checks"].append("javascript-symbols-cross-file-references-and-edit")
+                client.close()
+                client = None
+                js.unlink(); usage.unlink()
         except BaseException:
             print(log_path.read_text()[-16000:], file=sys.stderr)
             raise
