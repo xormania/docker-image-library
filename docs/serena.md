@@ -76,6 +76,12 @@ python3 examples/serena/client.py stop --socket /path/to/private-serena/session.
 | JavaScript / TypeScript | TypeScript language server symbols and references | Serena source/symbol editing in write mode |
 | Twig / YAML service IDs | Text search; semantic coverage is not established | Text edits in write mode |
 
+Navigation honors project ignore rules. Use `--project .` to work on the kit's
+original recipes outside `demo`; generated demo controller copies may be
+gitignored. JavaScript reference queries include eligible workspace sources even
+when the application has no `jsconfig.json` or `tsconfig.json`, without writing
+either configuration file into the checkout.
+
 ## Workspace and session behavior
 
 The Linux/amd64 runner requires Python 3.9+ and a working Docker engine with the
