@@ -34,12 +34,18 @@ python3 scripts/xr.py /path/to/worktree status
 python3 scripts/xr.py /path/to/worktree test tests/e2e/example.spec.ts
 python3 scripts/xr.py /path/to/worktree gc
 python3 scripts/xr.py /path/to/worktree gc --apply
+python3 scripts/xr.py /path/to/worktree gc --keep ghcr.io/xormania/php-toolkit:8.5-trixie-v1.0.1
 ```
 
 Sync runs `php tools/sync-demo` from the checkout root and preserves command
 output so copied files are visible. A failed or missing script returns nonzero.
 Status needs no image or package lock and reports host disk/load, Docker,
 container health, application readiness and required loopback proxy relay state.
+Disk output leads with free space and warns below 3 GiB regardless of filesystem
+capacity. `XORDER_DISK_WARN_GIB` changes that threshold. Filesystem accounting
+may not expose a sandbox's quota; consult its quota display too. Image pages
+give cold-pull space estimates derived from measured unpacked sizes. Check the
+Docker data filesystem as well as the checkout; their available space can differ.
 `up` first tries an existing local Docker service when the daemon is unavailable;
 `XORDER_DOCKER_START_COMMAND` supplies an explicit executable and arguments where
 the service manager differs. The runner does not launch a keepalive daemon.
@@ -110,8 +116,14 @@ are installed during build. The runtime downloads no browser or Node packages.
 
 Garbage collection is dry-run by default and preserves volumes and caches. It
 lists stopped containers carrying xorder workspace labels and xorder images that
-no container references. Apply rechecks running state and never forces image
-removal. Orphaned registered worktree pointers and runner receipts may be removed.
+no container references. Every container is considered, including created,
+stopped, unlabelled and Serena daemon containers. Parent images are protected
+using Docker ancestry and filesystem layer prefixes, including local derivatives
+whose BuildKit metadata has an empty `Parent`. Repeat `--keep IMAGE` for tools
+needed between runs, such as Toolkit lint; each kept image also protects its
+ancestors. Keep references must resolve locally. Apply rechecks running state
+and image ancestry before each removal and never forces image removal.
+Orphaned registered worktree pointers and runner receipts may be removed.
 Use `gc --runner-copy /absolute/path/to/old-unpacked-xorder` to include an old
 runner copy in the plan. Copies must be outside the source checkout and current
 runner, contain xorder discovery/runner files, have no Git repository, and have

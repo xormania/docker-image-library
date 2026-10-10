@@ -22,6 +22,8 @@ Base/parent: `docker.io/library/python:3.14-slim-trixie@sha256:f85c5697265c178cc
 
 Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:25.223772Z.
 
+Plan about **2 GiB free for a cold pull**, plus space for project dependencies and test output. This estimate is twice the measured unpacked image size, rounded up; shared layers may lower it, while the image store, temporary files and sandbox quotas can increase the requirement. Check free space on the Docker data filesystem; it may differ from the checkout filesystem.
+
 External build cache at start: `restored`. This does not assert that every layer was a cache hit.
 
 Size baseline: v1.0.0, `ghcr.io/xormania/python-dev@sha256:ccd38b0cfb59a887a18d489be40ecf68a2a0ef083c46de634c0b0c424bfff3d5`; 1,191.8 MiB in the same image store. Change: **-50.2%**. [Baseline measurement](https://github.com/xormania/docker-image-library/actions/runs/37762155280); 2026-10-08T10:16:43.147499Z.

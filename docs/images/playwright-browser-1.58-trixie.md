@@ -29,6 +29,8 @@ Runtime: 1.58.2; OS: Debian GNU/Linux 13 (trixie).
 
 Size method: `docker-image-inspect-size`; image store: `overlay2/classic`. [Measurement evidence](https://github.com/xormania/xorder/actions/runs/38055213253); 2026-10-10T13:23:00.606311Z.
 
+Plan about **5 GiB free for a cold pull**, plus space for project dependencies and test output. This estimate is twice the measured unpacked image size, rounded up; shared layers may lower it, while the image store, temporary files and sandbox quotas can increase the requirement. Check free space on the Docker data filesystem; it may differ from the checkout filesystem.
+
 External build cache at start: `empty`. This does not assert that every layer was a cache hit.
 
 [Release notes](../releases/playwright-browser-1.58-trixie-v1.0.0.md).

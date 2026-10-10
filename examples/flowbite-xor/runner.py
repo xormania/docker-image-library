@@ -98,7 +98,7 @@ def readiness(container, env):
 def status(project, env):
     daemon = call(["docker", "info", "--format", "{{json .ServerVersion}}"], env, capture=True, check=False)
     print("project: " + project)
-    print_resources(Path(env["WORKSPACE"]))
+    print_resources(Path(env["WORKSPACE"]), env)
     if daemon.returncode:
         print("daemon: unavailable (start Docker, then run up)")
         return 1
@@ -235,9 +235,10 @@ def main(arguments):
         mode.add_argument("--apply", action="store_true")
         mode.add_argument("--dry-run", action="store_true")
         parser.add_argument("--runner-copy", action="append", default=[], help="Explicit unpacked old runner copy to inspect and remove")
+        parser.add_argument("--keep", action="append", default=[], help="Protect a local image and its ancestors; repeat for unused tools")
         options = parser.parse_args(extra)
         env["XORDER_RUNNER_ROOT"] = str(PROFILE.parents[1])
-        return gc(env, apply=options.apply, runner_copies=options.runner_copy)
+        return gc(env, apply=options.apply, runner_copies=options.runner_copy, keep=options.keep)
     if not env.get("IMAGE"):
         raise ValueError("Select IMAGE from the verified flowbite-xor-dev catalog")
     ca = env.get("CA_CERTIFICATE")

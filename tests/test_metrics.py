@@ -112,6 +112,7 @@ class MeasurementTests(unittest.TestCase):
             outputs = generated(root)
             self.assertIn("| 600.0 | 1,024.0 (v1.0.0) | -41.4% | 12.34 | 2.50 |", outputs[root / "docs/metrics.md"])
             for relative in ("docs/images/php-dev-8.4-trixie.md", "docs/releases/php-dev-8.4-trixie-v1.0.1.md"):
+                self.assertIn("2 GiB free for a cold pull", outputs[root / relative])
                 self.assertIn("629,145,600 bytes", outputs[root / relative])
                 self.assertIn("overlay2/classic", outputs[root / relative])
                 self.assertIn(EVIDENCE, outputs[root / relative])

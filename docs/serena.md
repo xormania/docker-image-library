@@ -14,12 +14,15 @@ client to launch this command, supplying absolute paths and the selected digest:
 
 ```sh
 python3 /path/to/xorder/examples/serena/run.py /path/to/flowbite-xor \
-  --project demo --image "$SERENA_IMAGE"
+  --project . --image "$SERENA_IMAGE"
 ```
 
-The runner mounts the whole checkout at `/workspace` and activates
-`/workspace/demo`. This keeps the demo's sibling kit source and Composer path
-mappings visible. Use `--project .` for a PHP project at the checkout root.
+Use one project selection per worktree. For flowbite-xor, use `--project .` to
+activate the checkout root and include original recipes, controllers and demo
+source. Paths below are relative to that root. `--project demo` remains useful
+for demo-only PHP inspection, with paths relative to `demo`, but switching
+between `.` and `demo` creates separate index caches and pays for two cold indexes.
+The runner mounts the whole checkout at `/workspace` in either case.
 Install dependencies from the consuming application's own Composer lock with its
 normal development runner before using Serena. This image does not supply a
 substitute application `vendor/`. Existing flowbite-xor app/browser images and
@@ -31,8 +34,8 @@ The image defaults to the persistent `serena_repl` interface. Call
 
 ```python
 s.info('lsp.find_symbol', 'lsp.find_referencing_symbols')
-s.lsp.find_symbol('CspNonce', relative_path='src/Security/CspNonce.php')
-s.lsp.find_referencing_symbols('CspNonce', 'src/Security/CspNonce.php')
+s.lsp.find_symbol('CspNonce', relative_path='demo/src/Security/CspNonce.php')
+s.lsp.find_referencing_symbols('CspNonce', 'demo/src/Security/CspNonce.php')
 ```
 
 Use upstream API discovery for the selected revision. The REPL retains variables
@@ -48,8 +51,8 @@ These additions require the new 1.1 image after publication and acceptance; an o
 
 ```sh
 python3 examples/serena/client.py query find_symbol LabController \
-  --workspace /path/to/flowbite-xor --project demo --image "$SERENA_IMAGE" \
-  --path src/Controller/LabController.php --cache-dir /path/to/serena-cache
+  --workspace /path/to/flowbite-xor --project . --image "$SERENA_IMAGE" \
+  --path demo/src/Controller/LabController.php --cache-dir /path/to/serena-cache
 ```
 
 For repeated work, launch one daemon per worktree. Its socket directory must be owned by the current user with mode 0700. Calls are serialized against one REPL; errors return JSON and exit nonzero. Nothing automatically replays a failed edit.
@@ -58,23 +61,43 @@ For repeated work, launch one daemon per worktree. Its socket directory must be 
 mkdir -p /path/to/private-serena
 chmod 700 /path/to/private-serena
 python3 examples/serena/client.py serve --workspace /path/to/flowbite-xor \
-  --project demo --image "$SERENA_IMAGE" --write \
+  --project . --image "$SERENA_IMAGE" --write \
   --languages php_phpactor,typescript --request-timeout 180 \
   --cache-dir /path/to/serena-cache --socket /path/to/private-serena/session.sock
 # From another shell:
 python3 examples/serena/client.py call --socket /path/to/private-serena/session.sock \
-  --code "s.edit.replace_content('src/Example.php', 'old', 'new', 'literal')"
+  --code "s.edit.replace_content('demo/src/Example.php', 'old', 'new', 'literal')"
 python3 examples/serena/client.py status --socket /path/to/private-serena/session.sock
 python3 examples/serena/client.py stop --socket /path/to/private-serena/session.sock
 ```
 
 `--write` enables edits and a writable source mount. `--read-only` is available for inspection. The MCP `initial_instructions` response also exposes `structuredContent.session_id`. Request timeouts are configurable independently of the shell startup timeout; a stopped language server reports recovery through `s.lsp.restart_language_server()` or a session restart.
 
+End a `call --code` cell with the expression whose value you want returned.
+The current REPL returns the last expression, so a cell ending in `print(value)`
+can return `None`; use `value` as the last expression instead. The shell client
+passes through the MCP result and does not claim separate captured stdout.
+For more than one query, use the daemon above: one-shot queries start and stop a
+language server each time, and its shutdown can report a termination timeout
+before the process is killed. The daemon avoids that cost between calls.
+
 | Source | Navigation | Editing |
 | --- | --- | --- |
 | PHP | PHPactor symbols and references | Serena source/symbol editing in write mode |
 | JavaScript / TypeScript | TypeScript language server symbols and references | Serena source/symbol editing in write mode |
 | Twig / YAML service IDs | Text search; semantic coverage is not established | Text edits in write mode |
+| Stimulus actions/lifecycle and PHP attribute-routed entry points | Text search for convention-based invocation; semantic references only cover explicit code references | Text or source edits in write mode |
+
+Stimulus default-exported classes are named `default`. Qualify the member and
+supply its original source file to disambiguate controllers:
+
+```python
+s.lsp.find_symbol('default/connect', relative_path='modal/assets/controllers/flowbite_modal_controller.js')
+```
+
+An empty references result does not prove that a Stimulus method or routed PHP
+controller is unused. Inspect `data-action`, lifecycle method names and route
+attributes with text search; these entry points are invoked by convention.
 
 Navigation honors project ignore rules. Use `--project .` to work on the kit's
 original recipes outside `demo`; generated demo controller copies may be
