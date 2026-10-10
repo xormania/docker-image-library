@@ -25,6 +25,8 @@ services:
       COMPOSER_CAFILE: /etc/ssl/certs/ca-certificates.crt
       COMPOSER_CACHE_DIR: /home/dev/.cache/composer
       COMPOSER_INSTALL_PREFERENCE: ${COMPOSER_INSTALL_PREFERENCE:-dist}
+      IMPORTMAP_FILE: ${IMPORTMAP_FILE:-importmap.php}
+      IMPORTMAP_VENDOR_DIR: ${IMPORTMAP_VENDOR_DIR:-assets/vendor}
       NODE_EXTRA_CA_CERTS: ${CONTAINER_CA_FILE:-}
       DEMO_URL: https://localhost
       PHP_BINARY: php

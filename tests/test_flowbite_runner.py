@@ -433,13 +433,16 @@ statefile.write_text(json.dumps(state))
 
 
 class StartupBootstrapTests(unittest.TestCase):
-    def run_startup(self, mode="--application", build_failure=False):
+    def run_startup(self, mode="--application", build_failure=False, assets_missing=False, asset_failure=False, composer_reused=False):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             profile, demo = root / "profile", root / "app/demo"
             (demo / "frankenphp").mkdir(parents=True)
             profile.mkdir()
             commands = root / "commands"
+            if composer_reused:
+                (demo / "var/xorder").mkdir(parents=True)
+                (demo / "var/xorder/composer-ready").write_text("composer-ready\n")
             # Remap only the container's fixed filesystem prefix for this
             # executable bootstrap test; preserve its actual shell control flow.
             source = (ROOT / "examples/flowbite-xor/startup.sh").read_text()
@@ -459,6 +462,10 @@ with open(os.environ["STARTUP_COMMANDS"], "a") as log:
     log.write("php " + " ".join(args) + "\\n")
 if args[-1] == "fingerprint":
     print("composer-ready")
+if args[-1] == "verify" and args[0].endswith("importmap-state.php") and os.environ.get("ASSETS_MISSING") == "1":
+    sys.exit(1)
+if "importmap:install" in args and os.environ.get("ASSET_FAILURE") == "1":
+    sys.exit(1)
 if "tailwind:build" in args:
     if os.environ.get("BUILD_FAILURE") == "1": sys.exit(1)
     path = pathlib.Path("var/tailwind/app.built.css")
@@ -472,7 +479,8 @@ if "tailwind:build" in args:
                 path.chmod(0o755)
             result = subprocess.run(["bash", str(profile / "startup.sh"), mode, "frankenphp", "run"],
                                     env=dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
-                                             STARTUP_COMMANDS=str(commands), BUILD_FAILURE=str(int(build_failure))),
+                                             STARTUP_COMMANDS=str(commands), BUILD_FAILURE=str(int(build_failure)),
+                                             ASSETS_MISSING=str(int(assets_missing)), ASSET_FAILURE=str(int(asset_failure))),
                                     capture_output=True, text=True)
             return result, commands.read_text().splitlines()
 
@@ -495,3 +503,18 @@ if "tailwind:build" in args:
         result, commands = self.run_startup(mode="--prepare")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(any("tailwind:build" in command or command.startswith("server ") for command in commands))
+
+    def test_reused_composer_still_repairs_missing_importmap_assets(self):
+        result, commands = self.run_startup(mode="--prepare", assets_missing=True, composer_reused=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any(command.startswith("composer run-script") or command.startswith("composer install") for command in commands))
+        restore = next(i for i, command in enumerate(commands) if "importmap-state.php restore" in command)
+        repair = next(i for i, command in enumerate(commands) if "importmap:install" in command)
+        record = next(i for i, command in enumerate(commands) if "importmap-state.php record" in command)
+        self.assertLess(restore, repair)
+        self.assertLess(repair, record)
+
+    def test_failed_asset_repair_does_not_record_or_start_server(self):
+        result, commands = self.run_startup(assets_missing=True, asset_failure=True, composer_reused=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(any("importmap-state.php record" in command or command.startswith("server ") for command in commands))

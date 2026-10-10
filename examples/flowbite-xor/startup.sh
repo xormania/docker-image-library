@@ -26,6 +26,8 @@ fi
 php /app/tools/sync-demo
 composer validate --no-check-publish --no-interaction
 mkdir -p var/xorder
+# Restore only a previously recorded, byte-matching Symfony installation.
+php "$profile/importmap-state.php" restore
 marker=var/xorder/composer-ready
 fingerprint() {
   php "$profile/verify-composer.php" fingerprint
@@ -45,6 +47,11 @@ else
   composer install "--prefer-$preference" --no-progress --no-interaction
 fi
 php "$profile/verify-composer.php" verify
+# Composer reuse does not prove that importmap assets are still complete.
+if ! php "$profile/importmap-state.php" verify; then
+  php bin/console importmap:install --no-interaction
+fi
+php "$profile/importmap-state.php" record
 fingerprint > "$marker.tmp"
 mv "$marker.tmp" "$marker"
 flowbite-prime-tailwind

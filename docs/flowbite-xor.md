@@ -162,6 +162,31 @@ lock or incomplete vendor tree goes through Composer install. Project hooks
 remain authoritative and may still require network access (for example importmap
 assets). This is metadata validation, not a checksum audit of every vendor file.
 
+Importmap asset readiness is checked independently on every `up`, even when
+Composer setup is reused. The profile uses Symfony's own importmap reader and
+storage paths to check the requested versions, package files and additional
+files such as CSS fonts. Complete installations need no importmap download;
+incomplete ones run the project's `importmap:install` command before readiness.
+The runner keeps the project's other Composer hooks enabled.
+
+After a complete installation, the runner records the original `installed.php`
+bytes and hashes of its required assets in `demo/var/xorder/importmap-state.json`
+(the persistent demo-var volume). Before Composer hooks run, a missing manifest
+can be restored from that receipt only when the importmap, locked AssetMapper
+version/reference, and every captured asset still match. Dependency mappings,
+package aliases and extra-file metadata are preserved exactly. Changed or
+missing assets, changed inputs, and corrupt receipts use normal Symfony
+installation; a filename-only seed cannot establish the missing metadata.
+Preserve the whole `assets/vendor/` directory, including `installed.php`, when
+bringing in a prepared installation. A first installation without that metadata
+or a matching receipt requires network access through the configured proxy.
+
+The defaults are `IMPORTMAP_FILE=importmap.php` and
+`IMPORTMAP_VENDOR_DIR=assets/vendor`, relative to `/app/demo`. If the project
+configures other paths in Symfony, set these variables to those same paths
+before `up`. An application without the selected importmap file skips this
+asset step. No package versions or generated dependency mappings are invented.
+
 For a writable existing host Composer cache or source-preferred installations:
 
 ```sh

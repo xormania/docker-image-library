@@ -48,6 +48,17 @@ bash "$root/examples/flowbite-xor/run.sh" status
 # Matching setup avoids package reinstalls; the recorded content stays stable.
 after_setup=$(bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cat demo/var/xorder/composer-ready demo/var/xorder/node-ready')
 test "$before_setup" = "$after_setup"
+# Restore an accidentally omitted manifest from captured Symfony metadata.
+asset_metadata=$(bash "$root/examples/flowbite-xor/run.sh" exec sha256sum demo/assets/vendor/installed.php)
+bash "$root/examples/flowbite-xor/run.sh" exec rm demo/assets/vendor/installed.php
+bash "$root/examples/flowbite-xor/run.sh" up > "$work/asset-reuse.log" 2>&1 || { cat "$work/asset-reuse.log"; exit 1; }
+grep -q 'Restored Symfony importmap metadata' "$work/asset-reuse.log"
+test "$asset_metadata" = "$(bash "$root/examples/flowbite-xor/run.sh" exec sha256sum demo/assets/vendor/installed.php)"
+docker run --rm --network none \
+  --mount "type=bind,src=$root,dst=/xorder,readonly" \
+  --mount "type=bind,src=$WORKSPACE,dst=/app,readonly" \
+  "$image" php /xorder/tests/fixtures/flowbite-xor/verify-importmap-reuse.php /app/demo/vendor/autoload.php
+
 test "$(bash "$root/examples/flowbite-xor/run.sh" exec git rev-parse HEAD)" = "${consumer[1]}"
 bash "$root/examples/flowbite-xor/run.sh" exec git status --porcelain
 bash "$root/examples/flowbite-xor/run.sh" exec bash -c 'cd demo && composer check-platform-reqs'
