@@ -15,7 +15,7 @@ Generated from the verified release ledger. Sizes describe local Docker images, 
 | [php-serena/8.5-trixie](images/php-serena-8.5-trixie.md) | 1.1.0 | linux/amd64 | 1,242.6 | 1,087.2 (v1.0.0) | +14.3% | 44.36 | 106.33 |
 | [php-toolkit/8.4-trixie](images/php-toolkit-8.4-trixie.md) | 1.0.1 | linux/amd64 | 936.8 | 1,155.7 (v1.0.0) | -18.9% | 12.97 | 33.35 |
 | [php-toolkit/8.5-trixie](images/php-toolkit-8.5-trixie.md) | 1.0.1 | linux/amd64 | 966.6 | 1,185.6 (v1.0.0) | -18.5% | 11.01 | 29.33 |
-| [playwright-browser/1.58-trixie](images/playwright-browser-1.58-trixie.md) | 1.0.0 | linux/amd64 | 2,213.9 | — | — | 156.17 | 4.99 |
+| [playwright-browser/1.58-trixie](images/playwright-browser-1.58-trixie.md) | 1.0.1 | linux/amd64 | 2,213.9 | 2,213.9 (v1.0.0) | +0.0% | 173.82 | 226.19 |
 | [python-dev/3.14-trixie](images/python-dev-3.14-trixie.md) | 1.1.2 | linux/amd64 | 593.9 | 593.9 (v1.1.0) | +0.0% | 39.93 | 22.71 |
 | [rust-dev/1.99-trixie](images/rust-dev-1.99-trixie.md) | 1.1.2 | linux/amd64 | 1,274.9 | 1,274.9 (v1.1.0) | +0.0% | 63.85 | 8.46 |
 

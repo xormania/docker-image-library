@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-10T13:23:51.980262Z",
+  "generated_at": "2026-10-10T20:16:22.357210Z",
   "resources": [
     {
       "capabilities": [
@@ -2926,6 +2926,49 @@
         "surface": "github-actions-linux-amd64"
       },
       "version": "1.0.0"
+    },
+    {
+      "capabilities": [
+        "playwright",
+        "chromium",
+        "firefox",
+        "webkit",
+        "browser-server",
+        "node"
+      ],
+      "created_at": "2026-10-10T20:16:22.357210Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/playwright-browser:1.58-trixie-v1.0.1",
+        "extensions": [],
+        "family": "playwright-browser",
+        "runtime_line": "1.58",
+        "tools": [
+          "node",
+          "playwright"
+        ]
+      },
+      "documentation": "docs/images/playwright-browser-1.58-trixie.md",
+      "id": "image/playwright-browser/1.58-trixie",
+      "identity": "ghcr.io/xormania/playwright-browser@sha256:72a68659cad38ce291d683a198a150c1d959e3ded6287ea4c7bd033e0599a63b",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Version-matched Chromium, Firefox and WebKit browser server without PHP or development build tools.",
+      "release_record": "release-records/playwright-browser/1.58-trixie/1.0.1.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-10T20:15:37.538408Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/38082421686",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.1"
     },
     {
       "capabilities": [
