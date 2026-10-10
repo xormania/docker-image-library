@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -60,6 +62,13 @@ def main():
         target.parent.mkdir(parents=True)
         shutil.copyfile("/opt/xorder/serena/phpactor.phar", target)
         os.environ["SERENA_HOME"] = str(home)
+        os.environ["XDG_CACHE_HOME"] = str(home / "cache")
+        # PHPactor accepts references before its background index is complete.
+        # Finish the initial index in the same cache before serving MCP, so a
+        # first query cannot silently miss cross-file usages on a cold checkout.
+        print("Preparing PHPactor's project index before MCP startup...", file=sys.stderr)
+        subprocess.run(["php", str(target), "index:build", "--no-interaction", "--quiet"],
+                       cwd=project, stdout=sys.stderr, check=True)
         # Import after setting SERENA_HOME: upstream resolves paths at import time.
         from serena.cli import top_level
         top_level(args=[

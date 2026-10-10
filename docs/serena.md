@@ -51,6 +51,11 @@ exposes only the selected checkout. It mounts no host home or Docker socket.
 `--read-only` makes that checkout mount read-only as well as disabling upstream
 editing APIs. Source writes are otherwise enabled.
 
+Startup completes PHPactor's initial project index before exposing MCP. Cold
+startup therefore takes longer for large dependency trees, but the first reference
+query sees a complete initial index. Indexing uses the private session cache and
+does not require runtime networking or write generated files into the checkout.
+
 Serena's Python REPL has the container user's capabilities. This runner does not
 implement Agentscient's role policy, operation locks, process auditing or work
 coordination. Give concurrent editing sessions separate worktrees, or coordinate
