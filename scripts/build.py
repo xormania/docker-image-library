@@ -5,10 +5,10 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import time
 from pathlib import Path
 from library import ROOT, children, definitions, fingerprint, read, records, validate_inventory
+from image_validation import prerequisites
 
 
 def reusable_artifact(line, parent=None):
@@ -19,7 +19,7 @@ def reusable_artifact(line, parent=None):
     if parent:
         fp = hashlib.sha256((fp + parent).encode()).hexdigest()
     for record in records():
-        if (record["line_id"], record["version"], record["input_fingerprint"]) == (line, d["revision"], fp):
+        if record["lifecycle"] == "available" and (record["line_id"], record["version"], record["input_fingerprint"]) == (line, d["revision"], fp):
             return record["publication"]["repository"] + "@" + record["publication"]["digest"]
     return None
 
@@ -120,15 +120,8 @@ def verify(line, image, destination):
     inspect(line, image, destination)
 
 
-if __name__ == "__main__":
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("line"); p.add_argument("image")
-    p.add_argument("--source", default="local"); p.add_argument("--parent"); p.add_argument("--cache")
-    p.add_argument("--inventory", default="out/inventory.json")
-    p.add_argument("--cache-probe", action="store_true")
-    p.add_argument("--reuse-accepted", action="store_true", help="Pull unchanged accepted artifacts and run behavior without rebuilding")
-    p.add_argument("--children", action="store_true", help="Build and verify immediate derived profiles with this exact local parent")
-    a = p.parse_args()
+def validate_tree(a, defs, selected=None, needed=None):
+    """Prepare ancestor inputs, testing only selected nodes and visiting no siblings."""
     cache = cache_source(a.cache)
     reused = reusable_artifact(a.line, a.parent) if a.reuse_accepted else None
     start = time.monotonic()
@@ -138,31 +131,73 @@ if __name__ == "__main__":
     else:
         build(a.line, a.image, a.source, a.parent, a.cache)
     built = time.monotonic()
-    verify(a.line, a.image, a.inventory)
+    should_verify = selected is None or a.line in selected
+    if should_verify:
+        verify(a.line, a.image, a.inventory)
     verified = time.monotonic()
     metrics = {"line": a.line, **image_measurements(a.image), "cache_source": cache,
-               "artifact_reused": bool(reused), "verify_seconds": round(verified-built, 2)}
+               "artifact_reused": bool(reused),
+               "verification_status": "passed" if should_verify else "prerequisite"}
+    if should_verify:
+        metrics["verify_seconds"] = round(verified-built, 2)
     metrics["pull_seconds" if reused else "build_seconds"] = round(built-start, 2)
-    if a.cache_probe and not reused:
+    if a.cache_probe and not reused and should_verify:
         metrics["source_label_rebuild_seconds"] = cache_probe(a.line, a.image, a.source, a.parent)
-    Path(a.inventory).with_suffix(".metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    destination = Path(a.inventory).with_suffix(".metrics.json")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(metrics, indent=2) + "\n")
     print(json.dumps(metrics))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
+        verification = (f"behavior/inventory: {metrics['verify_seconds']}s.\n" if should_verify
+                        else "build prerequisite only; behavior not requested.\n")
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
             summary.write(f"\n### {a.line}\n\nImage: {metrics['image_size_bytes']/1024**2:.1f} MiB; "
-                          f"{'pull (accepted artifact reused)' if reused else 'build'}: {round(built-start, 2)}s; behavior/inventory: {metrics['verify_seconds']}s.\n")
-            if a.cache_probe and not reused:
+                          f"{'pull (accepted artifact reused)' if reused else 'build'}: {round(built-start, 2)}s; "
+                          + verification)
+            if a.cache_probe and not reused and should_verify:
                 summary.write(f"Source-label-only rebuild: {metrics['source_label_rebuild_seconds']}s; filesystem layers unchanged.\n")
     if a.children:
-        for child in children(a.line, definitions()):
-            family = definitions()[child]["family"]
-            command = [sys.executable, __file__, child, "image-library-check:" + family,
-                       "--source", a.source, "--parent", a.image, "--children",
-                       "--inventory", str(Path(a.inventory).with_name(family + ".json"))]
+        for child in children(a.line, defs):
+            if needed is not None and child not in needed:
+                continue
+            family = defs[child]["family"]
+            child_args = argparse.Namespace(**vars(a))
+            child_args.line = child
+            child_args.image = "image-library-check:" + family
+            child_args.parent = a.image
+            child_args.inventory = str(Path(a.inventory).with_name(family + ".json"))
             if a.cache:
-                command += ["--cache", child.replace("/", "-")]
-            if a.cache_probe:
-                command += ["--cache-probe"]
-            if a.reuse_accepted:
-                command += ["--reuse-accepted"]
-            subprocess.run(command, check=True)
+                child_args.cache = child.replace("/", "-")
+            validate_tree(child_args, defs, selected, needed)
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("line"); p.add_argument("image")
+    p.add_argument("--source", default="local"); p.add_argument("--parent"); p.add_argument("--cache")
+    p.add_argument("--inventory", default="out/inventory.json")
+    p.add_argument("--cache-probe", action="store_true")
+    p.add_argument("--reuse-accepted", action="store_true", help="Pull unchanged accepted artifacts and run behavior without rebuilding")
+    p.add_argument("--children", action="store_true", help="Build and verify derived profiles with this exact local parent")
+    p.add_argument("--verify-lines", help="JSON array of exact behavior targets; other ancestors supply build inputs only")
+    a = p.parse_args(argv)
+    defs = definitions()
+    if a.line not in defs:
+        p.error(f"Unknown image line: {a.line}")
+    selected, needed = None, None
+    if a.verify_lines is not None:
+        try:
+            selected = json.loads(a.verify_lines)
+            if not isinstance(selected, list) or not selected or not all(isinstance(line, str) for line in selected):
+                raise ValueError("--verify-lines must be a nonempty JSON array of image lines")
+            needed = prerequisites(a.line, selected, defs)
+            if len(needed) > 1 and not a.children:
+                raise ValueError("Descendant checks require --children")
+            selected = set(selected)
+        except ValueError as error:
+            p.error(str(error))
+    validate_tree(a, defs, selected, needed)
+
+
+if __name__ == "__main__":
+    main()
