@@ -74,6 +74,32 @@ class ImageSelectionTests(unittest.TestCase):
         previous["uv"]["digest"] = "sha256:" + "0" * 64
         self.assertEqual(self.selected("images/tools.json", previous_tools=previous), ["python-dev/3.14-trixie"])
 
+    def test_deleted_definition_has_no_current_image_target(self):
+        path = "images/rust-dev/definition.json"
+        previous = json.loads((ROOT / path).read_text())
+        defs = {line: d for line, d in self.defs.items() if d["family"] != "rust-dev"}
+        with tempfile.TemporaryDirectory() as tmp:
+            selected = affected_lines([path], defs, tmp, previous_definitions={path: previous})
+        self.assertEqual(matrix(selected, defs), {"include": []})
+
+    def test_renamed_definition_checks_the_added_family(self):
+        old_path, new_path = "images/rust-dev/definition.json", "images/rust-next/definition.json"
+        previous = json.loads((ROOT / old_path).read_text())
+        current = copy.deepcopy(previous)
+        current["family"] = "rust-next"
+        defs = {line: d for line, d in self.defs.items() if d["family"] != "rust-dev"}
+        renamed = copy.deepcopy(self.defs["rust-dev/1.99-trixie"])
+        renamed["family"] = "rust-next"
+        defs["rust-next/1.99-trixie"] = renamed
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / new_path
+            target.parent.mkdir(parents=True)
+            target.write_text(json.dumps(current))
+            selected = affected_lines([old_path, new_path], defs, tmp,
+                                      previous_definitions={old_path: previous})
+        self.assertEqual(matrix(selected, defs), {"include": [
+            {"line": "rust-next/1.99-trixie", "verify_lines": ["rust-next/1.99-trixie"]}]})
+
     def test_metadata_runs_without_images_and_shared_runtime_checks_all(self):
         self.assertEqual(self.selected("README.md", "catalog.json", "scripts/release.py",
                                        "tests/test_library.py", "schemas/catalog.schema.json",

@@ -67,11 +67,16 @@ def affected_lines(changed, defs, root, previous_tools=None, previous_definition
             families = {family for family, used in TOOL_KEYS.items() if keys.intersection(used)}
             is_input = True
         elif path.startswith("images/") and path.endswith("/definition.json"):
-            family = Path(path).parts[1]
+            current_path = Path(root) / path
+            # Retired definitions have no current artifact to validate. Renames
+            # arrive as a deletion plus an addition; process the added path below.
+            if not current_path.is_file():
+                continue
+            current = json.loads(current_path.read_text())
+            family = current["family"]
             family_lines = {line for line, d in defs.items() if d["family"] == family}
             previous = (previous_definitions or {}).get(path)
             if previous is not None:
-                current = json.loads((Path(root) / path).read_text())
                 common = lambda d: {key: value for key, value in d.items() if key != "lines"}
                 if common(current) == common(previous):
                     family_lines = {line for line in family_lines
