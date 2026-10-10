@@ -385,6 +385,7 @@ statefile.write_text(json.dumps(state))
         check = next(i for i, call in enumerate(self.calls) if "--check-reuse" in call["args"])
         start = next(i for i, call in enumerate(self.calls) if "up" in call["args"])
         self.assertLess(check, start)
+        self.assertEqual(self.calls[check]["args"][-2:], ["--entrypoint", "--check-reuse"])
         mounts = self.calls[check]["overlay"]["services"]["php"]["volumes"]
         self.assertEqual({m["target"] for m in mounts}, {"/app/demo/vendor", "/app/node_modules", "/app/demo/assets/vendor"})
         self.assertTrue(all(m["read_only"] and not m["bind"]["create_host_path"] for m in mounts))

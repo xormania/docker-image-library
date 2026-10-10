@@ -3,6 +3,11 @@ set -euo pipefail
 profile=$(cd "$(dirname "$0")" && pwd)
 if [[ "${1:-}" = --entrypoint ]]; then
   shift
+  entry_mode=--application
+  if [[ "${1:-}" = --check-reuse ]]; then
+    entry_mode=--check-reuse
+    shift
+  fi
   uid=${PUID:-1000}; gid=${PGID:-1000}
   [[ "$uid" =~ ^[0-9]+$ && "$gid" =~ ^[0-9]+$ ]] || exit 64
   if [[ $(id -u) = 0 ]]; then
@@ -21,7 +26,7 @@ if [[ "${1:-}" = --entrypoint ]]; then
       rm -f "$additional_ca"
     fi
   fi
-  exec bash /usr/local/bin/library-entrypoint bash "$profile/startup.sh" --application "$@"
+  exec bash /usr/local/bin/library-entrypoint bash "$profile/startup.sh" "$entry_mode" "$@"
 fi
 mode=${1:?Supply --prepare or --application}; shift
 [[ "$mode" = --prepare || "$mode" = --application || "$mode" = --check-reuse ]] || exit 64

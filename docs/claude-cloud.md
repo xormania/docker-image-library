@@ -34,11 +34,12 @@ Registry pulls, git transport and archive downloads are separate network paths.
 Successful git access does not prove that GitHub zipball/codeload downloads
 are allowed. Check the actual failed URL and status before changing package
 configuration. Follow the profile's proxy/CA guidance; never substitute an
-unreachable host loopback proxy into a container or disable certificate checks.
+unreachable host loopback proxy into a container or disable certificate
+verification for outbound dependency downloads.
 
 Ordinary `up` installs Composer packages from dist only. It rejects
 `COMPOSER_INSTALL_PREFERENCE=source`; source clones can consume several GiB.
-The current accepted PHP 8.5 image records Composer 2.10.3, which already
+The accepted PHP 8.5 image revision 1.2.1 records Composer 2.10.3, which already
 disables source fallback by default. A wrapper explicitly requesting source
 still selects clones. Inspect the actual runtime and the effective settings
 with startup bypassed, from `/app/demo`:

@@ -368,9 +368,10 @@ def main(arguments):
                 previous = {}
             if reuse_only:
                 # Inspect before Compose can start/recreate application services.
-                # A one-off check bypasses every application/bootstrap hook.
-                call([*compose, "run", "--rm", "--no-deps", "--user", f'{env["PUID"]}:{env["PGID"]}',
-                      "--entrypoint", "bash", "php", "/run/xorder/startup.sh", "--check-reuse"], env)
+                # Initialize only private home/var ownership and trust, then
+                # inspect as PUID without application setup or server hooks.
+                call([*compose, "run", "--rm", "--no-deps", "--entrypoint", "bash", "php",
+                      "/run/xorder/startup.sh", "--entrypoint", "--check-reuse"], env)
             call([*compose, "up", "--wait", "--wait-timeout", "600", "--no-build"], env)
             # Recheck lockfiles even when Compose retained an existing container.
             php_exec(compose, env, "bash", "/run/xorder/startup.sh", "--prepare", cwd="/app/demo")
