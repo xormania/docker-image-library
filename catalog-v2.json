@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-10T06:17:43.699213Z",
+  "generated_at": "2026-10-10T13:23:51.980262Z",
   "resources": [
     {
       "capabilities": [
@@ -2493,6 +2493,92 @@
     {
       "capabilities": [
         "composer",
+        "javascript-semantic-tools",
+        "mutation-testing",
+        "native-build",
+        "node",
+        "offline-php-semantic-tools",
+        "pcov",
+        "php",
+        "php-testing",
+        "phpactor",
+        "phpstan-isolated",
+        "postgresql-client",
+        "serena-shell",
+        "serena-v2-repl",
+        "symfony",
+        "typescript-semantic-tools",
+        "xdebug"
+      ],
+      "created_at": "2026-10-10T13:23:51.980262Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/php-serena:8.5-trixie-v1.1.0",
+        "extensions": [
+          "bcmath",
+          "curl",
+          "dom",
+          "gd",
+          "intl",
+          "mbstring",
+          "mysqli",
+          "pcntl",
+          "pcov",
+          "pdo_mysql",
+          "pdo_pgsql",
+          "pdo_sqlite",
+          "pgsql",
+          "redis",
+          "sockets",
+          "xdebug",
+          "xml",
+          "zip"
+        ],
+        "family": "php-serena",
+        "runtime_line": "8.5",
+        "tools": [
+          "bash",
+          "curl",
+          "gh",
+          "git",
+          "infection",
+          "jq",
+          "library-php-coverage",
+          "library-php-tests",
+          "library-serena",
+          "node",
+          "phpactor",
+          "psql",
+          "rg",
+          "typescript-language-server",
+          "uv"
+        ]
+      },
+      "documentation": "docs/images/php-serena-8.5-trixie.md",
+      "id": "image/php-serena/8.5-trixie",
+      "identity": "ghcr.io/xormania/php-serena@sha256:f2d9b40e72a4bc029f56fa152b4e25363b38898be9dc1b19262c2a29705b04a6",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Prepared Serena v2 REPL, PHPactor and JavaScript/TypeScript navigation with MCP, shell queries and trusted source editing.",
+      "release_record": "release-records/php-serena/8.5-trixie/1.1.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-10T13:23:51.980262Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/38055213253",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.1.0"
+    },
+    {
+      "capabilities": [
+        "composer",
         "mutation-testing",
         "native-build",
         "pcov",
@@ -2797,6 +2883,49 @@
         "surface": "github-actions-linux-amd64"
       },
       "version": "1.0.1"
+    },
+    {
+      "capabilities": [
+        "playwright",
+        "chromium",
+        "firefox",
+        "webkit",
+        "browser-server",
+        "node"
+      ],
+      "created_at": "2026-10-10T13:23:00.666640Z",
+      "details": {
+        "exact_reference": "ghcr.io/xormania/playwright-browser:1.58-trixie-v1.0.0",
+        "extensions": [],
+        "family": "playwright-browser",
+        "runtime_line": "1.58",
+        "tools": [
+          "node",
+          "playwright"
+        ]
+      },
+      "documentation": "docs/images/playwright-browser-1.58-trixie.md",
+      "id": "image/playwright-browser/1.58-trixie",
+      "identity": "ghcr.io/xormania/playwright-browser@sha256:0e16fe1ce8a199880035fc6d9937682c18cc8d9b4b732f228716d33942831f76",
+      "kind": "image",
+      "lifecycle": "available",
+      "prerequisites": {
+        "commands": [
+          "docker"
+        ]
+      },
+      "purpose": "Version-matched Chromium, Firefox and WebKit browser server without PHP or development build tools.",
+      "release_record": "release-records/playwright-browser/1.58-trixie/1.0.0.json",
+      "targets": [
+        "linux/amd64"
+      ],
+      "verification": {
+        "completed_at": "2026-10-10T13:23:00.666640Z",
+        "evidence": "https://github.com/xormania/xorder/actions/runs/38055213253",
+        "status": "passed",
+        "surface": "github-actions-linux-amd64"
+      },
+      "version": "1.0.0"
     },
     {
       "capabilities": [
