@@ -10,6 +10,7 @@ from unittest.mock import patch
 from test_library import record
 from library import ROOT, definitions, encoded, fingerprint
 import browser_release
+import release
 
 
 class BrowserReleaseTests(unittest.TestCase):
@@ -64,6 +65,35 @@ class BrowserReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "without GitHub publication credentials"):
                 browser_release.verify_candidate(path, Path(folder) / "proof.json")
             docker.assert_not_called()
+
+    def test_credentialed_finalization_uses_bound_evidence_without_rebuilding_or_running_consumers(self):
+        inventory = record(self.line)["platforms"][0]["inventory"]
+        inventory["runtime_version"] = "1.58.2"
+        proof = dict(self.proposal(), status="passed", inventory=inventory, verification_seconds=7,
+                     completed_at="2026-10-10T19:00:00Z", build_seconds=11, cache_source="empty")
+        digest = self.artifact.split("@", 1)[1]
+        resolved = {"digest": digest, "platforms": {"linux/amd64": digest}}
+        labels = {"org.opencontainers.image.revision": self.source,
+                  "org.opencontainers.image.version": proof["version"]}
+        facts = {"image_size_bytes": 629145600, "size_method": "docker-image-inspect-size", "image_store": "overlay2/classic"}
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.object(release, "records", return_value=[]), \
+                patch.object(release, "release_asset", return_value=None), \
+                patch.object(release, "resolve", side_effect=[None, resolved, resolved, resolved]), \
+                patch.object(release, "verify") as consumer, patch.object(release, "build") as build, \
+                patch.object(release, "image_measurements", return_value=facts), \
+                patch.object(release, "run"), patch.object(release, "gh", return_value="[[]]"), \
+                patch.object(release.subprocess, "check_output", side_effect=lambda args, **kw: json.dumps(labels) if args[0] == "docker" else ""), \
+                patch.object(release, "promote_exact"), patch.object(release, "finalize_release"), \
+                patch.dict(os.environ, {"GH_TOKEN": "test-only-token", "GITHUB_REPOSITORY": "xormania/xorder", "GITHUB_RUN_ID": "42"}):
+            evidence = Path(folder) / "proof.json"
+            evidence.write_text(encoded(proof))
+            published = release.publish(self.line, self.source, Path(folder) / "release", browser_evidence=evidence)
+            consumer.assert_not_called()
+            build.assert_not_called()
+            self.assertEqual(published["verification"]["completed_at"], proof["completed_at"])
+            self.assertEqual(published["platforms"][0]["metrics"]["verification_seconds"], 7)
+            self.assertEqual(published["platforms"][0]["metrics"]["build_seconds"], 11)
 
     def test_controlled_compose_ignores_consumer_infrastructure_and_rejects_host_symlinks(self):
         spec = importlib.util.spec_from_file_location("parity_profile", ROOT / "examples/flowbite-xor/runner.py")

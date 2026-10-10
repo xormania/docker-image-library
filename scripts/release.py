@@ -162,7 +162,8 @@ def publish(line, source, destination, parent=None, browser_evidence=None):
               "platforms": [{"platform": "linux/amd64", "digest": published["platforms"].get("linux/amd64", digest),
                              "inventory": read(inventory_path), "metrics": measurements}],
               "publication": {"repository": repository, "digest": digest, "exact_tag": f"{d['line']}-v{d['revision']}", "public_pull_verified_at": date, "evidence": evidence},
-              "verification": {"status": "passed", "surface": "github-actions-linux-amd64", "completed_at": date, "evidence": evidence}}
+              "verification": {"status": "passed", "surface": "github-actions-linux-amd64",
+                               "completed_at": browser_proof["completed_at"] if browser_proof else date, "evidence": evidence}}
     validate_record(record)
     (destination / "record.json").write_text(encoded(record))
     # Persist before exact promotion. A retry recovers this artifact, never rebuilds it.
