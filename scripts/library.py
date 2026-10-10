@@ -309,6 +309,8 @@ def generated(root=ROOT):
         text += "Workspace `/workspace`, HOME `/home/dev`, default UID/GID 1000; configure `PUID` and `PGID`.\n\n"
         if d["family"] == "php-toolkit":
             text += "[Toolkit validation and fresh-app recipe](../php-toolkit.md) · "
+        if d["family"] == "php-serena":
+            text += "[Serena MCP and Symfony recipe](../serena.md) · "
         text += "[Usage](../usage.md) · [Selection](../selection.md) · [Compatibility evidence](../compatibility.md)\n\n"
         text += "## Limitations\n\n" + "\n".join(f"- {x}" for x in d["limitations"]) + "\n"
         outputs[root / "docs" / "images" / (line.replace("/", "-") + ".md")] = text
@@ -353,6 +355,8 @@ def affected(changed, defs, previous_tools=None):
             families = {"php-dev", "php-browser", "php-toolkit", "php-frankenphp", "flowbite-xor-dev"}
         elif path.startswith(("examples/php-toolkit/", "tests/fixtures/php-toolkit/")):
             families = {"php-toolkit"}
+        elif path.startswith(("examples/serena/", "tests/fixtures/serena/")):
+            families = {"php-serena"}
         elif path.startswith("tests/fixtures/frankenphp/"):
             families = {"php-frankenphp", "flowbite-xor-dev"}
         elif path.startswith(("examples/shared/", "tests/fixtures/network/")):
