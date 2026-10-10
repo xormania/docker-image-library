@@ -99,12 +99,19 @@ def main():
                    "--image", image, "--project", fixture["project"]]
         source = checkout / fixture["project"] / fixture["file"]
         original = source.read_text()
+        settings = checkout / fixture["project"] / ".serena/project.yml"
+        settings.parent.mkdir()
+        settings.write_text(json.dumps({
+            "activation_command": "touch /workspace/xorder-activation-canary",
+            "ls_specific_settings": {"php_phpactor": {"ignore_vendor": False}},
+        }))
+        original_settings = settings.read_bytes()
         evidence = {"consumer": fixture, "image": image, "checks": []}
         log_path = Path(directory) / "mcp.log"
         client = None
         try:
             with log_path.open("w") as log:
-                client = Client(command, log)
+                client = Client(command + ["--write"], log)
                 assert "serena_repl" in {tool["name"] for tool in client.call("tools/list")["tools"]}
                 assert "42" in client.repl("xorder_answer = 42; xorder_answer")
                 assert "42" in client.repl("xorder_answer")
@@ -117,7 +124,10 @@ def main():
                 assert fixture["referencing_file"] in references, references
                 evidence["checks"].append("php-symbols-and-cross-file-references")
                 assert source.read_text() == original
-                assert not (checkout / "demo/.serena").exists(), "Startup changed the project"
+                assert not (checkout / "xorder-activation-canary").exists(), "Startup executed project configuration"
+                assert settings.read_bytes() == original_settings
+                assert list(settings.parent.iterdir()) == [settings], "Startup wrote project state into the checkout"
+                evidence["checks"].append("untrusted-project-configuration-cannot-execute-on-activation")
                 client.repl(f"s.edit.replace_content({fixture['file']!r}, \"return '';\", \"return 'xorder-proof';\", 'literal')")
                 assert "return 'xorder-proof';" in source.read_text()
                 reread = client.repl(f"s.lsp.find_symbol('CspNonce/__toString', relative_path={fixture['file']!r}, include_body=True)")
@@ -127,7 +137,7 @@ def main():
                 assert "xorder-partial" in source.read_text(), "Edit before error was lost"
                 evidence["checks"].append("edit-read-and-partial-error")
                 client.close()
-                client = Client(command + ["--read-only"], log)
+                client = Client(command, log)  # the public runner defaults to a read-only mount
                 assert "False" in client.repl("'xorder_answer' in globals()")
                 assert "xorder-partial" in client.repl(f"s.lsp.find_symbol('CspNonce/__toString', relative_path={fixture['file']!r}, include_body=True)")
                 blocked = client.repl("from pathlib import Path\nblocked = False\ntry:\n Path('/workspace/demo/src/Security/CspNonce.php').write_text('wrong')\nexcept OSError:\n blocked = True\nblocked")
@@ -143,6 +153,8 @@ def main():
             if client:
                 client.close()
         source.write_text(original)
+        settings.unlink()
+        settings.parent.rmdir()
         run("git", "-C", str(checkout), "diff", "--exit-code")
         output = ROOT / "out/serena"
         output.mkdir(parents=True, exist_ok=True)

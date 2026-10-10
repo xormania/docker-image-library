@@ -34,7 +34,7 @@ def command(args):
             "--mount", mount, "--workdir", "/workspace",
             "--entrypoint", "/usr/local/bin/library-serena", image,
             "--project", str(Path("/workspace") / project.relative_to(workspace)),
-            *(["--read-only"] if args.read_only else [])]
+            "--read-only" if args.read_only else "--write"]
 
 
 def main():
@@ -42,7 +42,11 @@ def main():
     parser.add_argument("workspace", type=Path)
     parser.add_argument("--project", default=".", help="Project directory within the checkout; use demo for flowbite-xor")
     parser.add_argument("--image", help="An explicitly selected digest or locally built candidate; images are never pulled during MCP startup")
-    parser.add_argument("--read-only", action="store_true")
+    access = parser.add_mutually_exclusive_group()
+    access.add_argument("--read-only", dest="read_only", action="store_true", default=True,
+                        help="Mount the checkout read-only (default)")
+    access.add_argument("--write", dest="read_only", action="store_false",
+                        help="Allow the REPL and PHP tooling to modify a trusted checkout")
     args = parser.parse_args()
     try:
         argv = command(args)

@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +62,44 @@ class SerenaTests(unittest.TestCase):
             (root / '.serena/project.local.yml').write_text('{"language_servers": ["php"]}')
             with self.assertRaisesRegex(ValueError, 'php_phpactor'):
                 launcher.project_config(root, False, json.loads)
+
+    def test_runner_defaults_to_readonly_and_requires_explicit_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for flags, readonly in (([], True), (['--write'], False)):
+                with self.subTest(flags=flags), patch.object(sys, 'argv',
+                        ['run.py', directory, '--image', 'local:proof', *flags]), \
+                        patch.object(runner.os, 'execvp') as execute:
+                    runner.main()
+                    argv = execute.call_args.args[1]
+                    self.assertEqual(argv[-1], '--read-only' if readonly else '--write')
+                    self.assertEqual(any(value.endswith('dst=/workspace,readonly') for value in argv), readonly)
+
+    def test_mounted_configuration_cannot_override_the_prepared_binary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / '.serena').mkdir()
+            for name in ('project.yml', 'project.local.yml'):
+                source = root / '.serena' / name
+                for option, value in (('phpactor_version', 'different-version'), ('ls_path', '/workspace/replacement')):
+                    with self.subTest(name=name, option=option):
+                        source.write_text(json.dumps({'ls_specific_settings': {'php_phpactor': {option: value}}}))
+                        with self.assertRaisesRegex(ValueError, 'prepared PHPactor'):
+                            launcher.project_config(root, False, json.loads)
+                source.unlink()
+
+    def test_mounted_configuration_does_not_authorize_automatic_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / '.serena').mkdir()
+            source = root / '.serena/project.yml'
+            source.write_text(json.dumps({'project_name': 'consumer', 'activation_command': 'touch /workspace/canary',
+                                         'ls_specific_settings': {'php_phpactor': {'ignore_vendor': False}}}))
+            original = source.read_bytes()
+            config = launcher.project_config(root, False, json.loads)
+            self.assertEqual(config['project_name'], 'consumer')
+            self.assertNotIn('activation_command', config)
+            self.assertNotIn('ls_specific_settings', config)
+            self.assertEqual(source.read_bytes(), original)
 
     def test_serena_inputs_select_only_the_php85_parent_tree(self):
         from library import affected, definitions

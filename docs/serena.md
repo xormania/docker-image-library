@@ -48,8 +48,9 @@ chosen image already present. Each invocation creates a separate container and
 temporary state, preserving parallel worktree/session separation. It runs as the
 host UID/GID, keeps protocol stdout clean, disables runtime networking, and
 exposes only the selected checkout. It mounts no host home or Docker socket.
-`--read-only` makes that checkout mount read-only as well as disabling upstream
-editing APIs. Source writes are otherwise enabled.
+The checkout is read-only by default, enforced by the mount as well as upstream
+editing APIs. Pass `--write` explicitly to allow the REPL and PHP tooling to modify
+a trusted checkout. `--read-only` explicitly selects the default behavior.
 
 Startup completes PHPactor's initial project index before exposing MCP. Cold
 startup therefore takes longer for large dependency trees, but the first reference
@@ -63,8 +64,10 @@ their writes through the owning application.
 
 The launcher reads existing `.serena/project.yml` and `project.local.yml`, applies
 the prepared PHPactor default when no backend is selected, and keeps generated
-configuration outside the source tree. An incompatible backend selection is an
-actionable startup error rather than a runtime installation attempt. This profile
+configuration outside the source tree. Repository activation commands and
+language-server-specific settings are discarded; global trusted project paths are
+explicitly empty. A `phpactor_version` or `ls_path` override is rejected with an
+actionable error, as is an incompatible backend selection. This profile
 uses session-local state and does not persist newly written Serena memories.
 
 ## What the Symfony profile establishes

@@ -15,12 +15,26 @@ def project_config(project, read_only, load_yaml):
     for name in ("project.yml", "project.local.yml"):
         source = project / ".serena" / name
         if source.is_file():
-            config.update(load_yaml(source.read_text()) or {})
+            data = load_yaml(source.read_text()) or {}
+            if not isinstance(data, dict):
+                raise ValueError(f"{source} must contain a configuration mapping")
+            config.update(data)
     config.setdefault("project_name", project.name)
     config.setdefault("language_servers", ["php_phpactor"])
     # A prepared profile must never silently download a different backend.
     if config["language_servers"] != ["php_phpactor"]:
         raise ValueError("This image prepares php_phpactor. Select language_servers: [php_phpactor] in the project's Serena configuration.")
+    settings = config.get("ls_specific_settings") or {}
+    if not isinstance(settings, dict) or any(not isinstance(value, dict) for value in settings.values()):
+        raise ValueError("ls_specific_settings must map language servers to settings mappings")
+    for options in settings.values():
+        if {"phpactor_version", "ls_path"}.intersection(options):
+            raise ValueError("Remove phpactor_version and ls_path overrides: this image uses its prepared PHPactor binary.")
+    # Mounted project files do not authorize activation commands or dependency
+    # overrides. Keep ordinary project preferences, but strip trust-gated fields.
+    for key in ("activation_command", "ls_specific_settings"):
+        if config.pop(key, None):
+            print(f"Ignoring repository-provided {key} in the prepared profile", file=sys.stderr)
     config.setdefault("ignored_paths", [".git", "node_modules", "var/cache", "var/log"])
     config["read_only"] = read_only or config.get("read_only", False)
     return config
@@ -29,7 +43,10 @@ def project_config(project, read_only, load_yaml):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, default=Path.cwd())
-    parser.add_argument("--read-only", action="store_true", help="Disable upstream editing APIs; mount source read-only as well for enforcement")
+    access = parser.add_mutually_exclusive_group()
+    access.add_argument("--read-only", dest="read_only", action="store_true", default=True,
+                        help="Disable upstream editing APIs (default); use the runner for mount enforcement")
+    access.add_argument("--write", dest="read_only", action="store_false", help="Enable source editing for a trusted checkout")
     parser.add_argument("--version", action="store_true")
     args = parser.parse_args()
     if args.version:
@@ -53,6 +70,7 @@ def main():
         (state / "project.yml").write_text(json.dumps(config))
         (home / "serena_config.yml").write_text(json.dumps({
             "projects": [],
+            "trusted_project_path_patterns": [],
             "project_serena_folder_location": str(state),
             "agent_interface": "REPL", "language_backend": "LSP",
             "gui_log_window": False, "web_dashboard": False,
