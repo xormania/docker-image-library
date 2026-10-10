@@ -29,6 +29,9 @@ try {
     }
     $expected = [];
     foreach (array_merge($lock['packages'] ?? [], $lock['packages-dev'] ?? []) as $package) { $expected[$package['name']] = $package; }
+    if (isset($expected['symfony/runtime']) && !is_file('vendor/autoload_runtime.php')) {
+        throw new RuntimeException('Symfony runtime autoload is absent');
+    }
     $actual = [];
     foreach ($installed['packages'] ?? [] as $package) { $actual[$package['name']] = $package; }
     if (array_diff_key($expected, $actual) || array_diff_key($actual, $expected)) { throw new RuntimeException('Installed package set differs from composer.lock'); }

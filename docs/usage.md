@@ -1,5 +1,10 @@
 # Running project commands
 
+For `flowbite-xor-dev` in Claude cloud, start with the
+[session quick start](claude-cloud.md) and [flowbite-xor runner](flowbite-xor.md).
+They cover blocked dist downloads, sandbox disk limits and read-only dependency
+reuse across worktrees.
+
 Choose an available digest from [the catalog](../catalog.json). The placeholders
 below are instructions to substitute that value, not published image names.
 The host needs Linux Docker container execution, Compose v2 for services, a

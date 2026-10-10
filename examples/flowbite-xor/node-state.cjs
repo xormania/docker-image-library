@@ -11,8 +11,19 @@ function fingerprint() {
   return hash.digest('hex');
 }
 try {
+  const mode = process.argv[2];
+  if (!['verify', 'record', 'inspect'].includes(mode)) throw Error('Expected verify, record or inspect');
   const lock = JSON.parse(fs.readFileSync('package-lock.json'));
   const installed = JSON.parse(fs.readFileSync('node_modules/.package-lock.json'));
+  if (mode === 'inspect') {
+    const project = JSON.parse(fs.readFileSync('package.json'));
+    for (const key of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+      const entries = value => Object.entries(value ?? {}).sort(([a], [b]) => a.localeCompare(b));
+      if (JSON.stringify(entries(project[key])) !== JSON.stringify(entries(lock.packages['']?.[key]))) {
+        throw Error('package.json and package-lock.json differ: ' + key);
+      }
+    }
+  }
   for (const directory of Object.keys(installed.packages)) {
     if (!lock.packages[directory]) throw Error('Unexpected retained npm package: ' + directory);
   }
@@ -25,10 +36,10 @@ try {
     if (actual.version !== pkg.version || installed.packages[directory]?.version !== pkg.version) throw Error('Retained npm package differs: ' + directory);
   }
   const value = fingerprint();
-  if (process.argv[2] === 'record') {
+  if (mode === 'record') {
     fs.writeFileSync(marker + '.tmp', value + '\n');
     fs.renameSync(marker + '.tmp', marker);
-  } else if (process.argv[2] !== 'verify' || fs.readFileSync(marker, 'utf8').trim() !== value) {
+  } else if (mode === 'verify' && fs.readFileSync(marker, 'utf8').trim() !== value) {
     throw Error('npm setup inputs changed');
   }
   console.log(value);

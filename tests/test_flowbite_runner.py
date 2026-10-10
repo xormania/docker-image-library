@@ -102,7 +102,7 @@ import hashlib, json, os, pathlib, sys
 args = sys.argv[1:]
 statefile = pathlib.Path(os.environ["MOCK_STATE"])
 state = json.loads(statefile.read_text()) if statefile.exists() else {"containers": [], "node": False, "generation": 0}
-keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "XORDER_HTTP_PROXY", "XORDER_HTTPS_PROXY", "XORDER_http_proxy", "XORDER_https_proxy", "XORDER_PROXY_OWNER", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE"]
+keys = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "XORDER_HTTP_PROXY", "XORDER_HTTPS_PROXY", "XORDER_http_proxy", "XORDER_https_proxy", "XORDER_PROXY_OWNER", "PROXY_PASSTHROUGH", "PLAYWRIGHT_VERSION", "PUID", "PGID", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "XORDER_INPUT_FINGERPRINT", "FLOWBITE_PROJECT", "WORKSPACE", "IMAGE", "XORDER_REUSE_ONLY"]
 record = {"args": args, "env": {key: os.environ.get(key) for key in keys}}
 positions = [i for i, arg in enumerate(args) if arg == "-f"]
 if len(positions) == 4:
@@ -135,8 +135,14 @@ elif "up" in args:
         state["generation"] += 1
     state["inputs"] = os.environ.get("XORDER_INPUT_FINGERPRINT")
     state["containers"] = [{"Id": service + str(state["generation"]), "Config": {"Labels": {"com.docker.compose.project": os.environ["FLOWBITE_PROJECT"], "com.docker.compose.service": service, "dev.xorder.workspace": os.environ["WORKSPACE"]}}, "State": {"Running": True, "Status": "running", "Health": {"Status": "healthy"}}, "NetworkSettings": {"Ports": {"80/tcp": [{"HostPort": os.environ["HTTP_PORT"]}], "443/tcp": [{"HostPort": os.environ["HTTPS_PORT"]}], "443/udp": [{"HostPort": os.environ["HTTP3_PORT"]}]}}} for service in ("php", "browser")]
+elif "run" in args and "--check-reuse" in args:
+    sys.exit(1 if os.environ.get("MOCK_REUSE_FAIL") == "1" else 0)
 elif "exec" in args:
-    if args[-1] == "verify":
+    if args[-1] == "inspect":
+        print("node-ready")
+    elif args[-1] == "fingerprint":
+        print("composer-ready")
+    elif args[-1] == "verify":
         if not state["node"]: sys.exit(1)
         print("node-ready")
     elif args[-1] == "record":
@@ -151,6 +157,8 @@ statefile.write_text(json.dumps(state))
         self.docker.chmod(0o755)
         self.env = {key: value for key, value in os.environ.items() if key not in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy", "PROXY_PASSTHROUGH", "COMPOSER_CACHE_DIR", "WORKTREE_GIT", "FLOWBITE_PROJECT", "HTTP_PORT", "HTTPS_PORT", "HTTP3_PORT", "DOCKER_HOST", "DOCKER_CONTEXT", "PUID", "PGID", "PHPUNIT_PROJECT", "PHPUNIT_CONFIGURATION", "PHPSTAN_PROJECT", "PHPSTAN_WORKSPACE", "PHPSTAN_CONFIGURATION", "PHPSTAN_AUTOLOAD_FILE", "PHPSTAN_PATHS", "COVERAGE_DRIVER", "COVERAGE_SOURCE", "COVERAGE_CLOVER")}
         self.env.update(PATH=str(self.directory) + os.pathsep + os.environ["PATH"], WORKSPACE=str(self.workspace), IMAGE="fixture:test", COMMANDS=str(self.commands), MOCK_STATE=str(self.directory / "state.json"), XDG_CACHE_HOME=str(self.directory / "cache"))
+        self.env.pop("XORDER_REUSE_ONLY", None)
+        self.env.pop("COMPOSER_INSTALL_PREFERENCE", None)
         # Keep kernel-allocated TCP/UDP sockets reserved for this mocked profile.
         # The Docker mock reports those reservations as project-owned ports, so
         # unrelated local services cannot make orchestration fixtures flaky.
@@ -361,6 +369,46 @@ statefile.write_text(json.dumps(state))
         self.assertFalse(any(call["args"][-2:] == ["npm", "ci"] or "cache:warmup" in call["args"] for call in self.calls))
         self.assertTrue(any("curl" in call["args"] for call in self.calls))
 
+    def test_source_install_is_rejected_before_docker_and_cleanup_remains_available(self):
+        result = self.run_profile("up", COMPOSER_INSTALL_PREFERENCE="source")
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("dist only", result.stderr)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.run_profile("down", COMPOSER_INSTALL_PREFERENCE="source").returncode, 0)
+
+    def test_reuse_only_checks_before_start_and_protects_dependency_mounts(self):
+        for path in ("demo/vendor", "node_modules", "demo/assets/vendor"):
+            (self.workspace / path).mkdir(parents=True)
+        (self.workspace / "demo/importmap.php").write_text("<?php return [];\n")
+        result = self.run_profile("up", "--reuse-only", COMPOSER_INSTALL_PREFERENCE="source")
+        self.assertEqual(result.returncode, 0)
+        check = next(i for i, call in enumerate(self.calls) if "--check-reuse" in call["args"])
+        start = next(i for i, call in enumerate(self.calls) if "up" in call["args"])
+        self.assertLess(check, start)
+        self.assertEqual(self.calls[check]["args"][-2:], ["--entrypoint", "--check-reuse"])
+        mounts = self.calls[check]["overlay"]["services"]["php"]["volumes"]
+        self.assertEqual({m["target"] for m in mounts}, {"/app/demo/vendor", "/app/node_modules", "/app/demo/assets/vendor"})
+        self.assertTrue(all(m["read_only"] and not m["bind"]["create_host_path"] for m in mounts))
+        self.assertTrue(all(c["env"]["XORDER_REUSE_ONLY"] == "1" for c in self.calls))
+        self.assertFalse(any(c["args"][-2:] == ["npm", "ci"] or c["args"][-1] == "record" for c in self.calls))
+        self.assertFalse((self.directory / "cache/xorder/dependencies").exists())
+        self.commands.unlink()
+        result = self.run_profile("up", "--reuse-only", MOCK_REUSE_FAIL="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(any("up" in c["args"] or "--prepare" in c["args"] for c in self.calls))
+
+    def test_reuse_only_reports_missing_directories_and_rejects_host_escape(self):
+        result = self.run_profile("up", "--reuse-only")
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("demo/vendor, node_modules", result.stderr)
+        (self.workspace / "demo/vendor").symlink_to(self.directory, target_is_directory=True)
+        result = self.run_profile("up", XORDER_REUSE_ONLY="1")
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("inside the mounted workspace", result.stderr)
+        # Recovery must work even when a session-wide reuse flag is inherited
+        # and the dependency tree has been removed or redirected.
+        self.assertEqual(self.run_profile("down", XORDER_REUSE_ONLY="1").returncode, 0)
+
     def test_source_or_configuration_change_invalidates_setup_receipt(self):
         self.assertEqual(self.run_profile("up").returncode, 0)
         (self.workspace / "demo/config.yaml").write_text("changed: true\n")
@@ -486,8 +534,36 @@ statefile.write_text(json.dumps(state))
         self.assertEqual(command[command.index("-w") + 1], "/app")
 
 
+class NodeReuseTests(unittest.TestCase):
+    def test_inspection_adopts_without_markers_but_rejects_manifest_and_package_drift(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            package = root / "node_modules/probe/package.json"
+            package.parent.mkdir(parents=True)
+            project = {"devDependencies": {"probe": "1.0.0"}}
+            (root / "package.json").write_text(json.dumps(project))
+            (root / "package-lock.json").write_text(json.dumps({"packages": {"": project, "node_modules/probe": {"version": "1.0.0"}}}))
+            (root / "node_modules/.package-lock.json").write_text(json.dumps({"packages": {"node_modules/probe": {"version": "1.0.0"}}}))
+            package.write_text('{"version":"1.0.0"}')
+            before = {p.relative_to(root): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            command = ["node", str(ROOT / "examples/flowbite-xor/node-state.cjs"), "inspect"]
+            result = subprocess.run(command, cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertRegex(result.stdout.strip(), r"^[a-f0-9]{64}$")
+            self.assertEqual(before, {p.relative_to(root): p.read_bytes() for p in root.rglob("*") if p.is_file()})
+            package.write_text('{"version":"2.0.0"}')
+            result = subprocess.run(command, cwd=root, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("package differs", result.stderr)
+            package.write_text('{"version":"1.0.0"}')
+            (root / "package.json").write_text('{"devDependencies":{"probe":"2.0.0"}}')
+            result = subprocess.run(command, cwd=root, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("package-lock.json differ", result.stderr)
+
+
 class StartupBootstrapTests(unittest.TestCase):
-    def run_startup(self, mode="--application", build_failure=False, assets_missing=False, asset_failure=False, composer_reused=False):
+    def run_startup(self, mode="--application", build_failure=False, assets_missing=False, asset_failure=False, composer_reused=False, reuse_only=False, source=False, composer_missing=False):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             profile, demo = root / "profile", root / "app/demo"
@@ -499,8 +575,9 @@ class StartupBootstrapTests(unittest.TestCase):
                 (demo / "var/xorder/composer-ready").write_text("composer-ready\n")
             # Remap only the container's fixed filesystem prefix for this
             # executable bootstrap test; preserve its actual shell control flow.
-            source = (ROOT / "examples/flowbite-xor/startup.sh").read_text()
-            (profile / "startup.sh").write_text(source.replace("/app/", str(root / "app") + "/"))
+            startup_source = (ROOT / "examples/flowbite-xor/startup.sh").read_text()
+            (profile / "startup.sh").write_text(startup_source.replace("/app/", str(root / "app") + "/"))
+            (profile / "reuse.sh").write_text((ROOT / "examples/flowbite-xor/reuse.sh").read_text().replace("/app", str(root / "app")))
             (profile / "verify-composer.php").write_text("fixture")
             (profile / "cache.py").write_text((ROOT / "examples/flowbite-xor/cache.py").read_text())
             server = demo / "frankenphp/docker-entrypoint.sh"
@@ -517,6 +594,8 @@ with open(os.environ["STARTUP_COMMANDS"], "a") as log:
     log.write("php " + " ".join(args) + "\\n")
 if args[-1] == "fingerprint":
     print("composer-ready")
+if args[-1] == "verify" and args[0].endswith("verify-composer.php") and os.environ.get("COMPOSER_MISSING") == "1":
+    sys.exit(1)
 if args[-1] == "verify" and args[0].endswith("importmap-state.php") and os.environ.get("ASSETS_MISSING") == "1":
     sys.exit(1)
 if "importmap:install" in args and os.environ.get("ASSET_FAILURE") == "1":
@@ -528,16 +607,18 @@ if "tailwind:build" in args:
     path.write_text("compiled-css")
 ''')
             executable.chmod(0o755)
-            for command in ("composer", "flowbite-prime-tailwind"):
+            for command in ("composer", "flowbite-prime-tailwind", "node"):
                 path = root / command
                 path.write_text('#!/bin/sh\nprintf "%s\\n" "' + command + ' $*" >> "$STARTUP_COMMANDS"\n')
                 path.chmod(0o755)
             result = subprocess.run(["bash", str(profile / "startup.sh"), mode, "frankenphp", "run"],
                                     env=dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
                                              STARTUP_COMMANDS=str(commands), BUILD_FAILURE=str(int(build_failure)),
-                                             ASSETS_MISSING=str(int(assets_missing)), ASSET_FAILURE=str(int(asset_failure))),
+                                             ASSETS_MISSING=str(int(assets_missing)), ASSET_FAILURE=str(int(asset_failure)),
+                                             XORDER_REUSE_ONLY=str(int(reuse_only)), COMPOSER_MISSING=str(int(composer_missing)),
+                                             COMPOSER_INSTALL_PREFERENCE="source" if source else "dist"),
                                     capture_output=True, text=True)
-            return result, commands.read_text().splitlines()
+            return result, commands.read_text().splitlines() if commands.exists() else []
 
     def test_application_compiles_css_after_priming_before_server(self):
         result, commands = self.run_startup()
@@ -573,3 +654,28 @@ if "tailwind:build" in args:
         result, commands = self.run_startup(assets_missing=True, asset_failure=True, composer_reused=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(any("importmap-state.php record" in command or command.startswith("server ") for command in commands))
+
+    def test_reuse_only_adopts_without_dependency_writes_or_setup_hooks(self):
+        result, commands = self.run_startup(reuse_only=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("readiness marker is missing", result.stderr)
+        self.assertIn("adopted verified", result.stdout)
+        self.assertTrue(any(command.startswith("server ") for command in commands))
+        self.assertFalse(any(token in command for command in commands for token in
+                             ("sync-demo", "dump-autoload", "run-script", "composer install", "importmap:install", "importmap-state.php restore", "importmap-state.php record")))
+
+    def test_reuse_only_reports_all_dependency_gaps_without_repair_or_server(self):
+        result, commands = self.run_startup(reuse_only=True, composer_missing=True, assets_missing=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(any("verify-composer.php verify" in command for command in commands))
+        self.assertTrue(any("importmap-state.php verify" in command for command in commands))
+        self.assertIn("Shared dependencies were not repaired", result.stderr)
+        self.assertFalse(any("install" in command or command.startswith("server ") for command in commands))
+
+    def test_source_preference_cannot_bypass_startup_and_reuse_check_skips_build(self):
+        result, commands = self.run_startup(source=True)
+        self.assertEqual(result.returncode, 64)
+        self.assertEqual(commands, [])
+        result, commands = self.run_startup(mode="--check-reuse", source=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any("tailwind" in command or command.startswith("server ") for command in commands))
